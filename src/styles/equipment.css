@@ -1,0 +1,281 @@
+/* Equipment Panel Base */
+.equipment-panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.equipment-panel:hover {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.equipment-panel.selected {
+  box-shadow: 0 0 0 2px var(--accent-blue), 0 0 20px rgba(5, 89, 201, 0.3);
+}
+
+.equipment-panel .panel-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.equipment-panel .panel-brand {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-left: 8px;
+  z-index: 1;
+}
+
+/* LED indicator */
+.panel-led {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+  z-index: 1;
+  box-shadow: 0 0 6px currentColor;
+}
+
+/* Port indicators */
+.panel-ports {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+.panel-port {
+  width: 8px;
+  height: 10px;
+  background: #0a0a0a;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
+}
+
+.panel-port.active {
+  background: #0a2a0a;
+  border-color: rgba(0, 200, 83, 0.4);
+}
+
+/* SFP ports (larger) */
+.panel-port.sfp {
+  width: 12px;
+  height: 10px;
+  margin-left: 4px;
+}
+
+/* HDD bays */
+.panel-hdd-bays {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  z-index: 1;
+}
+
+.panel-hdd-bay {
+  width: 16px;
+  height: 28px;
+  background: #080808;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* Channel indicators for amps */
+.panel-channels {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  z-index: 1;
+  flex-wrap: wrap;
+  max-width: 200px;
+  justify-content: flex-end;
+}
+
+.panel-channel {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-channel.active {
+  border-color: rgba(0, 200, 83, 0.5);
+  background: rgba(0, 200, 83, 0.15);
+}
+
+/* Sonos amp cutouts */
+.panel-sonos-amps {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  z-index: 1;
+}
+
+.panel-sonos-amp-unit {
+  width: 80px;
+  height: 32px;
+  background: #111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-sonos-amp-unit span {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* Outlets for PDU/UPS */
+.panel-outlets {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  z-index: 1;
+}
+
+.panel-outlet {
+  width: 14px;
+  height: 16px;
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  position: relative;
+}
+
+.panel-outlet::before,
+.panel-outlet::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+  top: 5px;
+}
+
+.panel-outlet::before { left: 3px; }
+.panel-outlet::after { right: 3px; }
+
+/* LCD display for UPS */
+.panel-lcd {
+  width: 60px;
+  height: 24px;
+  background: #001a00;
+  border: 1px solid rgba(0, 200, 83, 0.3);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 16px;
+  z-index: 1;
+}
+
+.panel-lcd span {
+  font-size: 9px;
+  font-family: monospace;
+  color: var(--accent-green);
+}
+
+/* Brush panel */
+.panel-brush {
+  width: 100%;
+  height: 60%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(100, 100, 100, 0.3) 0px,
+    rgba(100, 100, 100, 0.1) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  position: absolute;
+  left: 0;
+  top: 20%;
+  z-index: 0;
+}
+
+/* Vent panel */
+.panel-vents {
+  width: 100%;
+  height: 70%;
+  position: absolute;
+  left: 0;
+  top: 15%;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 6px,
+    rgba(0, 0, 0, 0.6) 6px,
+    rgba(0, 0, 0, 0.6) 8px
+  );
+}
+
+/* Perforated shelf */
+.panel-perf {
+  width: 100%;
+  height: 70%;
+  position: absolute;
+  left: 0;
+  top: 15%;
+  z-index: 0;
+  background:
+    radial-gradient(circle, rgba(0, 0, 0, 0.5) 1.5px, transparent 1.5px);
+  background-size: 8px 8px;
+}
+
+/* Patch panel keystone ports */
+.panel-keystones {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  z-index: 1;
+  flex-wrap: nowrap;
+}
+
+.panel-keystone {
+  width: 10px;
+  height: 14px;
+  background: #0a0a0a;
+  border: 0.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1px;
+}
+
+/* Delete hint */
+.delete-hint {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  font-size: 9px;
+  color: var(--danger);
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.equipment-panel.selected .delete-hint {
+  opacity: 1;
+}
+
+/* Multi-RU equipment panels need more height */
+.rack-slot.occupied {
+  z-index: 1;
+}

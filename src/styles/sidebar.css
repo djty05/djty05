@@ -1,0 +1,141 @@
+.sidebar {
+  width: 280px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-title {
+  padding: 16px 16px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.brand-tabs {
+  display: flex;
+  padding: 0 12px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.brand-tab {
+  flex: 1;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.brand-tab:hover {
+  color: var(--text-primary);
+}
+
+.brand-tab.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
+
+.brand-tab[data-brand="control4"].active {
+  color: var(--accent-green);
+  border-bottom-color: var(--accent-green);
+}
+
+.brand-tab[data-brand="sonos"].active {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.brand-tab[data-brand="generic"].active {
+  color: #888;
+  border-bottom-color: #888;
+}
+
+.equipment-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.equipment-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.equipment-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.equipment-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
+}
+
+.equipment-card {
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.equipment-card:hover {
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 89, 201, 0.15);
+}
+
+.equipment-card:active {
+  cursor: grabbing;
+  transform: translateY(0);
+}
+
+.equipment-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.equipment-card-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.equipment-card-ru {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.equipment-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.equipment-card-preview {
+  margin-top: 8px;
+  height: 6px;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
