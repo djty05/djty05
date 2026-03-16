@@ -1,0 +1,418 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors */
+  --color-brand-50: oklch(0.97 0.01 250);
+  --color-brand-100: oklch(0.93 0.03 250);
+  --color-brand-200: oklch(0.87 0.06 250);
+  --color-brand-300: oklch(0.78 0.1 250);
+  --color-brand-400: oklch(0.68 0.15 250);
+  --color-brand-500: oklch(0.55 0.2 250);
+  --color-brand-600: oklch(0.48 0.2 250);
+  --color-brand-700: oklch(0.42 0.18 250);
+  --color-brand-800: oklch(0.35 0.15 250);
+  --color-brand-900: oklch(0.28 0.1 250);
+
+  /* Sidebar */
+  --color-sidebar-bg: oklch(0.15 0.01 250);
+  --color-sidebar-hover: oklch(0.22 0.02 250);
+  --color-sidebar-active: oklch(0.35 0.12 250);
+  --color-sidebar-text: oklch(0.75 0.01 250);
+  --color-sidebar-text-active: oklch(0.97 0.01 250);
+  --color-sidebar-border: oklch(0.25 0.02 250);
+
+  /* Surface Colors */
+  --color-surface-primary: oklch(1 0 0);
+  --color-surface-secondary: oklch(0.98 0.002 250);
+  --color-surface-tertiary: oklch(0.96 0.003 250);
+
+  /* Content area */
+  --color-content-bg: oklch(0.965 0.003 250);
+
+  /* Semantic */
+  --color-success-50: oklch(0.96 0.04 150);
+  --color-success-500: oklch(0.55 0.18 150);
+  --color-success-700: oklch(0.42 0.14 150);
+
+  --color-warning-50: oklch(0.97 0.04 85);
+  --color-warning-500: oklch(0.7 0.16 70);
+  --color-warning-700: oklch(0.55 0.14 55);
+
+  --color-danger-50: oklch(0.97 0.02 25);
+  --color-danger-500: oklch(0.55 0.2 25);
+  --color-danger-700: oklch(0.45 0.18 25);
+
+  --color-info-50: oklch(0.96 0.02 240);
+  --color-info-500: oklch(0.55 0.18 240);
+  --color-info-700: oklch(0.42 0.16 240);
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
+  --shadow-card-hover: 0 4px 12px oklch(0 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.04);
+  --shadow-dropdown: 0 10px 25px oklch(0 0 0 / 0.1), 0 4px 10px oklch(0 0 0 / 0.05);
+
+  /* Animations */
+  --animate-sidebar: sidebar-expand 0.2s ease-out;
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-slide-down: slide-down 0.15s ease-out;
+
+  @keyframes sidebar-expand {
+    from { width: 4rem; }
+    to { width: 16rem; }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.7 0 0) transparent;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-content-bg);
+  color: oklch(0.25 0.01 250);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================================
+   Status Badges
+   ============================================================ */
+
+@utility badge-base {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+@utility badge-draft {
+  @apply badge-base;
+  background-color: oklch(0.95 0.005 250);
+  color: oklch(0.4 0.01 250);
+  border: 1px solid oklch(0.88 0.005 250);
+}
+
+@utility badge-scheduled {
+  @apply badge-base;
+  background-color: var(--color-info-50);
+  color: var(--color-info-700);
+  border: 1px solid oklch(0.88 0.06 240);
+}
+
+@utility badge-in-progress {
+  @apply badge-base;
+  background-color: var(--color-warning-50);
+  color: var(--color-warning-700);
+  border: 1px solid oklch(0.9 0.06 85);
+}
+
+@utility badge-completed {
+  @apply badge-base;
+  background-color: var(--color-success-50);
+  color: var(--color-success-700);
+  border: 1px solid oklch(0.88 0.06 150);
+}
+
+@utility badge-cancelled {
+  @apply badge-base;
+  background-color: var(--color-danger-50);
+  color: var(--color-danger-700);
+  border: 1px solid oklch(0.9 0.06 25);
+}
+
+@utility badge-pending {
+  @apply badge-base;
+  background-color: oklch(0.96 0.03 300);
+  color: oklch(0.45 0.15 300);
+  border: 1px solid oklch(0.9 0.06 300);
+}
+
+@utility badge-approved {
+  @apply badge-base;
+  background-color: oklch(0.95 0.04 170);
+  color: oklch(0.4 0.1 170);
+  border: 1px solid oklch(0.88 0.06 170);
+}
+
+@utility badge-overdue {
+  @apply badge-base;
+  background-color: oklch(0.95 0.04 30);
+  color: oklch(0.45 0.18 15);
+  border: 1px solid oklch(0.88 0.08 30);
+}
+
+/* ============================================================
+   Card Styles
+   ============================================================ */
+
+@utility card {
+  background-color: var(--color-surface-primary);
+  border: 1px solid oklch(0.92 0.003 250);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+@utility card-hover {
+  @apply card;
+  &:hover {
+    box-shadow: var(--shadow-card-hover);
+    border-color: oklch(0.85 0.01 250);
+  }
+}
+
+@utility card-interactive {
+  @apply card-hover;
+  cursor: pointer;
+  &:active {
+    transform: scale(0.995);
+  }
+}
+
+@utility card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid oklch(0.94 0.003 250);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@utility card-body {
+  padding: 1.5rem;
+}
+
+@utility card-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid oklch(0.94 0.003 250);
+  background-color: var(--color-surface-secondary);
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* ============================================================
+   Form Inputs
+   ============================================================ */
+
+@utility input-field {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  color: oklch(0.2 0.01 250);
+  background-color: var(--color-surface-primary);
+  border: 1px solid oklch(0.85 0.005 250);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder {
+    color: oklch(0.6 0.005 250);
+  }
+
+  &:hover {
+    border-color: oklch(0.75 0.01 250);
+  }
+
+  &:focus {
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px oklch(0.55 0.2 250 / 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: var(--color-surface-secondary);
+  }
+}
+
+@utility input-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: oklch(0.35 0.01 250);
+  margin-bottom: 0.375rem;
+}
+
+@utility input-error {
+  @apply input-field;
+  border-color: var(--color-danger-500);
+  &:focus {
+    border-color: var(--color-danger-500);
+    box-shadow: 0 0 0 3px oklch(0.55 0.2 25 / 0.12);
+  }
+}
+
+@utility input-hint {
+  font-size: 0.75rem;
+  color: oklch(0.55 0.005 250);
+  margin-top: 0.25rem;
+}
+
+@utility input-error-message {
+  font-size: 0.75rem;
+  color: var(--color-danger-500);
+  margin-top: 0.25rem;
+}
+
+@utility select-field {
+  @apply input-field;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%236b7280'%3e%3cpath fill-rule='evenodd' d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z' clip-rule='evenodd'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  padding-right: 2.25rem;
+}
+
+@utility textarea-field {
+  @apply input-field;
+  min-height: 5rem;
+  resize: vertical;
+}
+
+/* ============================================================
+   Button Styles
+   ============================================================ */
+
+@utility btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
+@utility btn-primary {
+  @apply btn-base;
+  background-color: var(--color-brand-600);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-brand-700);
+  }
+
+  &:active:not(:disabled) {
+    background-color: var(--color-brand-800);
+  }
+}
+
+@utility btn-secondary {
+  @apply btn-base;
+  background-color: var(--color-surface-primary);
+  color: oklch(0.35 0.01 250);
+  border-color: oklch(0.85 0.005 250);
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-surface-secondary);
+    border-color: oklch(0.78 0.01 250);
+  }
+}
+
+@utility btn-danger {
+  @apply btn-base;
+  background-color: var(--color-danger-500);
+  color: white;
+
+  &:hover:not(:disabled) {
+    background-color: var(--color-danger-700);
+  }
+}
+
+@utility btn-ghost {
+  @apply btn-base;
+  background-color: transparent;
+  color: oklch(0.45 0.01 250);
+
+  &:hover:not(:disabled) {
+    background-color: oklch(0.95 0.003 250);
+    color: oklch(0.25 0.01 250);
+  }
+}
+
+/* ============================================================
+   Table Styles
+   ============================================================ */
+
+@utility table-container {
+  overflow-x: auto;
+  border: 1px solid oklch(0.92 0.003 250);
+  border-radius: 0.75rem;
+  background-color: var(--color-surface-primary);
+}
+
+@utility table-base {
+  width: 100%;
+  font-size: 0.875rem;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+@utility table-head {
+  background-color: var(--color-surface-secondary);
+  border-bottom: 1px solid oklch(0.92 0.003 250);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: oklch(0.5 0.005 250);
+}
+
+@utility table-row {
+  border-bottom: 1px solid oklch(0.95 0.003 250);
+  transition: background-color 0.1s ease;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background-color: oklch(0.98 0.003 250);
+  }
+}
