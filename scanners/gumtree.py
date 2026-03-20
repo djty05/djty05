@@ -1,12 +1,10 @@
-"""Gumtree Australia scanner - uses curl_cffi to bypass CloudFlare."""
+"""Gumtree Australia scanner - uses Playwright to bypass CloudFlare."""
 
 import json
 import logging
 import time
-from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
-from curl_cffi import requests as cf_requests
 
 from .base import BaseScanner, Listing
 
@@ -17,78 +15,93 @@ class GumtreeScanner(BaseScanner):
     name = "Gumtree AU"
     base_url = "https://www.gumtree.com.au"
 
-    def _init_cf_session(self):
-        """Create a curl_cffi session that impersonates Chrome's TLS fingerprint."""
-        self._cf = cf_requests.Session(impersonate="chrome124")
-        # Warm up: visit homepage to get cookies
-        try:
-            self._cf.get(self.base_url, timeout=15)
-            time.sleep(1)
-        except Exception as e:
-            logger.debug(f"[{self.name}] Homepage warmup failed: {e}")
-
-    def _cf_get(self, url: str, retries: int = 3, delay: float = 2.0):
-        """GET with curl_cffi session (bypasses TLS fingerprinting)."""
-        for attempt in range(retries):
-            try:
-                time.sleep(delay)
-                resp = self._cf.get(url, timeout=15, allow_redirects=True)
-                if resp.status_code == 200:
-                    return resp
-                elif resp.status_code == 429:
-                    wait = delay * (2 ** attempt)
-                    logger.warning(f"[{self.name}] Rate limited, waiting {wait}s")
-                    time.sleep(wait)
-                else:
-                    logger.warning(f"[{self.name}] HTTP {resp.status_code} for {url}")
-                    return None
-            except Exception as e:
-                logger.warning(f"[{self.name}] Request error: {e}")
-                if attempt < retries - 1:
-                    time.sleep(delay * (2 ** attempt))
-        return None
-
     def scan(self) -> list[Listing]:
-        self._init_cf_session()
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            logger.error(f"[{self.name}] playwright not installed. Run: pip install playwright && playwright install chromium")
+            return []
+
         listings = []
-        for term in self.search_terms:
-            try:
-                found = self._search(term)
-                listings.extend(found)
-                time.sleep(2)
-            except Exception as e:
-                logger.error(f"[{self.name}] Error searching '{term}': {e}")
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    locale="en-AU",
+                    timezone_id="Australia/Sydney",
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = context.new_page()
+
+                # Visit homepage first to pass CF challenge
+                logger.info(f"[{self.name}] Warming up browser...")
+                page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(3000)  # let CF JS challenge resolve
+
+                for term in self.search_terms:
+                    try:
+                        found = self._search_with_page(page, term)
+                        listings.extend(found)
+                        # Polite delay
+                        page.wait_for_timeout(2000)
+                    except Exception as e:
+                        logger.error(f"[{self.name}] Error searching '{term}': {e}")
+
+                browser.close()
+        except Exception as e:
+            logger.error(f"[{self.name}] Browser error: {e}")
+
         return listings
 
-    def _search(self, term: str) -> list[Listing]:
-        """Search Gumtree for a single term (all of Australia)."""
+    def _search_with_page(self, page, term: str) -> list[Listing]:
+        """Search using the browser page."""
+        from urllib.parse import quote_plus
+
         encoded = quote_plus(term)
         url = f"{self.base_url}/s-{encoded}/k0"
 
-        resp = self._cf_get(url)
-        if not resp:
-            url = f"{self.base_url}/s/k0?q={encoded}&sort=date"
-            resp = self._cf_get(url)
-        if not resp:
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+            page.wait_for_timeout(2000)  # let page render
+        except Exception as e:
+            logger.warning(f"[{self.name}] Navigation error for '{term}': {e}")
             return []
 
-        # Try JSON extraction first, fall back to HTML
-        results = self._parse_json_ld(resp.text, term)
+        html = page.content()
+
+        # Check if we got blocked
+        if "Access Denied" in html or "Just a moment" in html:
+            logger.warning(f"[{self.name}] CF challenge detected for '{term}', waiting...")
+            page.wait_for_timeout(5000)
+            html = page.content()
+            if "Access Denied" in html or "Just a moment" in html:
+                logger.warning(f"[{self.name}] Still blocked for '{term}'")
+                return []
+
+        # Try JSON extraction first
+        results = self._parse_json(html, term)
         if results:
             return results
-        return self._parse_html(resp.text, term)
 
-    def _parse_json_ld(self, html: str, term: str) -> list[Listing]:
+        # Fall back to HTML
+        return self._parse_html(html, term)
+
+    def _parse_json(self, html: str, term: str) -> list[Listing]:
         """Extract listings from embedded JSON data."""
         soup = BeautifulSoup(html, "lxml")
         results = []
 
-        # Next.js data blob
+        # Next.js data
         script = soup.select_one("script#__NEXT_DATA__")
         if script and script.string:
             try:
                 data = json.loads(script.string)
-                ads = self._extract_ads_from_next_data(data)
+                ads = self._extract_ads(data)
                 for ad in ads:
                     results.append(Listing(
                         title=ad.get("title", "No title"),
@@ -100,25 +113,29 @@ class GumtreeScanner(BaseScanner):
                         image_url=ad.get("image", ""),
                     ))
                 if results:
-                    logger.info(f"[{self.name}] Found {len(results)} results for '{term}' via JSON")
+                    logger.info(f"[{self.name}] Found {len(results)} for '{term}' via JSON")
                     return results
             except (json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"[{self.name}] JSON parse error: {e}")
 
-        # JSON-LD schema
+        # JSON-LD
         for script in soup.select('script[type="application/ld+json"]'):
             try:
                 data = json.loads(script.string)
                 if isinstance(data, dict) and data.get("@type") == "ItemList":
                     for item in data.get("itemListElement", []):
                         obj = item.get("item", item)
-                        url = obj.get("url", "")
-                        if url and not url.startswith("http"):
-                            url = f"{self.base_url}{url}"
+                        item_url = obj.get("url", "")
+                        if item_url and not item_url.startswith("http"):
+                            item_url = f"{self.base_url}{item_url}"
+                        offers = obj.get("offers", {})
+                        price = "No price"
+                        if isinstance(offers, dict) and offers.get("price"):
+                            price = f"${offers['price']} {offers.get('priceCurrency', 'AUD')}"
                         results.append(Listing(
                             title=obj.get("name", "No title"),
-                            price=self._extract_price(obj),
-                            url=url,
+                            price=price,
+                            url=item_url,
                             location="Australia",
                             marketplace=self.name,
                         ))
@@ -126,46 +143,47 @@ class GumtreeScanner(BaseScanner):
                 continue
 
         if results:
-            logger.info(f"[{self.name}] Found {len(results)} results for '{term}' via JSON-LD")
+            logger.info(f"[{self.name}] Found {len(results)} for '{term}' via JSON-LD")
         return results
 
-    def _extract_ads_from_next_data(self, data: dict) -> list[dict]:
-        """Navigate __NEXT_DATA__ to find ad listings."""
+    def _extract_ads(self, data: dict) -> list[dict]:
+        """Navigate __NEXT_DATA__ to find ads."""
         ads = []
         try:
             props = data.get("props", {}).get("pageProps", {})
             for key in ("searchResult", "results", "ads", "data"):
-                if key in props:
-                    container = props[key]
-                    items = []
-                    if isinstance(container, dict):
-                        items = container.get("results", container.get("ads", []))
-                    elif isinstance(container, list):
-                        items = container
+                if key not in props:
+                    continue
+                container = props[key]
+                items = []
+                if isinstance(container, dict):
+                    items = container.get("results", container.get("ads", []))
+                elif isinstance(container, list):
+                    items = container
 
-                    for item in items:
-                        ad = {
-                            "title": item.get("title", item.get("adTitle", "")),
-                            "price": item.get("priceText", item.get("price", {}).get("display", "No price")),
-                            "location": item.get("locationName", item.get("location", {}).get("name", "Australia")),
-                            "description": item.get("description", ""),
-                            "image": "",
-                        }
-                        slug = item.get("url", item.get("seoUrl", ""))
-                        ad_id = item.get("id", item.get("adId", ""))
-                        if slug:
-                            ad["url"] = f"{self.base_url}{slug}" if not slug.startswith("http") else slug
-                        elif ad_id:
-                            ad["url"] = f"{self.base_url}/s-ad/{ad_id}"
-                        images = item.get("images", item.get("mainImage", []))
-                        if isinstance(images, list) and images:
-                            ad["image"] = images[0].get("url", "") if isinstance(images[0], dict) else str(images[0])
-                        elif isinstance(images, str):
-                            ad["image"] = images
-                        if ad["title"]:
-                            ads.append(ad)
+                for item in items:
+                    ad = {
+                        "title": item.get("title", item.get("adTitle", "")),
+                        "price": item.get("priceText", item.get("price", {}).get("display", "No price")),
+                        "location": item.get("locationName", item.get("location", {}).get("name", "Australia")),
+                        "description": item.get("description", ""),
+                        "image": "",
+                    }
+                    slug = item.get("url", item.get("seoUrl", ""))
+                    ad_id = item.get("id", item.get("adId", ""))
+                    if slug:
+                        ad["url"] = f"{self.base_url}{slug}" if not slug.startswith("http") else slug
+                    elif ad_id:
+                        ad["url"] = f"{self.base_url}/s-ad/{ad_id}"
+                    images = item.get("images", item.get("mainImage", []))
+                    if isinstance(images, list) and images:
+                        ad["image"] = images[0].get("url", "") if isinstance(images[0], dict) else str(images[0])
+                    elif isinstance(images, str):
+                        ad["image"] = images
+                    if ad["title"]:
+                        ads.append(ad)
         except Exception as e:
-            logger.debug(f"[{self.name}] Error extracting NEXT_DATA: {e}")
+            logger.debug(f"[{self.name}] NEXT_DATA extract error: {e}")
         return ads
 
     def _parse_html(self, html: str, term: str) -> list[Listing]:
@@ -230,14 +248,5 @@ class GumtreeScanner(BaseScanner):
                 continue
 
         if results:
-            logger.info(f"[{self.name}] Found {len(results)} results for '{term}' via HTML")
+            logger.info(f"[{self.name}] Found {len(results)} for '{term}' via HTML")
         return results
-
-    def _extract_price(self, obj: dict) -> str:
-        offers = obj.get("offers", {})
-        if isinstance(offers, dict):
-            price = offers.get("price", "")
-            currency = offers.get("priceCurrency", "AUD")
-            if price:
-                return f"${price} {currency}"
-        return "No price"
