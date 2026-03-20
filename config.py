@@ -6,12 +6,31 @@ import os
 DEFAULT_CONFIG = {
     "scan_interval_minutes": 5,
     "search_terms": [
+        # Primary target
+        "fluke 1674",
+        "fluke 1674 multifunction",
+        "fluke 1664",
+        "fluke 1663",
+        "fluke 1662",
+        # Slang / common descriptions
+        "jellybean tester",
+        "yellow tester",
+        "yellow meter",
+        "yellow multimeter",
+        "electrical fluke",
+        "electrical tester fluke",
+        "multifunction tester",
+        "multifunction installation tester",
+        "loop impedance tester",
+        "rcd tester",
+        "insulation tester fluke",
+        # General fluke terms
         "fluke tester",
         "fluke multimeter",
         "fluke meter",
+        # Other common fluke models (may be sold alongside)
         "fluke 117",
         "fluke 115",
-        "fluke 116",
         "fluke 175",
         "fluke 177",
         "fluke 179",
@@ -25,9 +44,7 @@ DEFAULT_CONFIG = {
         "fluke t6",
         "fluke 1587",
         "fluke 1577",
-        "fluke insulation tester",
         "fluke clamp meter",
-        "fluke network tester",
         "fluke cable tester",
     ],
     "enabled_scanners": [
