@@ -5,4 +5,5 @@ schedule>=1.2.0
 rich>=13.0.0
 python-dotenv>=1.0.0
 fake-useragent>=1.4.0
+curl_cffi>=0.7.0
 pushbullet.py>=0.12.0
