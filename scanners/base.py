@@ -124,17 +124,35 @@ class BaseScanner:
         for attempt in range(retries):
             try:
                 time.sleep(delay)  # rate limiting
-                resp = self.session.get(url, params=params, timeout=15)
+
+                # Add a contextual referer header
+                extra_headers = {}
+                if "google.com" in url:
+                    extra_headers["Referer"] = "https://www.google.com.au/"
+                elif "ebay.com" in url:
+                    extra_headers["Referer"] = "https://www.ebay.com.au/"
+
+                resp = self.session.get(
+                    url, params=params, timeout=15, headers=extra_headers,
+                    allow_redirects=True,
+                )
                 if resp.status_code == 200:
                     return resp
                 elif resp.status_code == 429:
                     wait = delay * (2 ** attempt)
                     logger.warning(f"[{self.name}] Rate limited, waiting {wait}s")
                     time.sleep(wait)
+                elif resp.status_code in (301, 302, 303, 307, 308):
+                    # Follow redirects (requests usually handles this, but log it)
+                    logger.debug(f"[{self.name}] Redirect {resp.status_code} for {url}")
+                    continue
                 else:
                     logger.warning(
                         f"[{self.name}] HTTP {resp.status_code} for {url}"
                     )
+                    if attempt < retries - 1:
+                        time.sleep(delay)
+                        continue
                     return None
             except requests.RequestException as e:
                 logger.warning(f"[{self.name}] Request error: {e}")

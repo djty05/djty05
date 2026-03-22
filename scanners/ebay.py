@@ -1,4 +1,8 @@
-"""eBay Australia scanner."""
+"""eBay Australia scanner.
+
+Supports both the legacy .s-item layout and the newer .s-card layout
+that eBay has been rolling out since late 2025.
+"""
 
 import logging
 from urllib.parse import quote_plus
@@ -29,7 +33,7 @@ class EbayAUScanner(BaseScanner):
         params = {
             "_nkw": term,
             "_sop": 10,       # newly listed
-            "LH_ItemCondition": "4",  # used items (more likely stolen goods resold)
+            "LH_ItemCondition": "4",  # used items
             "_ipg": 100,       # results per page
             "LH_PrefLoc": 1,   # items located in Australia
             "rt": "nc",
@@ -41,11 +45,69 @@ class EbayAUScanner(BaseScanner):
         soup = BeautifulSoup(resp.text, "lxml")
         results = []
 
-        for item in soup.select("li.s-item, div.s-item__wrapper"):
+        # Detect which layout eBay is serving
+        s_cards = soup.select("li.s-card")
+        s_items = soup.select("li.s-item, div.s-item__wrapper")
+
+        if s_cards:
+            results = self._parse_s_card(s_cards)
+        if s_items:
+            results.extend(self._parse_s_item(s_items))
+
+        logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
+        return results
+
+    def _parse_s_card(self, cards) -> list[Listing]:
+        """Parse the newer .s-card layout."""
+        results = []
+        for card in cards:
+            try:
+                title_el = card.select_one(
+                    "span.s-card__title, h3.s-card__title, "
+                    "div.s-card__title, h3"
+                )
+                price_el = card.select_one(
+                    "span.s-card__price, div.s-card__price"
+                )
+                loc_el = card.select_one(
+                    "span.s-card__location, div.s-card__location, "
+                    "span.s-card__subtitle"
+                )
+                link_el = card.select_one("a.su-link, a")
+
+                title = self._safe_text(title_el, "No title")
+                if title.lower() in ("shop on ebay", "no title", ""):
+                    continue
+
+                price = self._safe_text(price_el, "No price")
+                location = self._safe_text(loc_el, "Australia")
+                item_url = link_el.get("href", "") if link_el else ""
+
+                img_el = card.select_one("img.s-card__image, img")
+                image_url = img_el.get("src", "") if img_el else ""
+
+                if title and item_url:
+                    results.append(Listing(
+                        title=title,
+                        price=price,
+                        url=item_url,
+                        location=location,
+                        marketplace=self.name,
+                        image_url=image_url,
+                    ))
+            except Exception as e:
+                logger.debug(f"[{self.name}] s-card parse error: {e}")
+                continue
+        return results
+
+    def _parse_s_item(self, items) -> list[Listing]:
+        """Parse the legacy .s-item layout."""
+        results = []
+        for item in items:
             try:
                 title_el = item.select_one(
                     "div.s-item__title span, h3.s-item__title, "
-                    "span.s-item__title--has-tags"
+                    "span.s-item__title--has-tags, h3"
                 )
                 price_el = item.select_one(
                     "span.s-item__price, div.s-item__detail--primaryInfo"
@@ -53,31 +115,29 @@ class EbayAUScanner(BaseScanner):
                 loc_el = item.select_one(
                     "span.s-item__location, span.s-item__itemLocation"
                 )
-                link_el = item.select_one("a.s-item__link")
+                link_el = item.select_one("a.s-item__link, a")
 
                 title = self._safe_text(title_el, "No title")
-                if title.lower() in ("shop on ebay", "no title"):
+                if title.lower() in ("shop on ebay", "no title", ""):
                     continue
 
                 price = self._safe_text(price_el, "No price")
                 location = self._safe_text(loc_el, "Australia")
-                url = link_el.get("href", "") if link_el else ""
+                item_url = link_el.get("href", "") if link_el else ""
 
-                img_el = item.select_one("img.s-item__image-img")
+                img_el = item.select_one("img.s-item__image-img, img")
                 image_url = img_el.get("src", "") if img_el else ""
 
-                if title and url:
+                if title and item_url:
                     results.append(Listing(
                         title=title,
                         price=price,
-                        url=url,
+                        url=item_url,
                         location=location,
                         marketplace=self.name,
                         image_url=image_url,
                     ))
             except Exception as e:
-                logger.debug(f"[{self.name}] Parse error: {e}")
+                logger.debug(f"[{self.name}] s-item parse error: {e}")
                 continue
-
-        logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
         return results

@@ -63,7 +63,8 @@ class GumtreeScanner(BaseScanner):
         from urllib.parse import quote_plus
 
         encoded = quote_plus(term)
-        url = f"{self.base_url}/s-{encoded}/k0"
+        # Try the current Gumtree search URL pattern
+        url = f"{self.base_url}/s-{encoded}/k0?sort=date"
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)

@@ -58,7 +58,10 @@ class MercariScanner(BaseScanner):
             try:
                 link_el = result.select_one("a")
                 title_el = result.select_one("h3")
-                snippet_el = result.select_one("span.aCOpRe, div.VwiC3b, span.st")
+                snippet_el = result.select_one(
+                    "span.aCOpRe, div.VwiC3b, span.st, "
+                    "div[data-sncf], div.kb0PBd"
+                )
 
                 href = link_el.get("href", "") if link_el else ""
                 title = self._safe_text(title_el, "No title")
