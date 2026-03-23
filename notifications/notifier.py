@@ -18,6 +18,7 @@ class Notifier:
     def __init__(self):
         self.pushbullet_key = os.getenv("PUSHBULLET_API_KEY", "")
         self.discord_webhook = os.getenv("DISCORD_WEBHOOK_URL", "")
+        self.discord_user_id = os.getenv("DISCORD_USER_ID", "")
         self.smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
         self.smtp_port = int(os.getenv("SMTP_PORT", "587"))
         self.smtp_user = os.getenv("SMTP_USERNAME", "")
@@ -78,16 +79,21 @@ class Notifier:
         logger.info(f"Pushbullet notification sent: {title}")
 
     def _discord(self, title: str, body: str, url: str):
-        """Send Discord webhook notification."""
+        """Send Discord webhook notification with user ping."""
         embed = {
             "title": title,
             "description": body,
             "url": url,
             "color": 0xFF0000,  # Red for urgency
         }
+        # Mention the user so they get a ping
+        content = ""
+        if self.discord_user_id:
+            content = f"<@{self.discord_user_id}> New listing found!"
+
         resp = requests.post(
             self.discord_webhook,
-            json={"embeds": [embed]},
+            json={"content": content, "embeds": [embed]},
             timeout=10,
         )
         resp.raise_for_status()
