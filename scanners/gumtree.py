@@ -2,9 +2,9 @@
 
 import json
 import logging
-import time
 
 from bs4 import BeautifulSoup
+from urllib.parse import quote_plus
 
 from .base import BaseScanner, Listing
 
@@ -38,16 +38,26 @@ class GumtreeScanner(BaseScanner):
                 )
                 page = context.new_page()
 
-                # Visit homepage first to pass CF challenge
+                # Stealth: remove webdriver flag before any navigation
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    delete navigator.__proto__.webdriver;
+                """)
+
+                # Warm up: visit homepage to get CF cookies
                 logger.info(f"[{self.name}] Warming up browser...")
                 page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(3000)  # let CF JS challenge resolve
+                page.wait_for_timeout(5000)  # generous wait for CF challenge
+
+                # Check if CF challenge is still present
+                if "Just a moment" in page.content():
+                    logger.info(f"[{self.name}] CF challenge detected, waiting longer...")
+                    page.wait_for_timeout(10000)
 
                 for term in self.search_terms:
                     try:
                         found = self._search_with_page(page, term)
                         listings.extend(found)
-                        # Polite delay
                         page.wait_for_timeout(2000)
                     except Exception as e:
                         logger.error(f"[{self.name}] Error searching '{term}': {e}")
@@ -60,27 +70,24 @@ class GumtreeScanner(BaseScanner):
 
     def _search_with_page(self, page, term: str) -> list[Listing]:
         """Search using the browser page."""
-        from urllib.parse import quote_plus
-
         encoded = quote_plus(term)
-        # Try the current Gumtree search URL pattern
-        url = f"{self.base_url}/s-{encoded}/k0?sort=date"
+        url = f"{self.base_url}/s-{encoded}/k0"
 
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(2000)  # let page render
+            page.wait_for_timeout(3000)
         except Exception as e:
             logger.warning(f"[{self.name}] Navigation error for '{term}': {e}")
             return []
 
         html = page.content()
 
-        # Check if we got blocked
-        if "Access Denied" in html or "Just a moment" in html:
-            logger.warning(f"[{self.name}] CF challenge detected for '{term}', waiting...")
-            page.wait_for_timeout(5000)
+        # Check for CF block
+        if "Just a moment" in html or "Access Denied" in html:
+            logger.warning(f"[{self.name}] CF challenge for '{term}', waiting...")
+            page.wait_for_timeout(8000)
             html = page.content()
-            if "Access Denied" in html or "Just a moment" in html:
+            if "Just a moment" in html or "Access Denied" in html:
                 logger.warning(f"[{self.name}] Still blocked for '{term}'")
                 return []
 
