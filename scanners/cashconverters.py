@@ -1,16 +1,12 @@
 """Cash Converters Australia scanner.
 
-The Cash Converters website is a JavaScript SPA — the /shop/search endpoint
-no longer exists.  The current approach:
-  1. Try the webshop API that the SPA calls under the hood.
-  2. Fall back to Playwright-based rendering if the API fails.
-  3. Fall back to Google dorking as a last resort.
+Uses Playwright to render the JavaScript SPA search page, since the site
+has no public API and static HTML contains no listing data.
+Falls back to a single Google dork if Playwright is unavailable.
 """
 
-import json
 import logging
 import re
-from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
@@ -27,109 +23,117 @@ class CashConvertersScanner(BaseScanner):
         listings = []
         for term in self.search_terms:
             try:
-                found = self._search(term)
+                found = self._search_playwright(term)
                 listings.extend(found)
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching '{term}': {e}")
         return listings
 
-    def _search(self, term: str) -> list[Listing]:
-        # Method 1: Try the internal webshop API
-        results = self._search_api(term)
-        if results:
-            return results
+    def _search_playwright(self, term: str) -> list[Listing]:
+        """Use Playwright to render the SPA search page and scrape results."""
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            logger.warning(f"[{self.name}] Playwright not installed, falling back to Google")
+            return self._google_search(term)
 
-        # Method 2: Google dorking for Cash Converters listings
-        results = self._google_search(term)
-        return results
-
-    # ------------------------------------------------------------------
-    # Method 1: Webshop API
-    # ------------------------------------------------------------------
-    def _search_api(self, term: str) -> list[Listing]:
-        """Try various API endpoints that the Cash Converters SPA uses."""
         results = []
+        search_url = f"{self.base_url}/shop/search?q={term}&sort=DateListed"
 
-        # The SPA fetches from internal API endpoints - try common patterns
-        api_urls = [
-            f"{self.base_url}/api/products/search",
-            f"{self.base_url}/api/shop/search",
-            f"{self.base_url}/webapi/search/products",
-            f"{self.base_url}/umbraco/api/product/search",
-        ]
-        params = {"q": term, "query": term, "keyword": term,
-                  "limit": 50, "pageSize": 50, "sort": "newest"}
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+                page.set_extra_http_headers({
+                    "Accept-Language": "en-AU,en;q=0.9",
+                })
 
-        for api_url in api_urls:
-            try:
-                resp = self._get(api_url, params=params, retries=1, delay=1.0)
-                if not resp:
-                    continue
+                logger.debug(f"[{self.name}] Loading {search_url}")
+                page.goto(search_url, timeout=30000, wait_until="networkidle")
 
+                # Wait for product cards to appear (or timeout)
                 try:
-                    data = resp.json()
-                except (json.JSONDecodeError, ValueError):
-                    continue
+                    page.wait_for_selector(
+                        ".product-card, .product-tile, .search-result-item, "
+                        "[data-testid='product-card'], .product-list-item",
+                        timeout=10000,
+                    )
+                except Exception:
+                    logger.debug(f"[{self.name}] No product cards found for '{term}'")
+                    browser.close()
+                    return []
 
-                # Handle various API response shapes
-                items = []
-                if isinstance(data, list):
-                    items = data
-                elif isinstance(data, dict):
-                    for key in ("products", "results", "items", "data", "Records"):
-                        if key in data and isinstance(data[key], list):
-                            items = data[key]
-                            break
+                html = page.content()
+                browser.close()
 
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    title = (item.get("title") or item.get("name") or
-                             item.get("productName") or item.get("Title") or "")
+            soup = BeautifulSoup(html, "lxml")
+
+            # Try multiple selector patterns for product cards
+            cards = (
+                soup.select(".product-card") or
+                soup.select(".product-tile") or
+                soup.select(".search-result-item") or
+                soup.select("[data-testid='product-card']") or
+                soup.select(".product-list-item")
+            )
+
+            for card in cards:
+                try:
+                    title_el = card.select_one(
+                        "h2, h3, .product-title, .product-name, "
+                        "[data-testid='product-title'], a[title]"
+                    )
+                    price_el = card.select_one(
+                        ".product-price, .price, [data-testid='product-price'], "
+                        "span.amount, .sale-price"
+                    )
+                    link_el = card.select_one("a[href]")
+                    img_el = card.select_one("img")
+
+                    title = self._safe_text(title_el, "")
+                    if not title and link_el:
+                        title = link_el.get("title", "") or self._safe_text(link_el, "")
                     if not title:
                         continue
-                    price = (item.get("price") or item.get("salePrice") or
-                             item.get("Price") or "No price")
-                    if isinstance(price, (int, float)):
-                        price = f"${price:.2f}"
-                    href = item.get("url") or item.get("slug") or item.get("Url") or ""
+
+                    price = self._safe_text(price_el, "See listing")
+                    href = link_el.get("href", "") if link_el else ""
                     if href and not href.startswith("http"):
                         href = f"{self.base_url}{href}"
-                    location = (item.get("store") or item.get("storeName") or
-                                item.get("Store") or "Australia")
-                    image_url = (item.get("image") or item.get("imageUrl") or
-                                 item.get("Image") or "")
+                    image_url = img_el.get("src", "") if img_el else ""
+
+                    # Extract store/location if available
+                    loc_el = card.select_one(".store-name, .location, .store")
+                    location = self._safe_text(loc_el, "Australia")
 
                     results.append(Listing(
-                        title=str(title),
-                        price=str(price),
-                        url=href or f"{self.base_url}/shop",
-                        location=str(location),
+                        title=title,
+                        price=price,
+                        url=href or search_url,
+                        location=location,
                         marketplace=self.name,
-                        image_url=str(image_url),
+                        image_url=image_url,
                     ))
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Card parse error: {e}")
+                    continue
 
-                if results:
-                    logger.info(f"[{self.name}] API found {len(results)} results for '{term}'")
-                    return results
+            logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
 
-            except Exception as e:
-                logger.debug(f"[{self.name}] API endpoint {api_url} failed: {e}")
-                continue
+        except Exception as e:
+            logger.error(f"[{self.name}] Playwright error: {e}")
+            return self._google_search(term)
 
         return results
 
-    # ------------------------------------------------------------------
-    # Method 2: Google dorking
-    # ------------------------------------------------------------------
     def _google_search(self, term: str) -> list[Listing]:
-        """Fall back to Google to find Cash Converters listings."""
+        """Fallback: single Google dork for Cash Converters listings."""
         results = []
         query = f'site:cashconverters.com.au "{term}"'
         url = "https://www.google.com.au/search"
         params = {"q": query, "num": 30, "gl": "au"}
 
-        resp = self._get(url, params=params, delay=3.0)
+        resp = self._get(url, params=params, retries=1, delay=3.0)
         if not resp:
             return []
 
@@ -149,7 +153,6 @@ class CashConvertersScanner(BaseScanner):
 
                 if "cashconverters.com.au" not in href:
                     continue
-                # Skip non-product pages
                 if any(skip in href for skip in ("/store-locator", "/about", "/sell", "/contact")):
                     continue
 
