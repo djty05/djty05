@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Settings — Marketplace Scanner</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="top-bar">
+        <a href="/" class="back-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </a>
+        <h1>Settings</h1>
+        <div class="top-actions"></div>
+    </header>
+
+    <main class="settings-page">
+        <!-- Scan interval -->
+        <section class="card">
+            <h2>Scan Interval</h2>
+            <div class="setting-row">
+                <label for="interval">Minutes between scans</label>
+                <input type="number" id="interval" min="1" max="60" value="5" class="num-input">
+            </div>
+        </section>
+
+        <!-- Enabled scanners -->
+        <section class="card">
+            <h2>Marketplaces</h2>
+            <p class="hint">Toggle which marketplaces to scan</p>
+            <div id="scanner-toggles" class="scanner-toggles"></div>
+        </section>
+
+        <!-- Search terms -->
+        <section class="card">
+            <h2>Search Terms</h2>
+            <div class="term-input-row">
+                <input type="text" id="new-term" placeholder="Add search term..." class="term-input">
+                <button id="btn-add-term" class="btn btn-small">Add</button>
+            </div>
+            <ul id="terms-list" class="terms-list"></ul>
+        </section>
+
+        <!-- Notifications info -->
+        <section class="card">
+            <h2>Notifications</h2>
+            <p class="hint">Configure via environment variables in <code>.env</code>:</p>
+            <ul class="env-list">
+                <li><code>PUSHBULLET_API_KEY</code> — Pushbullet push notifications</li>
+                <li><code>DISCORD_WEBHOOK_URL</code> — Discord webhook alerts</li>
+                <li><code>SMTP_USERNAME</code> / <code>SMTP_PASSWORD</code> — Email alerts</li>
+            </ul>
+        </section>
+
+        <!-- Danger zone -->
+        <section class="card danger">
+            <h2>Data</h2>
+            <button id="btn-reset-seen" class="btn btn-danger">Reset Seen Listings</button>
+            <p class="hint">Mark all listings as unseen so they show as "new" again.</p>
+        </section>
+
+        <button id="btn-save" class="btn btn-primary btn-full">Save Settings</button>
+    </main>
+
+    <script>
+    const API = '';
+
+    // Load config on page load
+    async function loadConfig() {
+        const config = await (await fetch(`${API}/api/config`)).json();
+        document.getElementById('interval').value = config.scan_interval_minutes || 5;
+
+        // Load marketplaces
+        const marketplaces = await (await fetch(`${API}/api/marketplaces`)).json();
+        const enabled = (config.enabled_scanners || []).map(s => s.toLowerCase());
+        const container = document.getElementById('scanner-toggles');
+        container.innerHTML = '';
+
+        marketplaces.forEach(mp => {
+            const isEnabled = enabled.length === 0 || enabled.some(k => mp.key.includes(k));
+            container.innerHTML += `
+                <label class="toggle-row">
+                    <input type="checkbox" data-scanner="${mp.key}" ${isEnabled ? 'checked' : ''}>
+                    <span>${mp.name}</span>
+                </label>
+            `;
+        });
+
+        // Load search terms
+        const termsList = document.getElementById('terms-list');
+        termsList.innerHTML = '';
+        (config.search_terms || []).forEach(term => {
+            addTermToList(term);
+        });
+    }
+
+    function addTermToList(term) {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span class="term-text">${term}</span>
+            <button class="btn-remove" onclick="this.parentElement.remove()">x</button>
+        `;
+        document.getElementById('terms-list').appendChild(li);
+    }
+
+    document.getElementById('btn-add-term').addEventListener('click', () => {
+        const input = document.getElementById('new-term');
+        const term = input.value.trim();
+        if (term) {
+            addTermToList(term);
+            input.value = '';
+        }
+    });
+
+    document.getElementById('new-term').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('btn-add-term').click();
+    });
+
+    document.getElementById('btn-save').addEventListener('click', async () => {
+        const scannerCheckboxes = document.querySelectorAll('#scanner-toggles input[type="checkbox"]');
+        const enabledScanners = [];
+        scannerCheckboxes.forEach(cb => {
+            if (cb.checked) enabledScanners.push(cb.dataset.scanner);
+        });
+
+        const terms = [];
+        document.querySelectorAll('#terms-list .term-text').forEach(el => {
+            terms.push(el.textContent);
+        });
+
+        const config = {
+            scan_interval_minutes: parseInt(document.getElementById('interval').value) || 5,
+            enabled_scanners: enabledScanners,
+            search_terms: terms,
+        };
+
+        await fetch(`${API}/api/config`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(config),
+        });
+
+        // Visual feedback
+        const btn = document.getElementById('btn-save');
+        btn.textContent = 'Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => {
+            btn.textContent = 'Save Settings';
+            btn.classList.remove('saved');
+        }, 2000);
+    });
+
+    document.getElementById('btn-reset-seen').addEventListener('click', async () => {
+        if (confirm('Reset all seen listings? Everything will appear as "new" on the next scan.')) {
+            await fetch(`${API}/api/reset-seen`, {method: 'POST'});
+            alert('Seen listings cleared.');
+        }
+    });
+
+    loadConfig();
+    </script>
+</body>
+</html>
