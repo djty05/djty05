@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class GumtreeScanner(BaseScanner):
+    scanner_id = "gumtree"
     name = "Gumtree AU"
     base_url = "https://www.gumtree.com.au"
 

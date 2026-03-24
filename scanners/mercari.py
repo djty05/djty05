@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class MercariScanner(BaseScanner):
     """Scans multiple smaller Australian marketplaces via Google indexing."""
+    scanner_id = "other"
 
     name = "Other Marketplaces"
     # Google dorking — be very conservative to avoid captchas

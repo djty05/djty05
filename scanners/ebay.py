@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class EbayAUScanner(BaseScanner):
+    scanner_id = "ebay"
     name = "eBay AU"
     base_url = "https://www.ebay.com.au"
     # eBay is aggressive with bot detection — be more conservative

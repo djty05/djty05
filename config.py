@@ -62,8 +62,17 @@ def load_config() -> dict:
         with open(CONFIG_FILE) as f:
             user_config = json.load(f)
             merged = {**DEFAULT_CONFIG, **user_config}
-            return merged
-    return DEFAULT_CONFIG.copy()
+    else:
+        merged = DEFAULT_CONFIG.copy()
+
+    env_interval = os.environ.get("SCAN_INTERVAL_MINUTES")
+    if env_interval is not None:
+        try:
+            merged["scan_interval_minutes"] = int(env_interval)
+        except ValueError:
+            pass
+
+    return merged
 
 
 def save_config(config: dict):

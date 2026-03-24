@@ -122,10 +122,16 @@ def run_scan(config: dict, seen: set, notifier: Notifier) -> tuple[list[Listing]
     new_listings = []
     search_terms = config.get("search_terms")
 
-    console.print(f"\n[bold yellow]Starting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]")
-    console.print(f"[dim]Searching for {len(search_terms)} terms across {len(ALL_SCANNERS)} marketplaces...[/]")
+    enabled = config.get("enabled_scanners")
+    if enabled:
+        scanners = [s for s in ALL_SCANNERS if s.scanner_id in enabled]
+    else:
+        scanners = ALL_SCANNERS
 
-    for idx, scanner_cls in enumerate(ALL_SCANNERS):
+    console.print(f"\n[bold yellow]Starting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]")
+    console.print(f"[dim]Searching for {len(search_terms)} terms across {len(scanners)} marketplaces...[/]")
+
+    for idx, scanner_cls in enumerate(scanners):
         scanner_name = scanner_cls.name
         try:
             # Stagger between scanners to spread load

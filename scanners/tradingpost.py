@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class TradingPostScanner(BaseScanner):
+    scanner_id = "tradingpost"
     name = "Trading Post AU"
     base_url = "https://www.tradingpost.com.au"
 

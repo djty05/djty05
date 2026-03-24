@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class CashConvertersScanner(BaseScanner):
+    scanner_id = "cashconverters"
     name = "Cash Converters AU"
     base_url = "https://www.cashconverters.com.au"
 
