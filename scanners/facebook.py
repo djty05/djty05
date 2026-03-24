@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 class FacebookMarketplaceScanner(BaseScanner):
     name = "Facebook Marketplace"
     base_url = "https://www.facebook.com/marketplace"
+    # Google dorking — be very conservative to avoid captchas
+    min_request_delay = 5.0
+    max_request_delay = 10.0
 
     def scan(self) -> list[Listing]:
         """Scan via Google-indexed FB Marketplace results."""

@@ -17,6 +17,9 @@ class MercariScanner(BaseScanner):
     """Scans multiple smaller Australian marketplaces via Google indexing."""
 
     name = "Other Marketplaces"
+    # Google dorking — be very conservative to avoid captchas
+    min_request_delay = 5.0
+    max_request_delay = 10.0
 
     # Sites to search via Google
     SITES = [

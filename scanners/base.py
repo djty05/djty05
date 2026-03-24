@@ -2,6 +2,7 @@
 
 import hashlib
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -49,6 +50,13 @@ class BaseScanner:
 
     name: str = "Unknown"
     base_url: str = ""
+
+    # Per-scanner rate limiting defaults (seconds between requests).
+    # Subclasses can override these to be more or less aggressive.
+    min_request_delay: float = 2.0   # minimum pause between requests
+    max_request_delay: float = 5.0   # maximum pause (jittered)
+    max_retries: int = 3             # retry count on failure / 429
+    backoff_ceiling: float = 120.0   # never wait longer than this on backoff
 
     # Australian state/city search locations
     AU_LOCATIONS = [
@@ -118,12 +126,26 @@ class BaseScanner:
         """Run the scanner and return new listings. Override in subclass."""
         raise NotImplementedError
 
+    def _jittered_delay(self) -> float:
+        """Return a randomised delay between min and max to look more human."""
+        return random.uniform(self.min_request_delay, self.max_request_delay)
+
     def _get(self, url: str, params: dict | None = None,
-             retries: int = 3, delay: float = 2.0) -> Optional[requests.Response]:
-        """Make a GET request with retries and rate limiting."""
+             retries: int | None = None, delay: float | None = None) -> Optional[requests.Response]:
+        """Make a GET request with jittered delays, retry, and 429 backoff.
+
+        - Adds a random delay before each request to avoid burst patterns.
+        - Respects the Retry-After header when the server sends 429.
+        - Uses exponential backoff with jitter on failures, capped at
+          ``backoff_ceiling`` seconds.
+        """
+        retries = retries if retries is not None else self.max_retries
+        base_delay = delay if delay is not None else self.min_request_delay
+
         for attempt in range(retries):
             try:
-                time.sleep(delay)  # rate limiting
+                # Jittered polite delay before every request
+                time.sleep(self._jittered_delay())
 
                 # Add a contextual referer header
                 extra_headers = {}
@@ -138,26 +160,43 @@ class BaseScanner:
                 )
                 if resp.status_code == 200:
                     return resp
-                elif resp.status_code == 429:
-                    wait = delay * (2 ** attempt)
-                    logger.warning(f"[{self.name}] Rate limited, waiting {wait}s")
+
+                if resp.status_code == 429:
+                    # Honour Retry-After header if present
+                    retry_after = resp.headers.get("Retry-After")
+                    if retry_after:
+                        try:
+                            wait = min(float(retry_after), self.backoff_ceiling)
+                        except ValueError:
+                            wait = base_delay * (2 ** attempt)
+                    else:
+                        wait = base_delay * (2 ** attempt)
+                    wait = min(wait, self.backoff_ceiling)
+                    # Add jitter so parallel scanners don't thundering-herd
+                    wait += random.uniform(0, wait * 0.25)
+                    logger.warning(
+                        f"[{self.name}] Rate limited (429), backing off {wait:.1f}s "
+                        f"(attempt {attempt + 1}/{retries})"
+                    )
                     time.sleep(wait)
-                elif resp.status_code in (301, 302, 303, 307, 308):
-                    # Follow redirects (requests usually handles this, but log it)
+                    continue
+
+                if resp.status_code in (301, 302, 303, 307, 308):
                     logger.debug(f"[{self.name}] Redirect {resp.status_code} for {url}")
                     continue
-                else:
-                    logger.warning(
-                        f"[{self.name}] HTTP {resp.status_code} for {url}"
-                    )
-                    if attempt < retries - 1:
-                        time.sleep(delay)
-                        continue
-                    return None
+
+                logger.warning(f"[{self.name}] HTTP {resp.status_code} for {url}")
+                if attempt < retries - 1:
+                    wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    time.sleep(wait)
+                    continue
+                return None
+
             except requests.RequestException as e:
                 logger.warning(f"[{self.name}] Request error: {e}")
                 if attempt < retries - 1:
-                    time.sleep(delay * (2 ** attempt))
+                    wait = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    time.sleep(min(wait, self.backoff_ceiling))
         return None
 
     def _safe_text(self, element, default: str = "") -> str:

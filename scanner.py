@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import os
+import random
 import sys
 import time
 from datetime import datetime
@@ -124,9 +125,15 @@ def run_scan(config: dict, seen: set, notifier: Notifier) -> tuple[list[Listing]
     console.print(f"\n[bold yellow]Starting scan at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]")
     console.print(f"[dim]Searching for {len(search_terms)} terms across {len(ALL_SCANNERS)} marketplaces...[/]")
 
-    for scanner_cls in ALL_SCANNERS:
+    for idx, scanner_cls in enumerate(ALL_SCANNERS):
         scanner_name = scanner_cls.name
         try:
+            # Stagger between scanners to spread load
+            if idx > 0:
+                stagger = random.uniform(3, 8)
+                console.print(f"  [dim]Waiting {stagger:.0f}s before next scanner...[/]")
+                time.sleep(stagger)
+
             console.print(f"  [cyan]Scanning {scanner_name}...[/]", end=" ")
             scanner = scanner_cls(search_terms=search_terms)
             listings = scanner.scan()

@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 class EbayAUScanner(BaseScanner):
     name = "eBay AU"
     base_url = "https://www.ebay.com.au"
+    # eBay is aggressive with bot detection — be more conservative
+    min_request_delay = 3.0
+    max_request_delay = 7.0
 
     def scan(self) -> list[Listing]:
         listings = []
