@@ -21,6 +21,14 @@ class EbayAUScanner(BaseScanner):
     min_request_delay = 3.0
     max_request_delay = 7.0
 
+    # Keywords that a relevant listing title should contain at least one of.
+    # This filters out junk like jellybean cookies or toy figurines.
+    RELEVANCE_KEYWORDS = {
+        "fluke", "tester", "multimeter", "meter", "clamp", "insulation",
+        "rcd", "loop", "impedance", "electrical", "multifunction",
+        "megger", "test", "probe", "voltage", "continuity",
+    }
+
     def scan(self) -> list[Listing]:
         listings = []
         for term in self.search_terms:
@@ -39,6 +47,7 @@ class EbayAUScanner(BaseScanner):
             "LH_ItemCondition": "4",  # used items
             "_ipg": 100,       # results per page
             "LH_PrefLoc": 1,   # items located in Australia
+            "_sacat": 58277,   # Electrical Test Equipment category
             "rt": "nc",
         }
         resp = self._get(url, params=params)
@@ -57,8 +66,15 @@ class EbayAUScanner(BaseScanner):
         if s_items:
             results.extend(self._parse_s_item(s_items))
 
-        logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
+        # Filter out irrelevant results that slipped past category filter
+        results = [r for r in results if self._is_relevant(r.title)]
+        logger.info(f"[{self.name}] Found {len(results)} relevant results for '{term}'")
         return results
+
+    def _is_relevant(self, title: str) -> bool:
+        """Check if a listing title contains at least one relevance keyword."""
+        title_lower = title.lower()
+        return any(kw in title_lower for kw in self.RELEVANCE_KEYWORDS)
 
     def _parse_s_card(self, cards) -> list[Listing]:
         """Parse the newer .s-card layout."""
