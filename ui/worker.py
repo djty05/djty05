@@ -40,6 +40,7 @@ class ScanWorker(QThread):
     scan_finished = pyqtSignal(int, int)           # total, new
     scan_error = pyqtSignal(str)
     status_message = pyqtSignal(str)
+    log_message = pyqtSignal(str)                  # detailed log for UI
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -64,9 +65,13 @@ class ScanWorker(QThread):
 
             self.scan_started.emit()
             self.status_message.emit("Scan in progress...")
+            self.log_message.emit(f"--- Scan started at {time.strftime('%H:%M:%S')} ---")
+            self.log_message.emit(f"Searching {len(search_terms)} terms across {len(ALL_SCANNERS)} scanners")
 
             all_listings = []
             new_listings = []
+            scanners_ok = 0
+            scanners_failed = 0
 
             for idx, scanner_cls in enumerate(ALL_SCANNERS):
                 if not self._running:
@@ -75,6 +80,7 @@ class ScanWorker(QThread):
                 # Filter by enabled scanners
                 scanner_key = scanner_cls.name.lower()
                 if enabled and not any(k in scanner_key for k in enabled):
+                    self.log_message.emit(f"  [{scanner_cls.name}] Skipped (disabled)")
                     continue
 
                 # Stagger between scanners
@@ -84,6 +90,7 @@ class ScanWorker(QThread):
                     time.sleep(stagger)
 
                 self.status_message.emit(f"Scanning {scanner_cls.name}...")
+                self.log_message.emit(f"  [{scanner_cls.name}] Scanning...")
 
                 try:
                     scanner = scanner_cls(search_terms=search_terms)
@@ -93,9 +100,18 @@ class ScanWorker(QThread):
                     new_count = sum(1 for l in listings if l.listing_id not in seen)
                     self.scanner_progress.emit(scanner_cls.name, len(listings), new_count)
 
+                    if listings:
+                        self.log_message.emit(f"  [{scanner_cls.name}] Found {len(listings)} listings ({new_count} new)")
+                        scanners_ok += 1
+                    else:
+                        self.log_message.emit(f"  [{scanner_cls.name}] No results (site may be blocking or no matches)")
+                        scanners_ok += 1
+
                 except Exception as e:
+                    scanners_failed += 1
                     logger.error(f"Scanner {scanner_cls.name} failed: {e}")
                     self.scan_error.emit(f"{scanner_cls.name}: {e}")
+                    self.log_message.emit(f"  [{scanner_cls.name}] ERROR: {e}")
 
             # Collect new listings
             for listing in all_listings:
@@ -112,6 +128,10 @@ class ScanWorker(QThread):
 
             _save_seen(seen)
             self.scan_finished.emit(len(all_listings), len(new_listings))
+            self.log_message.emit(
+                f"--- Scan complete: {len(all_listings)} total, {len(new_listings)} new | "
+                f"{scanners_ok} scanners OK, {scanners_failed} failed ---"
+            )
 
             # Interruptible sleep until next cycle
             interval = config.get("scan_interval_minutes", 5) * 60

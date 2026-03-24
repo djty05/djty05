@@ -4,7 +4,8 @@ from PyQt6.QtCore import Qt, QUrl
 from PyQt6.QtGui import QColor, QDesktopServices, QAction
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem,
-    QHeaderView, QLabel, QMenu, QApplication,
+    QHeaderView, QLabel, QMenu, QApplication, QSplitter,
+    QTextEdit,
 )
 
 from scanners.base import Listing
@@ -22,8 +23,10 @@ class ListingsTab(QWidget):
 
         layout = QVBoxLayout(self)
 
-        self.status_label = QLabel("No listings yet.")
+        self.status_label = QLabel("No listings yet. Press Start to begin scanning.")
         layout.addWidget(self.status_label)
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
 
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
@@ -44,7 +47,27 @@ class ListingsTab(QWidget):
         self.table.doubleClicked.connect(self._on_double_click)
         self.table.customContextMenuRequested.connect(self._on_context_menu)
 
-        layout.addWidget(self.table)
+        splitter.addWidget(self.table)
+
+        # Scan log panel
+        self.scan_log = QTextEdit()
+        self.scan_log.setReadOnly(True)
+        self.scan_log.setMaximumHeight(150)
+        self.scan_log.setPlaceholderText("Scan log will appear here...")
+        self.scan_log.setStyleSheet("QTextEdit { font-family: Consolas, monospace; font-size: 11px; }")
+        splitter.addWidget(self.scan_log)
+
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+
+        layout.addWidget(splitter)
+
+    def append_log(self, message: str):
+        """Append a message to the scan log panel."""
+        self.scan_log.append(message)
+        # Auto-scroll to bottom
+        scrollbar = self.scan_log.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def add_listings(self, listings: list[Listing]):
         """Add new listings to the top of the table."""
@@ -86,7 +109,7 @@ class ListingsTab(QWidget):
         total = self.table.rowCount()
         new = len(self._new_ids)
         if total == 0:
-            self.status_label.setText("No listings yet.")
+            self.status_label.setText("No listings yet. Press Start to begin scanning.")
         else:
             self.status_label.setText(
                 f"Showing {total} listings ({new} new this scan)"

@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         self.worker.scan_finished.connect(self._on_scan_finished)
         self.worker.scan_error.connect(self._on_scan_error)
         self.worker.status_message.connect(self._on_status_message)
+        self.worker.log_message.connect(self.listings_tab.append_log)
 
         # --- System tray ---
         self.tray = TrayManager(self)
