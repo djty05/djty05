@@ -38,34 +38,16 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        self.start_action = QAction("Start", self)
-        self.start_action.triggered.connect(self._start_scanning)
-        toolbar.addAction(self.start_action)
-
-        self.stop_action = QAction("Stop", self)
-        self.stop_action.setEnabled(False)
-        self.stop_action.triggered.connect(self._stop_scanning)
-        toolbar.addAction(self.stop_action)
-
-        self.pause_action = QAction("Pause", self)
-        self.pause_action.setEnabled(False)
-        self.pause_action.triggered.connect(self._pause_scanning)
-        toolbar.addAction(self.pause_action)
-
-        self.resume_action = QAction("Resume", self)
-        self.resume_action.setEnabled(False)
-        self.resume_action.triggered.connect(self._resume_scanning)
-        toolbar.addAction(self.resume_action)
-
-        toolbar.addSeparator()
-
         self.scan_now_action = QAction("Scan Now", self)
-        self.scan_now_action.setEnabled(False)
         self.scan_now_action.triggered.connect(self._scan_now)
         toolbar.addAction(self.scan_now_action)
 
+        self.pause_action = QAction("Pause", self)
+        self.pause_action.triggered.connect(self._toggle_pause)
+        toolbar.addAction(self.pause_action)
+
         # --- Status bar ---
-        self.status_label = QLabel("Ready")
+        self.status_label = QLabel("Starting...")
         self.progress_bar = QProgressBar()
         self.progress_bar.setMaximumWidth(150)
         self.progress_bar.setRange(0, 0)  # indeterminate
@@ -88,56 +70,38 @@ class MainWindow(QMainWindow):
 
         # --- System tray ---
         self.tray = TrayManager(self)
-        self.tray.start_action.triggered.connect(self._start_scanning)
-        self.tray.stop_action.triggered.connect(self._stop_scanning)
-        self.tray.pause_action.triggered.connect(self._pause_scanning)
-        self.tray.resume_action.triggered.connect(self._resume_scanning)
+        self.tray.scan_now_action.triggered.connect(self._scan_now)
+        self.tray.pause_action.triggered.connect(self._toggle_pause)
         self.worker.new_listings_found.connect(self.tray.show_new_listing_notification)
 
-    # --- Scanning controls ---
-
-    def _start_scanning(self):
-        if self.worker.isRunning():
-            return
+        # Auto-start scanning on launch
         self.worker.start()
-        self.start_action.setEnabled(False)
-        self.stop_action.setEnabled(True)
-        self.pause_action.setEnabled(True)
-        self.resume_action.setEnabled(False)
-        self.scan_now_action.setEnabled(True)
         self.tray.set_scanning(True)
         self.setWindowTitle("Marketplace Scanner [Scanning...]")
 
-    def _stop_scanning(self):
-        self.worker.stop()
-        self.worker.wait(5000)
-        self.start_action.setEnabled(True)
-        self.stop_action.setEnabled(False)
-        self.pause_action.setEnabled(False)
-        self.resume_action.setEnabled(False)
-        self.scan_now_action.setEnabled(False)
-        self.tray.set_scanning(False)
-        self.setWindowTitle("Marketplace Scanner [Stopped]")
-        self.status_label.setText("Stopped")
-        self.progress_bar.hide()
-
-    def _pause_scanning(self):
-        self.worker.pause()
-        self.pause_action.setEnabled(False)
-        self.resume_action.setEnabled(True)
-        self.tray.set_paused(True)
-        self.setWindowTitle("Marketplace Scanner [Paused]")
-        self.status_label.setText("Paused")
-
-    def _resume_scanning(self):
-        self.worker.resume()
-        self.pause_action.setEnabled(True)
-        self.resume_action.setEnabled(False)
-        self.tray.set_paused(False)
-        self.setWindowTitle("Marketplace Scanner [Scanning...]")
+    # --- Scanning controls ---
 
     def _scan_now(self):
-        self.worker.trigger_scan_now()
+        """Start the worker if not running, or skip the wait if it is."""
+        if not self.worker.isRunning():
+            self.worker.start()
+            self.tray.set_scanning(True)
+            self.setWindowTitle("Marketplace Scanner [Scanning...]")
+        else:
+            self.worker.trigger_scan_now()
+
+    def _toggle_pause(self):
+        if self.worker.is_paused:
+            self.worker.resume()
+            self.pause_action.setText("Pause")
+            self.tray.pause_action.setText("Pause")
+            self.setWindowTitle("Marketplace Scanner [Scanning...]")
+        else:
+            self.worker.pause()
+            self.pause_action.setText("Resume")
+            self.tray.pause_action.setText("Resume")
+            self.setWindowTitle("Marketplace Scanner [Paused]")
+            self.status_label.setText("Paused")
 
     # --- Worker signal handlers ---
 

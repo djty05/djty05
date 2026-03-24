@@ -29,10 +29,8 @@ class TrayManager:
 
         menu.addSeparator()
 
-        self.start_action = menu.addAction("Start Scanning")
-        self.stop_action = menu.addAction("Stop Scanning")
+        self.scan_now_action = menu.addAction("Scan Now")
         self.pause_action = menu.addAction("Pause")
-        self.resume_action = menu.addAction("Resume")
 
         menu.addSeparator()
 
@@ -43,11 +41,6 @@ class TrayManager:
         self.tray.activated.connect(self._on_activated)
         self.tray.messageClicked.connect(self._on_message_clicked)
         self.tray.show()
-
-        # Initial state
-        self.stop_action.setEnabled(False)
-        self.pause_action.setEnabled(False)
-        self.resume_action.setEnabled(False)
 
     def _toggle_window(self):
         if self.window.isVisible():
@@ -90,13 +83,8 @@ class TrayManager:
             )
 
     def set_scanning(self, scanning: bool):
-        """Update menu state for scanning/stopped."""
-        self.start_action.setEnabled(not scanning)
-        self.stop_action.setEnabled(scanning)
-        self.pause_action.setEnabled(scanning)
-        self.resume_action.setEnabled(False)
-
-    def set_paused(self, paused: bool):
-        """Update menu state for paused/resumed."""
-        self.pause_action.setEnabled(not paused)
-        self.resume_action.setEnabled(paused)
+        """Update tray tooltip for scanning state."""
+        if scanning:
+            self.tray.setToolTip("Marketplace Scanner - Scanning")
+        else:
+            self.tray.setToolTip("Marketplace Scanner - Stopped")
