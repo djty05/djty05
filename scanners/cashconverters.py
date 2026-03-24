@@ -42,15 +42,28 @@ class CashConvertersScanner(BaseScanner):
         return self._scan_google_fallback()
 
     def _scan_http(self) -> list[Listing]:
-        """Try direct HTTP requests to Cash Converters shop search."""
+        """Try direct HTTP requests to Cash Converters shop search.
+        Fail fast if the site is blocking HTTP requests.
+        """
         all_listings = []
+        consecutive_failures = 0
 
         for term in self.search_terms:
             try:
                 found = self._search_http(term)
-                all_listings.extend(found)
+                if found:
+                    all_listings.extend(found)
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and not all_listings:
+                        logger.info(f"[{self.name}] HTTP not working, skipping")
+                        return []
             except Exception as e:
                 logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
+                consecutive_failures += 1
+                if consecutive_failures >= 2 and not all_listings:
+                    return []
 
         if all_listings:
             logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")

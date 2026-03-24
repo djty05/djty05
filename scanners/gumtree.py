@@ -43,15 +43,30 @@ class GumtreeScanner(BaseScanner):
         return self._scan_google_fallback()
 
     def _scan_http(self) -> list[Listing]:
-        """Try direct HTTP requests to Gumtree search."""
+        """Try direct HTTP requests to Gumtree search.
+        Fail fast: if the first 2 terms return nothing (likely CF blocked),
+        skip the rest and let the caller try the next fallback.
+        """
         all_listings = []
+        consecutive_failures = 0
 
         for term in self.search_terms:
             try:
                 found = self._search_http(term)
-                all_listings.extend(found)
+                if found:
+                    all_listings.extend(found)
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 2 and not all_listings:
+                        logger.info(f"[{self.name}] HTTP blocked after {consecutive_failures} failures, skipping")
+                        return []
             except Exception as e:
                 logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
+                consecutive_failures += 1
+                if consecutive_failures >= 2 and not all_listings:
+                    logger.info(f"[{self.name}] HTTP blocked, skipping remaining terms")
+                    return []
 
         if all_listings:
             logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")
@@ -62,7 +77,7 @@ class GumtreeScanner(BaseScanner):
         encoded = quote_plus(term)
         url = f"{self.base_url}/s-{encoded}/k0"
 
-        resp = self._get(url, retries=2, delay=3.0)
+        resp = self._get(url, retries=1, delay=2.0)
         if not resp:
             return []
 

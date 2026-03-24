@@ -32,12 +32,24 @@ class EbayAUScanner(BaseScanner):
 
     def scan(self) -> list[Listing]:
         listings = []
+        consecutive_failures = 0
         for term in self.search_terms:
             try:
                 found = self._search(term)
-                listings.extend(found)
+                if found:
+                    listings.extend(found)
+                    consecutive_failures = 0
+                else:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 3 and not listings:
+                        logger.info(f"[{self.name}] Site unreachable after {consecutive_failures} failures, stopping")
+                        break
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching '{term}': {e}")
+                consecutive_failures += 1
+                if consecutive_failures >= 3 and not listings:
+                    logger.info(f"[{self.name}] Site unreachable, stopping")
+                    break
         return listings
 
     def _search(self, term: str) -> list[Listing]:

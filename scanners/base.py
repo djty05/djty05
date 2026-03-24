@@ -155,7 +155,7 @@ class BaseScanner:
                     extra_headers["Referer"] = "https://www.ebay.com.au/"
 
                 resp = self.session.get(
-                    url, params=params, timeout=15, headers=extra_headers,
+                    url, params=params, timeout=10, headers=extra_headers,
                     allow_redirects=True,
                 )
                 if resp.status_code == 200:

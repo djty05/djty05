@@ -78,17 +78,31 @@ class FacebookMarketplaceScanner(BaseScanner):
         return batches
 
     def _google_search_national(self, terms_query: str) -> list[Listing]:
-        """Search Google for FB Marketplace listings across multiple AU cities."""
+        """Search Google for FB Marketplace listings across multiple AU cities.
+        Stops early if Google starts blocking requests.
+        """
         all_results = []
+        consecutive_failures = 0
 
-        # General Australia-wide search
+        # General Australia-wide search first
         results = self._google_search(terms_query, location_hint=None)
-        all_results.extend(results)
+        if results:
+            all_results.extend(results)
+            consecutive_failures = 0
+        else:
+            consecutive_failures += 1
 
         # City-specific searches for national coverage
         for city in AU_SEARCH_CITIES:
+            if consecutive_failures >= 3:
+                logger.info(f"[{self.name}] Google rate-limiting, stopping city searches")
+                break
             results = self._google_search(terms_query, location_hint=city)
-            all_results.extend(results)
+            if results:
+                all_results.extend(results)
+                consecutive_failures = 0
+            else:
+                consecutive_failures += 1
 
         return all_results
 
