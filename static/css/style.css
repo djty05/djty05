@@ -145,46 +145,40 @@ html, body {
 .toggle-label input { accent-color: var(--accent); }
 
 /* ---- Listings feed ---- */
-.listings-feed {
-    padding: 8px;
-    padding-bottom: calc(80px + var(--safe-bottom));
-}
 
 .listing-card {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
     background: var(--bg-card);
     border-radius: var(--radius);
-    padding: 12px;
     margin-bottom: 8px;
     border: 1px solid var(--border);
     text-decoration: none;
     color: inherit;
     transition: border-color 0.2s, transform 0.1s;
     cursor: pointer;
+    overflow: hidden;
 }
+.listing-card:hover { border-color: var(--accent); }
 .listing-card:active { transform: scale(0.98); }
 .listing-card.is-new { border-left: 3px solid var(--accent); }
 
 .listing-img {
-    width: 90px;
-    height: 90px;
-    border-radius: 8px;
+    width: 100%;
+    height: 200px;
     object-fit: cover;
     background: var(--bg-input);
-    flex-shrink: 0;
+    display: block;
 }
 .listing-img-placeholder {
-    width: 90px;
-    height: 90px;
-    border-radius: 8px;
+    width: 100%;
+    height: 120px;
     background: var(--bg-input);
-    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 12px;
 }
 
 .listing-info {
@@ -193,6 +187,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    padding: 12px;
 }
 .listing-title {
     font-size: 14px;
@@ -449,24 +444,33 @@ html, body {
 .btn-danger { background: #e9456033; color: var(--accent); border: 1px solid var(--accent); }
 .btn-full { width: 100%; margin-top: 8px; }
 
-/* ---- Tablet+ layout ---- */
+/* ---- Grid layout (aggregator style) ---- */
+.listings-feed {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+    padding-bottom: calc(80px + var(--safe-bottom));
+}
+.listing-card { margin-bottom: 0; }
+
 @media (min-width: 768px) {
     .listings-feed {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 10px;
     }
-    .listing-card { margin-bottom: 0; }
+    .listing-img { height: 220px; }
     .filter-bar input[type="search"] { flex: 2 1 auto; }
 }
 @media (min-width: 1200px) {
     .listings-feed {
-        grid-template-columns: repeat(3, 1fr);
-        max-width: 1400px;
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 1600px;
         margin: 0 auto;
     }
+    .listing-img { height: 250px; }
     .top-bar, .stats-bar, .filter-bar {
-        max-width: 1400px;
+        max-width: 1600px;
         margin-left: auto;
         margin-right: auto;
     }

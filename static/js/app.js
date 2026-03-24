@@ -106,8 +106,8 @@ function renderListings(listings) {
         card.innerHTML = `
             ${imgHtml}
             <div class="listing-info">
-                <div class="listing-title">${esc(l.title)}</div>
                 <div class="listing-price">${esc(l.price)}</div>
+                <div class="listing-title">${esc(l.title)}</div>
                 <div class="listing-meta">
                     <span class="listing-marketplace">${esc(l.marketplace)}</span>
                     ${l.is_new ? '<span class="new-badge">NEW</span>' : ''}

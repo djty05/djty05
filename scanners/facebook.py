@@ -1,9 +1,10 @@
 """Facebook Marketplace scanner.
 
 Facebook Marketplace requires JS rendering and login to scrape directly.
-This scanner uses a small number of consolidated Google dork queries to
-find indexed FB Marketplace listings, avoiding the rate limiting caused
-by sending one query per search term.
+This scanner uses Google dork queries to find indexed FB Marketplace listings.
+
+To work around Facebook's 402km distance limit, it searches from multiple
+Australian cities to achieve national coverage.
 """
 
 import logging
@@ -15,6 +16,24 @@ from .base import BaseScanner, Listing
 
 logger = logging.getLogger(__name__)
 
+# Major Australian cities spread across the country for national coverage.
+# Facebook Marketplace limits search to ~402km radius, so searching from
+# these cities covers all of Australia.
+AU_SEARCH_CITIES = [
+    "Sydney",
+    "Melbourne",
+    "Brisbane",
+    "Perth",
+    "Adelaide",
+    "Hobart",
+    "Darwin",
+    "Cairns",
+    "Townsville",
+    "Gold Coast",
+    "Newcastle",
+    "Canberra",
+]
+
 
 class FacebookMarketplaceScanner(BaseScanner):
     scanner_id = "facebook"
@@ -25,15 +44,15 @@ class FacebookMarketplaceScanner(BaseScanner):
     max_request_delay = 10.0
 
     def scan(self) -> list[Listing]:
-        """Scan via consolidated Google-indexed FB Marketplace queries."""
-        # Group search terms into batches of ~6 using OR operator to
-        # reduce the number of Google requests drastically.
+        """Scan via Google-indexed FB Marketplace queries across multiple cities."""
+        # Group search terms into batches of ~6 using OR operator
         batches = self._batch_terms(self.search_terms, batch_size=6)
         listings = []
 
         for batch_query in batches:
             try:
-                found = self._google_search(batch_query)
+                # National search: query Google with city-specific terms
+                found = self._google_search_national(batch_query)
                 listings.extend(found)
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching batch: {e}")
@@ -54,22 +73,44 @@ class FacebookMarketplaceScanner(BaseScanner):
         batches = []
         for i in range(0, len(terms), batch_size):
             chunk = terms[i:i + batch_size]
-            # Join with OR for Google: ("term1" OR "term2" OR "term3")
             or_query = " OR ".join(f'"{t}"' for t in chunk)
             batches.append(or_query)
         return batches
 
-    def _google_search(self, terms_query: str) -> list[Listing]:
-        """Search Google for Facebook Marketplace listings in Australia."""
+    def _google_search_national(self, terms_query: str) -> list[Listing]:
+        """Search Google for FB Marketplace listings across multiple AU cities."""
+        all_results = []
+
+        # General Australia-wide search
+        results = self._google_search(terms_query, location_hint=None)
+        all_results.extend(results)
+
+        # City-specific searches for national coverage
+        for city in AU_SEARCH_CITIES:
+            results = self._google_search(terms_query, location_hint=city)
+            all_results.extend(results)
+
+        return all_results
+
+    def _google_search(self, terms_query: str, location_hint: str = None) -> list[Listing]:
+        """Search Google for Facebook Marketplace listings."""
         results = []
-        query = f'site:facebook.com/marketplace ({terms_query})'
+
+        if location_hint:
+            query = f'site:facebook.com/marketplace ({terms_query}) "{location_hint}"'
+        else:
+            query = f'site:facebook.com/marketplace ({terms_query})'
+
         url = "https://www.google.com.au/search"
         params = {"q": query, "num": 50, "gl": "au"}
 
-        # Single attempt, no retry on 429 — just skip gracefully
+        # Single attempt per query to stay under radar
         resp = self._get(url, params=params, retries=1, delay=5.0)
         if not resp:
-            logger.warning(f"[{self.name}] Google query failed, skipping batch")
+            if location_hint:
+                logger.debug(f"[{self.name}] Google query failed for {location_hint}")
+            else:
+                logger.warning(f"[{self.name}] Google query failed")
             return []
 
         soup = BeautifulSoup(resp.text, "lxml")
@@ -96,17 +137,35 @@ class FacebookMarketplaceScanner(BaseScanner):
                 if price_match:
                     price = price_match.group(0)
 
+                # Try to get location from title/description
+                detected_location = location_hint or "Australia"
+                for city in AU_SEARCH_CITIES:
+                    if city.lower() in f"{title} {description}".lower():
+                        detected_location = city
+                        break
+
+                # Try to extract thumbnail from Google result
+                image_url = ""
+                img_el = result.select_one("img")
+                if img_el:
+                    src = img_el.get("src", "") or img_el.get("data-src", "")
+                    if src and src.startswith("http"):
+                        image_url = src
+
                 results.append(Listing(
                     title=title,
                     price=price,
                     url=href,
-                    location="Australia",
+                    location=detected_location,
                     marketplace=self.name,
                     description=description,
+                    image_url=image_url,
                 ))
             except Exception as e:
                 logger.debug(f"[{self.name}] Google parse error: {e}")
                 continue
 
-        logger.info(f"[{self.name}] Google found {len(results)} results for batch")
+        if results:
+            loc_label = location_hint or "Australia"
+            logger.info(f"[{self.name}] Google found {len(results)} results ({loc_label})")
         return results

@@ -1,7 +1,12 @@
-"""Gumtree Australia scanner - uses Playwright to bypass CloudFlare."""
+"""Gumtree Australia scanner.
+
+Uses direct HTTP requests with robust headers as the primary approach.
+Falls back to Playwright if available, then Google dorking as last resort.
+"""
 
 import json
 import logging
+import re
 
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
@@ -15,13 +20,68 @@ class GumtreeScanner(BaseScanner):
     scanner_id = "gumtree"
     name = "Gumtree AU"
     base_url = "https://www.gumtree.com.au"
+    min_request_delay = 3.0
+    max_request_delay = 6.0
 
     def scan(self) -> list[Listing]:
+        # Try direct HTTP first (works most of the time without Playwright)
+        listings = self._scan_http()
+        if listings:
+            return listings
+
+        # Try Playwright if available
         try:
             from playwright.sync_api import sync_playwright
+            listings = self._scan_playwright()
+            if listings:
+                return listings
         except ImportError:
-            logger.warning(f"[{self.name}] Playwright not available, using Google fallback")
-            return self._scan_google_fallback()
+            logger.info(f"[{self.name}] Playwright not available")
+
+        # Last resort: Google dorking
+        logger.info(f"[{self.name}] Falling back to Google dorking")
+        return self._scan_google_fallback()
+
+    def _scan_http(self) -> list[Listing]:
+        """Try direct HTTP requests to Gumtree search."""
+        all_listings = []
+
+        for term in self.search_terms:
+            try:
+                found = self._search_http(term)
+                all_listings.extend(found)
+            except Exception as e:
+                logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
+
+        if all_listings:
+            logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")
+        return all_listings
+
+    def _search_http(self, term: str) -> list[Listing]:
+        """Search Gumtree via direct HTTP."""
+        encoded = quote_plus(term)
+        url = f"{self.base_url}/s-{encoded}/k0"
+
+        resp = self._get(url, retries=2, delay=3.0)
+        if not resp:
+            return []
+
+        html = resp.text
+
+        # Check for CloudFlare block
+        if "Just a moment" in html or "Access Denied" in html:
+            logger.debug(f"[{self.name}] CF blocked for '{term}'")
+            return []
+
+        # Try JSON first, then HTML
+        results = self._parse_json(html, term)
+        if results:
+            return results
+        return self._parse_html(html, term)
+
+    def _scan_playwright(self) -> list[Listing]:
+        """Use Playwright to bypass CloudFlare if needed."""
+        from playwright.sync_api import sync_playwright
 
         listings = []
         try:
@@ -39,26 +99,37 @@ class GumtreeScanner(BaseScanner):
                 )
                 page = context.new_page()
 
-                # Stealth: remove webdriver flag before any navigation
                 page.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                     delete navigator.__proto__.webdriver;
                 """)
 
-                # Warm up: visit homepage to get CF cookies
+                # Warm up for CF cookies
                 logger.info(f"[{self.name}] Warming up browser...")
                 page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(5000)  # generous wait for CF challenge
+                page.wait_for_timeout(5000)
 
-                # Check if CF challenge is still present
                 if "Just a moment" in page.content():
-                    logger.info(f"[{self.name}] CF challenge detected, waiting longer...")
                     page.wait_for_timeout(10000)
 
                 for term in self.search_terms:
                     try:
-                        found = self._search_with_page(page, term)
-                        listings.extend(found)
+                        encoded = quote_plus(term)
+                        url = f"{self.base_url}/s-{encoded}/k0"
+                        page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                        page.wait_for_timeout(3000)
+
+                        html = page.content()
+                        if "Just a moment" in html or "Access Denied" in html:
+                            page.wait_for_timeout(8000)
+                            html = page.content()
+                            if "Just a moment" in html:
+                                continue
+
+                        results = self._parse_json(html, term)
+                        if not results:
+                            results = self._parse_html(html, term)
+                        listings.extend(results)
                         page.wait_for_timeout(2000)
                     except Exception as e:
                         logger.error(f"[{self.name}] Error searching '{term}': {e}")
@@ -68,37 +139,6 @@ class GumtreeScanner(BaseScanner):
             logger.error(f"[{self.name}] Browser error: {e}")
 
         return listings
-
-    def _search_with_page(self, page, term: str) -> list[Listing]:
-        """Search using the browser page."""
-        encoded = quote_plus(term)
-        url = f"{self.base_url}/s-{encoded}/k0"
-
-        try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20000)
-            page.wait_for_timeout(3000)
-        except Exception as e:
-            logger.warning(f"[{self.name}] Navigation error for '{term}': {e}")
-            return []
-
-        html = page.content()
-
-        # Check for CF block
-        if "Just a moment" in html or "Access Denied" in html:
-            logger.warning(f"[{self.name}] CF challenge for '{term}', waiting...")
-            page.wait_for_timeout(8000)
-            html = page.content()
-            if "Just a moment" in html or "Access Denied" in html:
-                logger.warning(f"[{self.name}] Still blocked for '{term}'")
-                return []
-
-        # Try JSON extraction first
-        results = self._parse_json(html, term)
-        if results:
-            return results
-
-        # Fall back to HTML
-        return self._parse_html(html, term)
 
     def _parse_json(self, html: str, term: str) -> list[Listing]:
         """Extract listings from embedded JSON data."""
@@ -141,12 +181,20 @@ class GumtreeScanner(BaseScanner):
                         price = "No price"
                         if isinstance(offers, dict) and offers.get("price"):
                             price = f"${offers['price']} {offers.get('priceCurrency', 'AUD')}"
+                        img = ""
+                        if obj.get("image"):
+                            img_val = obj["image"]
+                            if isinstance(img_val, list):
+                                img = img_val[0] if img_val else ""
+                            else:
+                                img = str(img_val)
                         results.append(Listing(
                             title=obj.get("name", "No title"),
                             price=price,
                             url=item_url,
                             location="Australia",
                             marketplace=self.name,
+                            image_url=img,
                         ))
             except (json.JSONDecodeError, KeyError):
                 continue
@@ -232,10 +280,12 @@ class GumtreeScanner(BaseScanner):
                     "span.user-ad-row__location, div.listing-location, "
                     "p.tempo-location, [data-testid='listing-location']"
                 )
+                img_el = card.select_one("img")
 
                 title = self._safe_text(title_el, "No title")
                 price = self._safe_text(price_el, "No price")
                 location = self._safe_text(loc_el, "Australia")
+                image_url = img_el.get("src", "") if img_el else ""
 
                 href = card.get("href", "")
                 if not href and card.name != "a":
@@ -251,6 +301,7 @@ class GumtreeScanner(BaseScanner):
                         url=href,
                         location=location,
                         marketplace=self.name,
+                        image_url=image_url,
                     ))
             except Exception as e:
                 logger.debug(f"[{self.name}] Parse error: {e}")
@@ -261,11 +312,10 @@ class GumtreeScanner(BaseScanner):
         return results
 
     # ------------------------------------------------------------------
-    # Google fallback (when Playwright is unavailable)
+    # Google fallback (when direct HTTP and Playwright both fail)
     # ------------------------------------------------------------------
     def _scan_google_fallback(self) -> list[Listing]:
-        """Fall back to batched Google dorking when Playwright is not available."""
-        import re
+        """Fall back to batched Google dorking."""
         all_results = []
 
         for i in range(0, len(self.search_terms), 6):
@@ -298,6 +348,14 @@ class GumtreeScanner(BaseScanner):
                     if any(skip in href for skip in ("/post-ad", "/my-gumtree", "/help")):
                         continue
 
+                    # Try to extract thumbnail from Google result
+                    image_url = ""
+                    img_el = result.select_one("img")
+                    if img_el:
+                        src = img_el.get("src", "") or img_el.get("data-src", "")
+                        if src and src.startswith("http"):
+                            image_url = src
+
                     price = "See listing"
                     price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
                     if price_match:
@@ -317,6 +375,7 @@ class GumtreeScanner(BaseScanner):
                             location=location,
                             marketplace=self.name,
                             description=description,
+                            image_url=image_url,
                         ))
                 except Exception as e:
                     logger.debug(f"[{self.name}] Google parse error: {e}")

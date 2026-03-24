@@ -119,21 +119,21 @@ def scanner_loop():
         with STATE_LOCK:
             state["scan_running"] = True
         _log("--- Scan started ---")
-        _log(f"Searching {len(search_terms)} terms across {len(ALL_SCANNERS)} scanners")
+        if enabled:
+            active_scanners = [s for s in ALL_SCANNERS if s.scanner_id in enabled]
+        else:
+            active_scanners = list(ALL_SCANNERS)
+
+        _log(f"Searching {len(search_terms)} terms across {len(active_scanners)} scanners")
 
         all_listings = []
         new_listings = []
         scanners_ok = 0
         scanners_failed = 0
 
-        for idx, scanner_cls in enumerate(ALL_SCANNERS):
+        for idx, scanner_cls in enumerate(active_scanners):
             if stop_event.is_set():
                 break
-
-            scanner_key = scanner_cls.name.lower()
-            if enabled and not any(k in scanner_key for k in enabled):
-                _log(f"  [{scanner_cls.name}] Skipped (disabled)")
-                continue
 
             if idx > 0:
                 stagger = random.uniform(3, 8)

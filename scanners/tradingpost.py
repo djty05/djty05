@@ -1,7 +1,7 @@
 """Trading Post Australia scanner.
 
-Trading Post (tradingpost.com.au) blocks plain HTTP requests with 403.
-Uses Playwright to render the search page, with Google dorking as fallback.
+Uses direct HTTP requests as primary approach, with Playwright and
+Google dorking as fallbacks.
 """
 
 import logging
@@ -20,12 +20,116 @@ class TradingPostScanner(BaseScanner):
     base_url = "https://www.tradingpost.com.au"
 
     def scan(self) -> list[Listing]:
+        # Try direct HTTP first
+        listings = self._scan_http()
+        if listings:
+            return listings
+
+        # Try Playwright if available
         try:
             from playwright.sync_api import sync_playwright
-            return self._scan_playwright()
+            listings = self._scan_playwright()
+            if listings:
+                return listings
         except ImportError:
-            logger.warning(f"[{self.name}] Playwright not installed, using Google fallback")
-            return self._scan_google_fallback()
+            logger.info(f"[{self.name}] Playwright not available")
+
+        # Last resort: Google dorking
+        logger.info(f"[{self.name}] Falling back to Google dorking")
+        return self._scan_google_fallback()
+
+    def _scan_http(self) -> list[Listing]:
+        """Try direct HTTP requests to Trading Post search."""
+        all_listings = []
+
+        for term in self.search_terms:
+            try:
+                found = self._search_http(term)
+                all_listings.extend(found)
+            except Exception as e:
+                logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
+
+        if all_listings:
+            logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")
+        return all_listings
+
+    def _search_http(self, term: str) -> list[Listing]:
+        """Search Trading Post via direct HTTP."""
+        search_urls = [
+            f"{self.base_url}/search?q={term}&sort=date",
+            f"{self.base_url}/search?keyword={term}",
+        ]
+
+        for search_url in search_urls:
+            resp = self._get(search_url, retries=1, delay=3.0)
+            if not resp:
+                continue
+
+            html = resp.text
+            if "Access Denied" in html or "Just a moment" in html or len(html) < 500:
+                continue
+
+            results = self._parse_html(html, term)
+            if results:
+                return results
+
+        return []
+
+    def _parse_html(self, html: str, term: str) -> list[Listing]:
+        """Parse Trading Post HTML for listing cards."""
+        soup = BeautifulSoup(html, "lxml")
+        results = []
+
+        card_selectors = [
+            "div.listing-card", "div.search-result", "article.listing",
+            "div.ad-card", "div[class*='listing']", "div[class*='result']",
+            "div[class*='product']", "a[class*='listing']",
+        ]
+
+        cards = []
+        for sel in card_selectors:
+            cards = soup.select(sel)
+            if cards:
+                break
+
+        for card in cards:
+            try:
+                title_el = card.select_one("h2, h3, h4, a.title, span.title, .title, .name")
+                price_el = card.select_one("span.price, div.price, [class*='price']")
+                loc_el = card.select_one("span.location, div.location, [class*='location']")
+
+                title = self._safe_text(title_el, "No title")
+                price = self._safe_text(price_el, "See listing")
+                location = self._safe_text(loc_el, "Australia")
+
+                link = card.select_one("a[href]") if card.name != "a" else card
+                href = link.get("href", "") if link else ""
+                if href and not href.startswith("http"):
+                    href = f"{self.base_url}{href}"
+
+                img_el = card.select_one("img")
+                image_url = ""
+                if img_el:
+                    image_url = (img_el.get("src", "") or
+                                img_el.get("data-src", "") or
+                                img_el.get("data-lazy-src", ""))
+
+                if title and title != "No title" and href:
+                    results.append(Listing(
+                        title=title,
+                        price=price,
+                        url=href,
+                        location=location,
+                        marketplace=self.name,
+                        image_url=image_url,
+                    ))
+            except Exception as e:
+                logger.debug(f"[{self.name}] Parse error: {e}")
+                continue
+
+        if results:
+            logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
+        return results
 
     def _scan_playwright(self) -> list[Listing]:
         """Use Playwright to render Trading Post search pages."""
@@ -52,15 +156,33 @@ class TradingPostScanner(BaseScanner):
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                 """)
 
-                # Load homepage first to get cookies
                 logger.info(f"[{self.name}] Loading site...")
                 page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
                 page.wait_for_timeout(3000)
 
                 for term in self.search_terms:
                     try:
-                        found = self._search_with_page(page, term)
-                        all_listings.extend(found)
+                        search_urls = [
+                            f"{self.base_url}/search?q={term}&sort=date",
+                            f"{self.base_url}/search?keyword={term}",
+                        ]
+
+                        for search_url in search_urls:
+                            try:
+                                page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
+                                page.wait_for_timeout(3000)
+                            except Exception:
+                                continue
+
+                            html = page.content()
+                            if "Access Denied" in html or "Just a moment" in html:
+                                continue
+
+                            found = self._parse_html(html, term)
+                            if found:
+                                all_listings.extend(found)
+                                break
+
                         page.wait_for_timeout(2000)
                     except Exception as e:
                         logger.error(f"[{self.name}] Error searching '{term}': {e}")
@@ -69,85 +191,8 @@ class TradingPostScanner(BaseScanner):
 
         except Exception as e:
             logger.error(f"[{self.name}] Playwright error: {e}")
-            return self._scan_google_fallback()
 
         return all_listings
-
-    def _search_with_page(self, page, term: str) -> list[Listing]:
-        """Search for a term on Trading Post."""
-        results = []
-
-        # Try URL-based search
-        search_urls = [
-            f"{self.base_url}/search?q={term}&sort=date",
-            f"{self.base_url}/search?keyword={term}",
-        ]
-
-        for search_url in search_urls:
-            try:
-                page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
-                page.wait_for_timeout(3000)
-            except Exception:
-                continue
-
-            html = page.content()
-
-            # Check for blocks
-            if "Access Denied" in html or "Just a moment" in html:
-                logger.warning(f"[{self.name}] Blocked for '{term}'")
-                return []
-
-            soup = BeautifulSoup(html, "lxml")
-
-            # Try multiple selector patterns
-            card_selectors = [
-                "div.listing-card", "div.search-result", "article.listing",
-                "div.ad-card", "div[class*='listing']", "div[class*='result']",
-                "div[class*='product']", "a[class*='listing']",
-            ]
-
-            cards = []
-            for sel in card_selectors:
-                cards = soup.select(sel)
-                if cards:
-                    break
-
-            for card in cards:
-                try:
-                    title_el = card.select_one("h2, h3, h4, a.title, span.title, .title, .name")
-                    price_el = card.select_one("span.price, div.price, [class*='price']")
-                    loc_el = card.select_one("span.location, div.location, [class*='location']")
-
-                    title = self._safe_text(title_el, "No title")
-                    price = self._safe_text(price_el, "See listing")
-                    location = self._safe_text(loc_el, "Australia")
-
-                    link = card.select_one("a[href]") if card.name != "a" else card
-                    href = link.get("href", "") if link else ""
-                    if href and not href.startswith("http"):
-                        href = f"{self.base_url}{href}"
-
-                    img_el = card.select_one("img")
-                    image_url = img_el.get("src", "") if img_el else ""
-
-                    if title and title != "No title" and href:
-                        results.append(Listing(
-                            title=title,
-                            price=price,
-                            url=href,
-                            location=location,
-                            marketplace=self.name,
-                            image_url=image_url,
-                        ))
-                except Exception as e:
-                    logger.debug(f"[{self.name}] Parse error: {e}")
-                    continue
-
-            if results:
-                logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
-                return results
-
-        return results
 
     def _scan_google_fallback(self) -> list[Listing]:
         """Fall back to batched Google dorking."""
@@ -181,6 +226,14 @@ class TradingPostScanner(BaseScanner):
                     if "tradingpost.com.au" not in href:
                         continue
 
+                    # Try to extract thumbnail
+                    image_url = ""
+                    img_el = result.select_one("img")
+                    if img_el:
+                        src = img_el.get("src", "") or img_el.get("data-src", "")
+                        if src and src.startswith("http"):
+                            image_url = src
+
                     price = "See listing"
                     price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
                     if price_match:
@@ -194,6 +247,7 @@ class TradingPostScanner(BaseScanner):
                             location="Australia",
                             marketplace=self.name,
                             description=description,
+                            image_url=image_url,
                         ))
                 except Exception as e:
                     logger.debug(f"[{self.name}] Google parse error: {e}")

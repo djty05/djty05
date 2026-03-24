@@ -1,12 +1,7 @@
 """Cash Converters Australia scanner.
 
-Cash Converters is a JavaScript SPA with no public search API.
-The online shop at /shop has a search bar that triggers internal API calls.
-This scanner uses Playwright to:
-  1. Load the shop page and interact with the search bar.
-  2. Intercept the underlying API calls to capture product data.
-  3. Fall back to parsing the rendered HTML if API interception fails.
-  4. Fall back to Google dorking as a last resort.
+Uses direct HTTP requests to the Cash Converters online shop as primary approach.
+Falls back to Playwright for API interception, then Google dorking.
 """
 
 import json
@@ -24,87 +19,48 @@ class CashConvertersScanner(BaseScanner):
     scanner_id = "cashconverters"
     name = "Cash Converters AU"
     base_url = "https://www.cashconverters.com.au"
+    min_request_delay = 3.0
+    max_request_delay = 6.0
 
     def scan(self) -> list[Listing]:
+        # Try direct HTTP first
+        listings = self._scan_http()
+        if listings:
+            return listings
+
+        # Try Playwright if available
         try:
             from playwright.sync_api import sync_playwright
-            return self._scan_playwright()
+            listings = self._scan_playwright()
+            if listings:
+                return listings
         except ImportError:
-            logger.warning(f"[{self.name}] Playwright not installed, falling back to Google")
-            return self._scan_google_fallback()
+            logger.info(f"[{self.name}] Playwright not available")
 
-    def _scan_playwright(self) -> list[Listing]:
-        """Use Playwright to search the Cash Converters online shop."""
-        from playwright.sync_api import sync_playwright
+        # Last resort: Google dorking
+        logger.info(f"[{self.name}] Falling back to Google dorking")
+        return self._scan_google_fallback()
 
+    def _scan_http(self) -> list[Listing]:
+        """Try direct HTTP requests to Cash Converters shop search."""
         all_listings = []
 
-        try:
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=True)
-                context = browser.new_context(
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36"
-                    ),
-                    locale="en-AU",
-                    timezone_id="Australia/Sydney",
-                    viewport={"width": 1920, "height": 1080},
-                )
-                page = context.new_page()
+        for term in self.search_terms:
+            try:
+                found = self._search_http(term)
+                all_listings.extend(found)
+            except Exception as e:
+                logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
 
-                # Stealth: remove webdriver flag
-                page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                """)
-
-                # Collect API responses that might contain product data
-                api_results = []
-
-                def capture_response(response):
-                    """Capture JSON API responses that look like product data."""
-                    url = response.url
-                    if response.status == 200 and any(
-                        kw in url.lower()
-                        for kw in ("product", "search", "catalog", "item", "shop", "webshop")
-                    ):
-                        try:
-                            ct = response.headers.get("content-type", "")
-                            if "json" in ct:
-                                api_results.append(response.json())
-                        except Exception:
-                            pass
-
-                page.on("response", capture_response)
-
-                # Load the shop page first
-                logger.info(f"[{self.name}] Loading shop page...")
-                page.goto(f"{self.base_url}/shop", wait_until="domcontentloaded", timeout=30000)
-                page.wait_for_timeout(3000)
-
-                for term in self.search_terms:
-                    try:
-                        found = self._search_term(page, term, api_results)
-                        all_listings.extend(found)
-                        page.wait_for_timeout(2000)
-                    except Exception as e:
-                        logger.error(f"[{self.name}] Error searching '{term}': {e}")
-
-                browser.close()
-
-        except Exception as e:
-            logger.error(f"[{self.name}] Playwright error: {e}")
-            return self._scan_google_fallback()
-
+        if all_listings:
+            logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")
         return all_listings
 
-    def _search_term(self, page, term: str, api_results: list) -> list[Listing]:
-        """Search for a term using the shop's search bar or URL navigation."""
+    def _search_http(self, term: str) -> list[Listing]:
+        """Search Cash Converters via direct HTTP."""
         results = []
-        api_results.clear()
 
-        # Strategy 1: Try URL-based search patterns
+        # Try multiple search URL patterns
         search_urls = [
             f"{self.base_url}/shop?q={term}",
             f"{self.base_url}/shop?search={term}",
@@ -112,129 +68,46 @@ class CashConvertersScanner(BaseScanner):
         ]
 
         for search_url in search_urls:
-            try:
-                page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
-                page.wait_for_timeout(3000)
-
-                # Check if any API responses were captured with products
-                parsed = self._parse_api_results(api_results)
-                if parsed:
-                    logger.info(f"[{self.name}] API captured {len(parsed)} results for '{term}'")
-                    return parsed
-
-                # Try parsing the rendered page
-                parsed = self._parse_rendered_page(page, term)
-                if parsed:
-                    return parsed
-
-            except Exception as e:
-                logger.debug(f"[{self.name}] URL {search_url} failed: {e}")
+            resp = self._get(search_url, retries=1, delay=3.0)
+            if not resp:
                 continue
 
-        # Strategy 2: Try interacting with search bar on the shop page
-        try:
-            page.goto(f"{self.base_url}/shop", wait_until="domcontentloaded", timeout=15000)
-            page.wait_for_timeout(2000)
-
-            # Look for search input using common selectors
-            search_selectors = [
-                "input[type='search']",
-                "input[name='search']",
-                "input[name='q']",
-                "input[placeholder*='earch']",
-                "input[placeholder*='ind']",
-                "input.search-input",
-                "#search-input",
-                "[data-testid='search-input']",
-            ]
-
-            for sel in search_selectors:
-                try:
-                    search_input = page.query_selector(sel)
-                    if search_input:
-                        search_input.click()
-                        search_input.fill(term)
-                        page.keyboard.press("Enter")
-                        page.wait_for_timeout(4000)
-
-                        # Check API captures
-                        parsed = self._parse_api_results(api_results)
-                        if parsed:
-                            logger.info(f"[{self.name}] Search bar found {len(parsed)} results for '{term}'")
-                            return parsed
-
-                        # Parse rendered page
-                        parsed = self._parse_rendered_page(page, term)
-                        if parsed:
-                            return parsed
-                        break
-                except Exception:
-                    continue
-
-        except Exception as e:
-            logger.debug(f"[{self.name}] Search bar interaction failed: {e}")
-
-        logger.debug(f"[{self.name}] No results found via Playwright for '{term}'")
-        return results
-
-    def _parse_api_results(self, api_results: list) -> list[Listing]:
-        """Parse captured API JSON responses into listings."""
-        results = []
-        for data in api_results:
-            if not isinstance(data, (dict, list)):
+            html = resp.text
+            if "Access Denied" in html or len(html) < 500:
                 continue
 
-            items = []
-            if isinstance(data, list):
-                items = data
-            elif isinstance(data, dict):
-                for key in ("products", "results", "items", "data", "Records",
-                            "SearchResults", "hits", "content"):
-                    if key in data and isinstance(data[key], list):
-                        items = data[key]
-                        break
-
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                title = (item.get("title") or item.get("name") or
-                         item.get("productName") or item.get("Title") or "")
-                if not title:
-                    continue
-
-                price = (item.get("price") or item.get("salePrice") or
-                         item.get("Price") or item.get("displayPrice") or "See listing")
-                if isinstance(price, (int, float)):
-                    price = f"${price:.2f}"
-
-                href = (item.get("url") or item.get("slug") or
-                        item.get("Url") or item.get("link") or "")
-                if href and not href.startswith("http"):
-                    href = f"{self.base_url}{href}"
-
-                location = (item.get("store") or item.get("storeName") or
-                            item.get("Store") or item.get("location") or "Australia")
-                image_url = (item.get("image") or item.get("imageUrl") or
-                             item.get("Image") or item.get("thumbnail") or "")
-
-                results.append(Listing(
-                    title=str(title),
-                    price=str(price),
-                    url=href or f"{self.base_url}/shop",
-                    location=str(location),
-                    marketplace=self.name,
-                    image_url=str(image_url),
-                ))
+            parsed = self._parse_shop_html(html, term)
+            if parsed:
+                return parsed
 
         return results
 
-    def _parse_rendered_page(self, page, term: str) -> list[Listing]:
-        """Parse the rendered HTML page for product cards."""
-        html = page.content()
+    def _parse_shop_html(self, html: str, term: str) -> list[Listing]:
+        """Parse Cash Converters shop HTML for product listings."""
         soup = BeautifulSoup(html, "lxml")
         results = []
 
-        # Try multiple selector patterns for product cards
+        # Look for embedded JSON data first
+        for script in soup.select("script"):
+            if not script.string:
+                continue
+            text = script.string
+            # Look for product data in various JSON patterns
+            for pattern in [r'window\.__INITIAL_STATE__\s*=\s*({.*?});',
+                           r'window\.__NEXT_DATA__\s*=\s*({.*?});',
+                           r'"products"\s*:\s*(\[.*?\])',
+                           r'"items"\s*:\s*(\[.*?\])']:
+                match = re.search(pattern, text, re.DOTALL)
+                if match:
+                    try:
+                        data = json.loads(match.group(1))
+                        parsed = self._parse_json_products(data)
+                        if parsed:
+                            return parsed
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+
+        # HTML card parsing
         card_selectors = [
             ".product-card", ".product-tile", ".product-item",
             ".search-result-item", "[data-testid='product-card']",
@@ -248,9 +121,6 @@ class CashConvertersScanner(BaseScanner):
             cards = soup.select(sel)
             if cards:
                 break
-
-        if not cards:
-            return []
 
         for card in cards:
             try:
@@ -275,7 +145,12 @@ class CashConvertersScanner(BaseScanner):
                 href = link_el.get("href", "") if link_el else ""
                 if href and not href.startswith("http"):
                     href = f"{self.base_url}{href}"
-                image_url = img_el.get("src", "") if img_el else ""
+
+                image_url = ""
+                if img_el:
+                    image_url = (img_el.get("src", "") or
+                                img_el.get("data-src", "") or
+                                img_el.get("data-lazy-src", ""))
 
                 loc_el = card.select_one(".store-name, .location, .store, [class*='store']")
                 location = self._safe_text(loc_el, "Australia")
@@ -293,8 +168,145 @@ class CashConvertersScanner(BaseScanner):
                 continue
 
         if results:
-            logger.info(f"[{self.name}] Found {len(results)} rendered results for '{term}'")
+            logger.info(f"[{self.name}] Found {len(results)} HTML results for '{term}'")
         return results
+
+    def _parse_json_products(self, data) -> list[Listing]:
+        """Parse product data from JSON."""
+        results = []
+        items = []
+
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            for key in ("products", "results", "items", "data", "Records",
+                        "SearchResults", "hits", "content"):
+                if key in data and isinstance(data[key], list):
+                    items = data[key]
+                    break
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            title = (item.get("title") or item.get("name") or
+                     item.get("productName") or item.get("Title") or "")
+            if not title:
+                continue
+
+            price = (item.get("price") or item.get("salePrice") or
+                     item.get("Price") or item.get("displayPrice") or "See listing")
+            if isinstance(price, (int, float)):
+                price = f"${price:.2f}"
+
+            href = (item.get("url") or item.get("slug") or
+                    item.get("Url") or item.get("link") or "")
+            if href and not href.startswith("http"):
+                href = f"{self.base_url}{href}"
+
+            location = (item.get("store") or item.get("storeName") or
+                        item.get("Store") or item.get("location") or "Australia")
+            image_url = (item.get("image") or item.get("imageUrl") or
+                         item.get("Image") or item.get("thumbnail") or "")
+
+            results.append(Listing(
+                title=str(title),
+                price=str(price),
+                url=href or f"{self.base_url}/shop",
+                location=str(location),
+                marketplace=self.name,
+                image_url=str(image_url),
+            ))
+
+        return results
+
+    def _scan_playwright(self) -> list[Listing]:
+        """Use Playwright to search the Cash Converters online shop."""
+        from playwright.sync_api import sync_playwright
+
+        all_listings = []
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    locale="en-AU",
+                    timezone_id="Australia/Sydney",
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = context.new_page()
+
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                """)
+
+                # Collect API responses
+                api_results = []
+
+                def capture_response(response):
+                    url = response.url
+                    if response.status == 200 and any(
+                        kw in url.lower()
+                        for kw in ("product", "search", "catalog", "item", "shop", "webshop")
+                    ):
+                        try:
+                            ct = response.headers.get("content-type", "")
+                            if "json" in ct:
+                                api_results.append(response.json())
+                        except Exception:
+                            pass
+
+                page.on("response", capture_response)
+
+                logger.info(f"[{self.name}] Loading shop page...")
+                page.goto(f"{self.base_url}/shop", wait_until="domcontentloaded", timeout=30000)
+                page.wait_for_timeout(3000)
+
+                for term in self.search_terms:
+                    try:
+                        api_results.clear()
+                        search_urls = [
+                            f"{self.base_url}/shop?q={term}",
+                            f"{self.base_url}/shop?search={term}",
+                        ]
+
+                        for search_url in search_urls:
+                            try:
+                                page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
+                                page.wait_for_timeout(3000)
+
+                                parsed = self._parse_json_products(
+                                    {"products": [item for data in api_results
+                                                  for item in (data if isinstance(data, list) else
+                                                               data.get("products", data.get("results", [])))
+                                                  if isinstance(item, dict)]}
+                                ) if api_results else []
+                                if parsed:
+                                    all_listings.extend(parsed)
+                                    break
+
+                                html = page.content()
+                                parsed = self._parse_shop_html(html, term)
+                                if parsed:
+                                    all_listings.extend(parsed)
+                                    break
+                            except Exception:
+                                continue
+
+                        page.wait_for_timeout(2000)
+                    except Exception as e:
+                        logger.error(f"[{self.name}] Error searching '{term}': {e}")
+
+                browser.close()
+
+        except Exception as e:
+            logger.error(f"[{self.name}] Playwright error: {e}")
+
+        return all_listings
 
     # ------------------------------------------------------------------
     # Google fallback (batched to reduce requests)
@@ -302,7 +314,6 @@ class CashConvertersScanner(BaseScanner):
     def _scan_google_fallback(self) -> list[Listing]:
         """Fall back to Google dorking with batched terms."""
         all_results = []
-        # Batch terms into groups of 6 to reduce Google queries
         for i in range(0, len(self.search_terms), 6):
             chunk = self.search_terms[i:i + 6]
             or_query = " OR ".join(f'"{t}"' for t in chunk)
@@ -332,6 +343,14 @@ class CashConvertersScanner(BaseScanner):
                     if any(skip in href for skip in ("/store-locator", "/about", "/sell", "/contact")):
                         continue
 
+                    # Try to extract thumbnail
+                    image_url = ""
+                    img_el = result.select_one("img")
+                    if img_el:
+                        src = img_el.get("src", "") or img_el.get("data-src", "")
+                        if src and src.startswith("http"):
+                            image_url = src
+
                     price = "See listing"
                     price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
                     if price_match:
@@ -345,6 +364,7 @@ class CashConvertersScanner(BaseScanner):
                             location="Australia",
                             marketplace=self.name,
                             description=description,
+                            image_url=image_url,
                         ))
                 except Exception as e:
                     logger.debug(f"[{self.name}] Google parse error: {e}")
