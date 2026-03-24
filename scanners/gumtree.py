@@ -19,8 +19,8 @@ class GumtreeScanner(BaseScanner):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
-            logger.error(f"[{self.name}] playwright not installed. Run: pip install playwright && playwright install chromium")
-            return []
+            logger.warning(f"[{self.name}] Playwright not available, using Google fallback")
+            return self._scan_google_fallback()
 
         listings = []
         try:
@@ -258,3 +258,68 @@ class GumtreeScanner(BaseScanner):
         if results:
             logger.info(f"[{self.name}] Found {len(results)} for '{term}' via HTML")
         return results
+
+    # ------------------------------------------------------------------
+    # Google fallback (when Playwright is unavailable)
+    # ------------------------------------------------------------------
+    def _scan_google_fallback(self) -> list[Listing]:
+        """Fall back to batched Google dorking when Playwright is not available."""
+        import re
+        all_results = []
+
+        for i in range(0, len(self.search_terms), 6):
+            chunk = self.search_terms[i:i + 6]
+            or_query = " OR ".join(f'"{t}"' for t in chunk)
+            query = f'site:gumtree.com.au ({or_query})'
+
+            resp = self._get(
+                "https://www.google.com.au/search",
+                params={"q": query, "num": 30, "gl": "au"},
+                retries=1, delay=5.0,
+            )
+            if not resp:
+                continue
+
+            soup = BeautifulSoup(resp.text, "lxml")
+
+            for result in soup.select("div.g, div.tF2Cxc"):
+                try:
+                    link_el = result.select_one("a")
+                    title_el = result.select_one("h3")
+                    snippet_el = result.select_one("span.aCOpRe, div.VwiC3b, span.st")
+
+                    href = link_el.get("href", "") if link_el else ""
+                    title = self._safe_text(title_el, "No title")
+                    description = self._safe_text(snippet_el)
+
+                    if "gumtree.com.au" not in href:
+                        continue
+                    if any(skip in href for skip in ("/post-ad", "/my-gumtree", "/help")):
+                        continue
+
+                    price = "See listing"
+                    price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
+                    if price_match:
+                        price = price_match.group(0)
+
+                    location = "Australia"
+                    loc_match = re.search(r'(Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra)',
+                                          f"{title} {description}", re.IGNORECASE)
+                    if loc_match:
+                        location = loc_match.group(1).title()
+
+                    if title and href:
+                        all_results.append(Listing(
+                            title=title,
+                            price=price,
+                            url=href,
+                            location=location,
+                            marketplace=self.name,
+                            description=description,
+                        ))
+                except Exception as e:
+                    logger.debug(f"[{self.name}] Google parse error: {e}")
+                    continue
+
+        logger.info(f"[{self.name}] Google found {len(all_results)} total results")
+        return all_results

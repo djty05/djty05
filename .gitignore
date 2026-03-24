@@ -10,3 +10,4 @@ venv/
 .venv/
 seen_listings.json
 scanner.log
+scanner_config.json

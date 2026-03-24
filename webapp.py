@@ -345,14 +345,24 @@ def service_worker():
 
 
 # ---------------------------------------------------------------------------
-# Start
+# Start background scanner (works with both `python webapp.py` and gunicorn)
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Start background scanner thread
+_scanner_started = False
+
+def _start_scanner_once():
+    global _scanner_started
+    if _scanner_started:
+        return
+    _scanner_started = True
     scanner_thread = threading.Thread(target=scanner_loop, daemon=True)
     scanner_thread.start()
+    logger.info("Background scanner thread started")
 
-    # Get port from env or default
+# Auto-start when imported by gunicorn
+_start_scanner_once()
+
+
+if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
 
     print(f"\n  Marketplace Scanner running at http://0.0.0.0:{port}")
