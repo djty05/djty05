@@ -12,7 +12,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScanner, Listing
+from .base import BaseScanner, Listing, HTML_PARSER
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class FacebookMarketplaceScanner(BaseScanner):
                 logger.warning(f"[{self.name}] Google query failed")
             return []
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, HTML_PARSER)
 
         for result in soup.select("div.g, div.tF2Cxc"):
             try:

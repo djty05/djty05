@@ -10,7 +10,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScanner, Listing
+from .base import BaseScanner, Listing, HTML_PARSER
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ class CashConvertersScanner(BaseScanner):
 
     def _parse_shop_html(self, html: str, term: str) -> list[Listing]:
         """Parse Cash Converters shop HTML for product listings."""
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
         # Look for embedded JSON data first
@@ -339,7 +339,7 @@ class CashConvertersScanner(BaseScanner):
             if not resp:
                 continue
 
-            soup = BeautifulSoup(resp.text, "lxml")
+            soup = BeautifulSoup(resp.text, HTML_PARSER)
 
             for result in soup.select("div.g, div.tF2Cxc"):
                 try:

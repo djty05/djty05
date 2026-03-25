@@ -6,13 +6,23 @@ const API = '';
 let pollInterval = null;
 let currentListings = [];
 
+// ---- Tab switching ----
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+        if (tab.dataset.tab === 'log') loadLog();
+    });
+});
+
 // ---- Status polling ----
 async function pollStatus() {
     try {
         const res = await fetch(`${API}/api/status`);
         const data = await res.json();
 
-        // Update badge
         const badge = document.getElementById('status-badge');
         if (data.scan_paused) {
             badge.textContent = 'Paused';
@@ -25,7 +35,6 @@ async function pollStatus() {
             badge.className = 'badge';
         }
 
-        // Update stats
         document.getElementById('stat-total').textContent = data.stats.total || 0;
         document.getElementById('stat-new').textContent = data.stats.new || 0;
         document.getElementById('stat-ok').textContent = data.stats.scanners_ok || 0;
@@ -36,14 +45,13 @@ async function pollStatus() {
                 d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        // Refresh listings if scan just completed
         if (data.listing_count > 0 && data.listing_count !== currentListings.length) {
             loadListings();
         }
     } catch (e) { /* silent */ }
 }
 
-// ---- Load listings ----
+// ---- Load listings (live feed) ----
 async function loadListings() {
     const search = document.getElementById('search-input').value;
     const marketplace = document.getElementById('marketplace-filter').value;
@@ -60,28 +68,21 @@ async function loadListings() {
         const res = await fetch(`${API}/api/listings?${params}`);
         const data = await res.json();
         currentListings = data.listings;
-        renderListings(data.listings);
+        renderListings(data.listings, document.getElementById('listings-feed'));
     } catch (e) {
         console.error('Failed to load listings:', e);
     }
 }
 
-// ---- Render listing cards ----
-function renderListings(listings) {
-    const feed = document.getElementById('listings-feed');
-    const loadingMsg = document.getElementById('loading-msg');
-
+// ---- Render listing cards into a container ----
+function renderListings(listings, container, emptyMsg) {
     if (listings.length === 0) {
-        if (loadingMsg) {
-            feed.innerHTML = '';
-            feed.appendChild(loadingMsg);
-        } else {
-            feed.innerHTML = '<div class="no-results">No listings found. Try adjusting your filters.</div>';
-        }
+        container.innerHTML = `<div class="no-results">${emptyMsg || 'No listings found.'}</div>`;
         return;
     }
 
-    feed.innerHTML = '';
+    container.innerHTML = '';
+    const esc = s => s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 
     listings.forEach(l => {
         const card = document.createElement('a');
@@ -90,7 +91,6 @@ function renderListings(listings) {
         card.rel = 'noopener';
         card.className = 'listing-card' + (l.is_new ? ' is-new' : '');
 
-        // Image
         let imgHtml;
         if (l.image_url) {
             const proxied = `${API}/api/image-proxy?url=${encodeURIComponent(l.image_url)}`;
@@ -99,9 +99,6 @@ function renderListings(listings) {
         } else {
             imgHtml = '<div class="listing-img-placeholder">No image</div>';
         }
-
-        // Escape HTML
-        const esc = s => s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 
         card.innerHTML = `
             ${imgHtml}
@@ -117,11 +114,11 @@ function renderListings(listings) {
             </div>
         `;
 
-        feed.appendChild(card);
+        container.appendChild(card);
     });
 }
 
-// ---- Load marketplace filter options ----
+// ---- Load marketplace filter ----
 async function loadMarketplaces() {
     try {
         const res = await fetch(`${API}/api/marketplaces`);
@@ -136,7 +133,7 @@ async function loadMarketplaces() {
     } catch (e) { /* silent */ }
 }
 
-// ---- Log panel ----
+// ---- Log ----
 async function loadLog() {
     try {
         const res = await fetch(`${API}/api/log`);
@@ -145,6 +142,38 @@ async function loadLog() {
         content.textContent = data.log.join('\n');
         content.scrollTop = content.scrollHeight;
     } catch (e) { /* silent */ }
+}
+
+// ---- Manual search ----
+async function doManualSearch() {
+    const query = document.getElementById('manual-query').value.trim();
+    if (!query) return;
+
+    const statusEl = document.getElementById('manual-status');
+    const resultsEl = document.getElementById('manual-results');
+    statusEl.textContent = 'Searching eBay...';
+    resultsEl.innerHTML = '<div class="loading-msg"><div class="spinner"></div></div>';
+
+    // Update quick links
+    const encoded = encodeURIComponent(query);
+    document.getElementById('link-ebay').href = `https://www.ebay.com.au/sch/i.html?_nkw=${encoded}&LH_PrefLoc=1`;
+    document.getElementById('link-gumtree').href = `https://www.gumtree.com.au/s-${encoded.replace(/%20/g, '+')}/k0`;
+    document.getElementById('link-facebook').href = `https://www.facebook.com/marketplace/search/?query=${encoded}`;
+    document.getElementById('link-cashconv').href = `https://www.cashconverters.com.au/shop?q=${encoded}`;
+
+    try {
+        const res = await fetch(`${API}/api/manual-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query }),
+        });
+        const data = await res.json();
+        statusEl.textContent = `Found ${data.total} results for "${query}"`;
+        renderListings(data.listings, resultsEl, 'No results found. Try the quick links above to search directly.');
+    } catch (e) {
+        statusEl.textContent = 'Search failed — check terminal for errors';
+        resultsEl.innerHTML = '';
+    }
 }
 
 // ---- Button handlers ----
@@ -158,16 +187,21 @@ document.getElementById('btn-pause').addEventListener('click', async () => {
     pollStatus();
 });
 
-document.getElementById('btn-log').addEventListener('click', () => {
-    const panel = document.getElementById('log-panel');
-    panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden')) {
-        loadLog();
-    }
+document.getElementById('btn-manual-search').addEventListener('click', doManualSearch);
+document.getElementById('manual-query').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doManualSearch();
 });
 
-document.getElementById('log-toggle').addEventListener('click', () => {
-    document.getElementById('log-panel').classList.add('hidden');
+// Update quick links as user types
+document.getElementById('manual-query').addEventListener('input', () => {
+    const query = document.getElementById('manual-query').value.trim();
+    if (query) {
+        const encoded = encodeURIComponent(query);
+        document.getElementById('link-ebay').href = `https://www.ebay.com.au/sch/i.html?_nkw=${encoded}&LH_PrefLoc=1`;
+        document.getElementById('link-gumtree').href = `https://www.gumtree.com.au/s-${encoded.replace(/%20/g, '+')}/k0`;
+        document.getElementById('link-facebook').href = `https://www.facebook.com/marketplace/search/?query=${encoded}`;
+        document.getElementById('link-cashconv').href = `https://www.cashconverters.com.au/shop?q=${encoded}`;
+    }
 });
 
 // ---- Filter event handlers ----
@@ -185,15 +219,12 @@ loadMarketplaces();
 loadListings();
 pollStatus();
 
-// Poll every 5 seconds
-pollInterval = setInterval(() => {
-    pollStatus();
-}, 5000);
+pollInterval = setInterval(pollStatus, 5000);
 
-// Refresh log if panel is open
+// Refresh log if log tab is active
 setInterval(() => {
-    const panel = document.getElementById('log-panel');
-    if (!panel.classList.contains('hidden')) {
+    const logTab = document.getElementById('tab-log');
+    if (logTab && logTab.classList.contains('active')) {
         loadLog();
     }
 }, 3000);

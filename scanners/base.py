@@ -9,9 +9,20 @@ from datetime import datetime
 from typing import Optional
 
 import requests
-from fake_useragent import UserAgent
+
+try:
+    from fake_useragent import UserAgent
+except ImportError:
+    UserAgent = None
 
 logger = logging.getLogger(__name__)
+
+# Prefer lxml but fall back to html.parser on Windows if not installed
+try:
+    import lxml  # noqa: F401
+    HTML_PARSER = "lxml"
+except ImportError:
+    HTML_PARSER = "html.parser"
 
 
 @dataclass
@@ -97,8 +108,10 @@ class BaseScanner:
         ]
         self.session = requests.Session()
         try:
-            ua = UserAgent()
-            user_agent = ua.random
+            ua = UserAgent() if UserAgent else None
+            user_agent = ua.random if ua else None
+            if not user_agent:
+                raise ValueError("no UA")
         except Exception:
             user_agent = (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

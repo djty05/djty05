@@ -19,8 +19,8 @@
             <button id="btn-scan" class="icon-btn" title="Scan Now">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             </button>
-            <button id="btn-pause" class="icon-btn" title="Pause">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            <button id="btn-pause" class="icon-btn" title="Pause/Resume">
+                <svg id="pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
             <a href="/settings" class="icon-btn" title="Settings">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
@@ -28,51 +28,70 @@
         </div>
     </header>
 
-    <!-- Stats bar -->
-    <div class="stats-bar">
-        <div class="stat"><span id="stat-total">0</span><small>Total</small></div>
-        <div class="stat"><span id="stat-new">0</span><small>New</small></div>
-        <div class="stat"><span id="stat-ok">0</span><small>Sources</small></div>
-        <div class="stat"><span id="stat-time">--</span><small>Last Scan</small></div>
+    <!-- Tab bar -->
+    <div class="tab-bar">
+        <button class="tab active" data-tab="feed">Live Feed</button>
+        <button class="tab" data-tab="search">Search</button>
+        <button class="tab" data-tab="log">Log</button>
     </div>
 
-    <!-- Filter bar -->
-    <div class="filter-bar">
-        <input type="search" id="search-input" placeholder="Search listings..." autocomplete="off">
-        <select id="marketplace-filter">
-            <option value="">All Marketplaces</option>
-        </select>
-        <select id="sort-filter">
-            <option value="date">Newest</option>
-            <option value="price">Cheapest</option>
-            <option value="marketplace">Marketplace</option>
-        </select>
-        <label class="toggle-label">
-            <input type="checkbox" id="new-only"> New only
-        </label>
-    </div>
-
-    <!-- Listings feed -->
-    <main id="listings-feed" class="listings-feed">
-        <div class="loading-msg" id="loading-msg">
-            <div class="spinner"></div>
-            <p>Waiting for first scan...</p>
+    <!-- TAB: Live Feed -->
+    <div id="tab-feed" class="tab-content active">
+        <!-- Stats bar -->
+        <div class="stats-bar">
+            <div class="stat"><span id="stat-total">0</span><small>Total</small></div>
+            <div class="stat"><span id="stat-new">0</span><small>New</small></div>
+            <div class="stat"><span id="stat-ok">0</span><small>Sources</small></div>
+            <div class="stat"><span id="stat-time">--</span><small>Last Scan</small></div>
         </div>
-    </main>
 
-    <!-- Log panel (slide up) -->
-    <div id="log-panel" class="log-panel hidden">
-        <div class="log-header" id="log-toggle">
-            <span>Scan Log</span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        <!-- Filter bar -->
+        <div class="filter-bar">
+            <input type="search" id="search-input" placeholder="Filter listings..." autocomplete="off">
+            <select id="marketplace-filter">
+                <option value="">All Marketplaces</option>
+            </select>
+            <select id="sort-filter">
+                <option value="date">Newest</option>
+                <option value="price">Cheapest</option>
+                <option value="marketplace">Marketplace</option>
+            </select>
+            <label class="toggle-label">
+                <input type="checkbox" id="new-only"> New only
+            </label>
         </div>
-        <pre id="log-content" class="log-content"></pre>
+
+        <main id="listings-feed" class="listings-feed">
+            <div class="loading-msg" id="loading-msg">
+                <div class="spinner"></div>
+                <p>Waiting for first scan...</p>
+            </div>
+        </main>
     </div>
 
-    <!-- Floating log button -->
-    <button id="btn-log" class="fab" title="View scan log">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-    </button>
+    <!-- TAB: Manual Search -->
+    <div id="tab-search" class="tab-content">
+        <div class="search-panel">
+            <div class="manual-search-bar">
+                <input type="search" id="manual-query" placeholder="Search eBay Australia for anything..." autocomplete="off">
+                <button id="btn-manual-search" class="btn btn-primary">Search</button>
+            </div>
+            <div class="quick-links">
+                <span class="quick-label">Open in:</span>
+                <a id="link-ebay" href="#" target="_blank" class="quick-link">eBay</a>
+                <a id="link-gumtree" href="#" target="_blank" class="quick-link">Gumtree</a>
+                <a id="link-facebook" href="#" target="_blank" class="quick-link">FB Marketplace</a>
+                <a id="link-cashconv" href="#" target="_blank" class="quick-link">Cash Converters</a>
+            </div>
+            <div id="manual-status" class="manual-status"></div>
+            <div id="manual-results" class="listings-feed"></div>
+        </div>
+    </div>
+
+    <!-- TAB: Log -->
+    <div id="tab-log" class="tab-content">
+        <pre id="log-content" class="log-content-full"></pre>
+    </div>
 
     <script src="/static/js/app.js"></script>
 </body>

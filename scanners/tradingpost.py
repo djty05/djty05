@@ -9,7 +9,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScanner, Listing
+from .base import BaseScanner, Listing, HTML_PARSER
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +90,7 @@ class TradingPostScanner(BaseScanner):
 
     def _parse_html(self, html: str, term: str) -> list[Listing]:
         """Parse Trading Post HTML for listing cards."""
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
         card_selectors = [
@@ -224,7 +224,7 @@ class TradingPostScanner(BaseScanner):
             if not resp:
                 continue
 
-            soup = BeautifulSoup(resp.text, "lxml")
+            soup = BeautifulSoup(resp.text, HTML_PARSER)
 
             for result in soup.select("div.g, div.tF2Cxc"):
                 try:

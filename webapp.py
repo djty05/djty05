@@ -104,8 +104,19 @@ def _listing_to_dict(l: Listing, is_new: bool = False) -> dict:
 
 def scanner_loop():
     """Background thread that continuously scans marketplaces."""
+    try:
+        _scanner_loop_inner()
+    except Exception as e:
+        _log(f"FATAL: Scanner thread crashed: {e}")
+        logger.exception("Scanner thread crashed")
+
+
+def _scanner_loop_inner():
     seen = _load_seen()
-    notifier = Notifier()
+    try:
+        notifier = Notifier()
+    except Exception:
+        notifier = None
 
     while not stop_event.is_set():
         if state["scan_paused"]:
@@ -167,10 +178,11 @@ def scanner_loop():
             if is_new:
                 new_listings.append(listing)
                 seen.add(listing.listing_id)
-                try:
-                    notifier.notify(listing)
-                except Exception as e:
-                    logger.error(f"Notification error: {e}")
+                if notifier:
+                    try:
+                        notifier.notify(listing)
+                    except Exception as e:
+                        logger.error(f"Notification error: {e}")
 
         _save_seen(seen)
 
@@ -309,6 +321,32 @@ def api_save_config():
 def api_marketplaces():
     """Return list of available marketplace scanners."""
     return jsonify([{"name": s.name, "key": s.name.lower()} for s in ALL_SCANNERS])
+
+
+@app.route("/api/manual-search", methods=["POST"])
+def api_manual_search():
+    """Run a one-off search across eBay (fast, reliable) for any query."""
+    data = request.get_json(force=True)
+    query = data.get("query", "").strip()
+    if not query:
+        return jsonify({"listings": [], "error": "No query provided"})
+
+    from scanners.ebay import EbayAUScanner
+
+    _log(f"[Manual Search] Searching eBay for: {query}")
+    results = []
+    try:
+        scanner = EbayAUScanner(search_terms=[query])
+        # Remove category filter for manual search — let user search anything
+        listings = scanner.scan()
+        for listing in listings:
+            results.append(_listing_to_dict(listing, is_new=False))
+        _log(f"[Manual Search] Found {len(results)} results for '{query}'")
+    except Exception as e:
+        _log(f"[Manual Search] Error: {e}")
+        logger.error(f"Manual search error: {e}")
+
+    return jsonify({"listings": results, "total": len(results)})
 
 
 @app.route("/api/reset-seen", methods=["POST"])

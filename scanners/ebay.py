@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
-from .base import BaseScanner, Listing
+from .base import BaseScanner, Listing, HTML_PARSER
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class EbayAUScanner(BaseScanner):
         if not resp:
             return []
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, HTML_PARSER)
         results = []
 
         # Detect which layout eBay is serving

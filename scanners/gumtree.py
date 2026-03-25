@@ -11,7 +11,7 @@ import re
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 
-from .base import BaseScanner, Listing
+from .base import BaseScanner, Listing, HTML_PARSER
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ class GumtreeScanner(BaseScanner):
 
     def _parse_json(self, html: str, term: str) -> list[Listing]:
         """Extract listings from embedded JSON data."""
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
         # Next.js data
@@ -260,7 +260,7 @@ class GumtreeScanner(BaseScanner):
 
     def _parse_html(self, html: str, term: str) -> list[Listing]:
         """Fall back to HTML parsing."""
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
         selectors = [
@@ -346,7 +346,7 @@ class GumtreeScanner(BaseScanner):
             if not resp:
                 continue
 
-            soup = BeautifulSoup(resp.text, "lxml")
+            soup = BeautifulSoup(resp.text, HTML_PARSER)
 
             for result in soup.select("div.g, div.tF2Cxc"):
                 try:
