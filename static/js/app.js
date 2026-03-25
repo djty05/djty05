@@ -5,6 +5,21 @@
 const API = '';
 let pollInterval = null;
 let currentListings = [];
+let searchResults = [];
+
+// ---- Helpers ----
+function parsePrice(priceStr) {
+    if (!priceStr) return null;
+    const m = priceStr.replace(/,/g, '').match(/[\d.]+/);
+    if (!m) return null;
+    const val = parseFloat(m[0]);
+    return isNaN(val) ? null : val;
+}
+
+function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // ---- Tab switching ----
 document.querySelectorAll('.tab').forEach(tab => {
@@ -51,30 +66,158 @@ async function pollStatus() {
     } catch (e) { /* silent */ }
 }
 
-// ---- Load listings (live feed) ----
+// ---- Load listings from API ----
 async function loadListings() {
-    const search = document.getElementById('search-input').value;
-    const marketplace = document.getElementById('marketplace-filter').value;
-    const sort = document.getElementById('sort-filter').value;
-    const newOnly = document.getElementById('new-only').checked;
-
-    const params = new URLSearchParams();
-    if (search) params.set('search', search);
-    if (marketplace) params.set('marketplace', marketplace);
-    if (sort) params.set('sort', sort);
-    if (newOnly) params.set('new_only', 'true');
-
     try {
-        const res = await fetch(`${API}/api/listings?${params}`);
+        const res = await fetch(`${API}/api/listings`);
         const data = await res.json();
         currentListings = data.listings;
-        renderListings(data.listings, document.getElementById('listings-feed'));
+        populateFilterDropdowns(currentListings, 'f-marketplace', 'f-location');
+        applyFeedFilters();
     } catch (e) {
         console.error('Failed to load listings:', e);
     }
 }
 
-// ---- Render listing cards into a container ----
+// ---- Populate filter dropdowns from listings data ----
+function populateFilterDropdowns(listings, mpId, locId) {
+    const marketplaces = new Set();
+    const locations = new Set();
+
+    listings.forEach(l => {
+        if (l.marketplace) marketplaces.add(l.marketplace);
+        if (l.location && l.location !== 'Australia') locations.add(l.location);
+    });
+
+    const mpSelect = document.getElementById(mpId);
+    const locSelect = document.getElementById(locId);
+
+    // Preserve current selection
+    const mpVal = mpSelect.value;
+    const locVal = locSelect.value;
+
+    // Clear and rebuild options
+    mpSelect.innerHTML = '<option value="">All Marketplaces</option>';
+    [...marketplaces].sort().forEach(mp => {
+        const opt = document.createElement('option');
+        opt.value = mp;
+        opt.textContent = mp;
+        mpSelect.appendChild(opt);
+    });
+    mpSelect.value = mpVal;
+
+    locSelect.innerHTML = '<option value="">All Locations</option>';
+    [...locations].sort().forEach(loc => {
+        const opt = document.createElement('option');
+        opt.value = loc;
+        opt.textContent = loc;
+        locSelect.appendChild(opt);
+    });
+    locSelect.value = locVal;
+}
+
+// ---- Client-side filter + sort ----
+function filterAndSort(listings, opts) {
+    let filtered = listings.slice();
+
+    // Keyword search
+    if (opts.search) {
+        const q = opts.search.toLowerCase();
+        filtered = filtered.filter(l =>
+            (l.title && l.title.toLowerCase().includes(q)) ||
+            (l.description && l.description.toLowerCase().includes(q))
+        );
+    }
+
+    // Marketplace
+    if (opts.marketplace) {
+        filtered = filtered.filter(l => l.marketplace === opts.marketplace);
+    }
+
+    // Location
+    if (opts.location) {
+        const loc = opts.location.toLowerCase();
+        filtered = filtered.filter(l => l.location && l.location.toLowerCase().includes(loc));
+    }
+
+    // Price range
+    if (opts.priceMin !== null || opts.priceMax !== null) {
+        filtered = filtered.filter(l => {
+            const p = parsePrice(l.price);
+            if (p === null) return true; // keep items without a parseable price
+            if (opts.priceMin !== null && p < opts.priceMin) return false;
+            if (opts.priceMax !== null && p > opts.priceMax) return false;
+            return true;
+        });
+    }
+
+    // New only
+    if (opts.newOnly) {
+        filtered = filtered.filter(l => l.is_new);
+    }
+
+    // Sort
+    switch (opts.sort) {
+        case 'date-desc':
+            filtered.sort((a, b) => (b.date_found || '').localeCompare(a.date_found || ''));
+            break;
+        case 'date-asc':
+            filtered.sort((a, b) => (a.date_found || '').localeCompare(b.date_found || ''));
+            break;
+        case 'price-asc':
+            filtered.sort((a, b) => (parsePrice(a.price) || 99999) - (parsePrice(b.price) || 99999));
+            break;
+        case 'price-desc':
+            filtered.sort((a, b) => (parsePrice(b.price) || 0) - (parsePrice(a.price) || 0));
+            break;
+        case 'marketplace':
+            filtered.sort((a, b) => (a.marketplace || '').localeCompare(b.marketplace || ''));
+            break;
+        default:
+            filtered.sort((a, b) => (b.date_found || '').localeCompare(a.date_found || ''));
+    }
+
+    return filtered;
+}
+
+// ---- Apply feed filters ----
+function applyFeedFilters() {
+    const opts = {
+        search: document.getElementById('f-search').value.trim(),
+        marketplace: document.getElementById('f-marketplace').value,
+        location: document.getElementById('f-location').value,
+        priceMin: document.getElementById('f-price-min').value ? parseFloat(document.getElementById('f-price-min').value) : null,
+        priceMax: document.getElementById('f-price-max').value ? parseFloat(document.getElementById('f-price-max').value) : null,
+        sort: document.getElementById('f-sort').value,
+        newOnly: document.getElementById('f-new-only').checked,
+    };
+
+    const filtered = filterAndSort(currentListings, opts);
+    const countEl = document.getElementById('feed-count');
+    countEl.textContent = `${filtered.length} of ${currentListings.length} listings`;
+    renderListings(filtered, document.getElementById('listings-feed'));
+}
+
+// ---- Apply search filters ----
+function applySearchFilters() {
+    const opts = {
+        search: '',
+        marketplace: document.getElementById('sf-marketplace').value,
+        location: document.getElementById('sf-location').value,
+        priceMin: document.getElementById('sf-price-min').value ? parseFloat(document.getElementById('sf-price-min').value) : null,
+        priceMax: document.getElementById('sf-price-max').value ? parseFloat(document.getElementById('sf-price-max').value) : null,
+        sort: document.getElementById('sf-sort').value,
+        newOnly: false,
+    };
+
+    const filtered = filterAndSort(searchResults, opts);
+    const countEl = document.getElementById('search-count');
+    countEl.textContent = `${filtered.length} of ${searchResults.length} results`;
+    renderListings(filtered, document.getElementById('manual-results'),
+        'No results found. Try the quick links above to search directly on those sites.');
+}
+
+// ---- Render listing cards ----
 function renderListings(listings, container, emptyMsg) {
     if (listings.length === 0) {
         container.innerHTML = `<div class="no-results">${emptyMsg || 'No listings found.'}</div>`;
@@ -82,7 +225,6 @@ function renderListings(listings, container, emptyMsg) {
     }
 
     container.innerHTML = '';
-    const esc = s => s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
 
     listings.forEach(l => {
         const card = document.createElement('a');
@@ -103,34 +245,19 @@ function renderListings(listings, container, emptyMsg) {
         card.innerHTML = `
             ${imgHtml}
             <div class="listing-info">
-                <div class="listing-price">${esc(l.price)}</div>
-                <div class="listing-title">${esc(l.title)}</div>
+                <div class="listing-price">${escapeHtml(l.price)}</div>
+                <div class="listing-title">${escapeHtml(l.title)}</div>
                 <div class="listing-meta">
-                    <span class="listing-marketplace">${esc(l.marketplace)}</span>
+                    <span class="listing-marketplace">${escapeHtml(l.marketplace)}</span>
                     ${l.is_new ? '<span class="new-badge">NEW</span>' : ''}
-                    <span class="listing-location">${esc(l.location)}</span>
+                    <span class="listing-location">${escapeHtml(l.location)}</span>
                 </div>
-                ${l.description ? `<div class="listing-desc">${esc(l.description)}</div>` : ''}
+                ${l.description ? `<div class="listing-desc">${escapeHtml(l.description)}</div>` : ''}
             </div>
         `;
 
         container.appendChild(card);
     });
-}
-
-// ---- Load marketplace filter ----
-async function loadMarketplaces() {
-    try {
-        const res = await fetch(`${API}/api/marketplaces`);
-        const data = await res.json();
-        const select = document.getElementById('marketplace-filter');
-        data.forEach(mp => {
-            const opt = document.createElement('option');
-            opt.value = mp.key;
-            opt.textContent = mp.name;
-            select.appendChild(opt);
-        });
-    } catch (e) { /* silent */ }
 }
 
 // ---- Log ----
@@ -151,7 +278,9 @@ async function doManualSearch() {
 
     const statusEl = document.getElementById('manual-status');
     const resultsEl = document.getElementById('manual-results');
+    const filtersEl = document.getElementById('search-filters');
     statusEl.textContent = 'Searching eBay...';
+    statusEl.style.color = '';
     resultsEl.innerHTML = '<div class="loading-msg"><div class="spinner"></div></div>';
 
     // Update quick links
@@ -160,6 +289,7 @@ async function doManualSearch() {
     document.getElementById('link-gumtree').href = `https://www.gumtree.com.au/s-${encoded.replace(/%20/g, '+')}/k0`;
     document.getElementById('link-facebook').href = `https://www.facebook.com/marketplace/search/?query=${encoded}`;
     document.getElementById('link-cashconv').href = `https://www.cashconverters.com.au/shop?q=${encoded}`;
+    document.getElementById('link-tradingpost').href = `https://www.tradingpost.com.au/search?q=${encoded}`;
 
     try {
         const res = await fetch(`${API}/api/manual-search`, {
@@ -168,14 +298,22 @@ async function doManualSearch() {
             body: JSON.stringify({ query }),
         });
         const data = await res.json();
+        searchResults = data.listings || [];
+
         if (data.error) {
             statusEl.textContent = `Error: ${data.error}`;
             statusEl.style.color = '#e94560';
         } else {
             statusEl.textContent = `Found ${data.total} results for "${query}"`;
-            statusEl.style.color = '';
         }
-        renderListings(data.listings, resultsEl, 'No results found. Try the quick links above to search directly on those sites.');
+
+        // Show search filters and populate dropdowns
+        if (searchResults.length > 0) {
+            filtersEl.style.display = '';
+            populateFilterDropdowns(searchResults, 'sf-marketplace', 'sf-location');
+        }
+
+        applySearchFilters();
     } catch (e) {
         statusEl.textContent = `Search request failed: ${e.message}. Check terminal for details.`;
         statusEl.style.color = '#e94560';
@@ -208,21 +346,44 @@ document.getElementById('manual-query').addEventListener('input', () => {
         document.getElementById('link-gumtree').href = `https://www.gumtree.com.au/s-${encoded.replace(/%20/g, '+')}/k0`;
         document.getElementById('link-facebook').href = `https://www.facebook.com/marketplace/search/?query=${encoded}`;
         document.getElementById('link-cashconv').href = `https://www.cashconverters.com.au/shop?q=${encoded}`;
+        document.getElementById('link-tradingpost').href = `https://www.tradingpost.com.au/search?q=${encoded}`;
     }
 });
 
-// ---- Filter event handlers ----
-let searchDebounce = null;
-document.getElementById('search-input').addEventListener('input', () => {
-    clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(loadListings, 300);
+// ---- Feed filter event handlers ----
+let feedDebounce = null;
+document.getElementById('f-search').addEventListener('input', () => {
+    clearTimeout(feedDebounce);
+    feedDebounce = setTimeout(applyFeedFilters, 300);
 });
-document.getElementById('marketplace-filter').addEventListener('change', loadListings);
-document.getElementById('sort-filter').addEventListener('change', loadListings);
-document.getElementById('new-only').addEventListener('change', loadListings);
+document.getElementById('f-marketplace').addEventListener('change', applyFeedFilters);
+document.getElementById('f-location').addEventListener('change', applyFeedFilters);
+document.getElementById('f-price-min').addEventListener('input', () => {
+    clearTimeout(feedDebounce);
+    feedDebounce = setTimeout(applyFeedFilters, 500);
+});
+document.getElementById('f-price-max').addEventListener('input', () => {
+    clearTimeout(feedDebounce);
+    feedDebounce = setTimeout(applyFeedFilters, 500);
+});
+document.getElementById('f-sort').addEventListener('change', applyFeedFilters);
+document.getElementById('f-new-only').addEventListener('change', applyFeedFilters);
+
+// ---- Search filter event handlers ----
+let searchDebounce = null;
+document.getElementById('sf-marketplace').addEventListener('change', applySearchFilters);
+document.getElementById('sf-location').addEventListener('change', applySearchFilters);
+document.getElementById('sf-price-min').addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(applySearchFilters, 500);
+});
+document.getElementById('sf-price-max').addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(applySearchFilters, 500);
+});
+document.getElementById('sf-sort').addEventListener('change', applySearchFilters);
 
 // ---- Init ----
-loadMarketplaces();
 loadListings();
 pollStatus();
 

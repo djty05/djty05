@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1a1a2e">
+    <meta name="theme-color" content="#0f0f1a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
@@ -17,27 +17,26 @@
         <div class="top-actions">
             <span id="status-badge" class="badge">Idle</span>
             <button id="btn-scan" class="icon-btn" title="Scan Now">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
             </button>
             <button id="btn-pause" class="icon-btn" title="Pause/Resume">
-                <svg id="pause-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
             <a href="/settings" class="icon-btn" title="Settings">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
             </a>
         </div>
     </header>
 
     <!-- Tab bar -->
-    <div class="tab-bar">
+    <nav class="tab-bar">
         <button class="tab active" data-tab="feed">Live Feed</button>
         <button class="tab" data-tab="search">Search</button>
         <button class="tab" data-tab="log">Log</button>
-    </div>
+    </nav>
 
-    <!-- TAB: Live Feed -->
+    <!-- ========== TAB: LIVE FEED ========== -->
     <div id="tab-feed" class="tab-content active">
-        <!-- Stats bar -->
         <div class="stats-bar">
             <div class="stat"><span id="stat-total">0</span><small>Total</small></div>
             <div class="stat"><span id="stat-new">0</span><small>New</small></div>
@@ -45,50 +44,69 @@
             <div class="stat"><span id="stat-time">--</span><small>Last Scan</small></div>
         </div>
 
-        <!-- Filter bar -->
         <div class="filter-bar">
-            <input type="search" id="search-input" placeholder="Filter listings..." autocomplete="off">
-            <select id="marketplace-filter">
-                <option value="">All Marketplaces</option>
+            <input type="search" id="f-search" placeholder="Filter by keyword..." autocomplete="off">
+            <select id="f-marketplace"><option value="">All Marketplaces</option></select>
+            <select id="f-location"><option value="">All Locations</option></select>
+            <div class="price-range">
+                <input type="number" id="f-price-min" placeholder="Min $" min="0" step="1">
+                <span class="range-sep">-</span>
+                <input type="number" id="f-price-max" placeholder="Max $" min="0" step="1">
+            </div>
+            <select id="f-sort">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="marketplace">By Marketplace</option>
             </select>
-            <select id="sort-filter">
-                <option value="date">Newest</option>
-                <option value="price">Cheapest</option>
-                <option value="marketplace">Marketplace</option>
-            </select>
-            <label class="toggle-label">
-                <input type="checkbox" id="new-only"> New only
-            </label>
+            <label class="toggle-label"><input type="checkbox" id="f-new-only"> New only</label>
         </div>
 
+        <div class="results-count" id="feed-count"></div>
         <main id="listings-feed" class="listings-feed">
-            <div class="loading-msg" id="loading-msg">
-                <div class="spinner"></div>
-                <p>Waiting for first scan...</p>
-            </div>
+            <div class="loading-msg" id="loading-msg"><div class="spinner"></div><p>Waiting for first scan...</p></div>
         </main>
     </div>
 
-    <!-- TAB: Manual Search -->
+    <!-- ========== TAB: SEARCH ========== -->
     <div id="tab-search" class="tab-content">
-        <div class="search-panel">
-            <div class="manual-search-bar">
-                <input type="search" id="manual-query" placeholder="Search eBay Australia for anything..." autocomplete="off">
-                <button id="btn-manual-search" class="btn btn-primary">Search</button>
+        <div class="search-hero">
+            <div class="search-box">
+                <input type="search" id="manual-query" placeholder="Search Australian marketplaces..." autocomplete="off">
+                <button id="btn-manual-search" class="btn btn-primary btn-search">Search</button>
             </div>
             <div class="quick-links">
-                <span class="quick-label">Open in:</span>
-                <a id="link-ebay" href="#" target="_blank" class="quick-link">eBay</a>
+                <span class="quick-label">Open directly:</span>
+                <a id="link-ebay" href="#" target="_blank" class="quick-link">eBay AU</a>
                 <a id="link-gumtree" href="#" target="_blank" class="quick-link">Gumtree</a>
                 <a id="link-facebook" href="#" target="_blank" class="quick-link">FB Marketplace</a>
                 <a id="link-cashconv" href="#" target="_blank" class="quick-link">Cash Converters</a>
+                <a id="link-tradingpost" href="#" target="_blank" class="quick-link">Trading Post</a>
             </div>
-            <div id="manual-status" class="manual-status"></div>
-            <div id="manual-results" class="listings-feed"></div>
         </div>
+
+        <div id="search-filters" class="filter-bar" style="display:none;">
+            <select id="sf-marketplace"><option value="">All Marketplaces</option></select>
+            <select id="sf-location"><option value="">All Locations</option></select>
+            <div class="price-range">
+                <input type="number" id="sf-price-min" placeholder="Min $" min="0" step="1">
+                <span class="range-sep">-</span>
+                <input type="number" id="sf-price-max" placeholder="Max $" min="0" step="1">
+            </div>
+            <select id="sf-sort">
+                <option value="date-desc">Newest First</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+            </select>
+        </div>
+
+        <div id="manual-status" class="manual-status"></div>
+        <div class="results-count" id="search-count"></div>
+        <div id="manual-results" class="listings-feed"></div>
     </div>
 
-    <!-- TAB: Log -->
+    <!-- ========== TAB: LOG ========== -->
     <div id="tab-log" class="tab-content">
         <pre id="log-content" class="log-content-full"></pre>
     </div>
