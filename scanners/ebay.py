@@ -52,19 +52,22 @@ class EbayAUScanner(BaseScanner):
                     break
         return listings
 
-    def _search(self, term: str) -> list[Listing]:
+    def _search(self, term: str, open_search: bool = False) -> list[Listing]:
         url = f"{self.base_url}/sch/i.html"
         params = {
             "_nkw": term,
             "_sop": 10,       # newly listed
-            "LH_ItemCondition": "4",  # used items
             "_ipg": 100,       # results per page
             "LH_PrefLoc": 1,   # items located in Australia
-            "_sacat": 58277,   # Electrical Test Equipment category
             "rt": "nc",
         }
+        if not open_search:
+            params["LH_ItemCondition"] = "4"   # used items only
+            params["_sacat"] = 58277            # Electrical Test Equipment
+
         resp = self._get(url, params=params)
         if not resp:
+            logger.warning(f"[{self.name}] No response for '{term}'")
             return []
 
         soup = BeautifulSoup(resp.text, HTML_PARSER)
@@ -79,10 +82,15 @@ class EbayAUScanner(BaseScanner):
         if s_items:
             results.extend(self._parse_s_item(s_items))
 
-        # Filter out irrelevant results that slipped past category filter
-        results = [r for r in results if self._is_relevant(r.title)]
-        logger.info(f"[{self.name}] Found {len(results)} relevant results for '{term}'")
+        # Only apply relevance filter for auto-scan, not manual search
+        if not open_search:
+            results = [r for r in results if self._is_relevant(r.title)]
+        logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
         return results
+
+    def search_open(self, term: str) -> list[Listing]:
+        """Open search without category/relevance filters (for manual search)."""
+        return self._search(term, open_search=True)
 
     def _is_relevant(self, title: str) -> bool:
         """Check if a listing title contains at least one relevance keyword."""

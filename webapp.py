@@ -329,24 +329,28 @@ def api_manual_search():
     data = request.get_json(force=True)
     query = data.get("query", "").strip()
     if not query:
-        return jsonify({"listings": [], "error": "No query provided"})
+        return jsonify({"listings": [], "total": 0, "error": "No query provided"})
 
     from scanners.ebay import EbayAUScanner
 
     _log(f"[Manual Search] Searching eBay for: {query}")
     results = []
+    error = None
     try:
         scanner = EbayAUScanner(search_terms=[query])
-        # Remove category filter for manual search — let user search anything
-        listings = scanner.scan()
+        listings = scanner.search_open(query)
         for listing in listings:
             results.append(_listing_to_dict(listing, is_new=False))
         _log(f"[Manual Search] Found {len(results)} results for '{query}'")
     except Exception as e:
+        error = str(e)
         _log(f"[Manual Search] Error: {e}")
-        logger.error(f"Manual search error: {e}")
+        logger.exception(f"Manual search error: {e}")
 
-    return jsonify({"listings": results, "total": len(results)})
+    resp = {"listings": results, "total": len(results)}
+    if error:
+        resp["error"] = error
+    return jsonify(resp)
 
 
 @app.route("/api/reset-seen", methods=["POST"])

@@ -168,10 +168,17 @@ async function doManualSearch() {
             body: JSON.stringify({ query }),
         });
         const data = await res.json();
-        statusEl.textContent = `Found ${data.total} results for "${query}"`;
-        renderListings(data.listings, resultsEl, 'No results found. Try the quick links above to search directly.');
+        if (data.error) {
+            statusEl.textContent = `Error: ${data.error}`;
+            statusEl.style.color = '#e94560';
+        } else {
+            statusEl.textContent = `Found ${data.total} results for "${query}"`;
+            statusEl.style.color = '';
+        }
+        renderListings(data.listings, resultsEl, 'No results found. Try the quick links above to search directly on those sites.');
     } catch (e) {
-        statusEl.textContent = 'Search failed — check terminal for errors';
+        statusEl.textContent = `Search request failed: ${e.message}. Check terminal for details.`;
+        statusEl.style.color = '#e94560';
         resultsEl.innerHTML = '';
     }
 }
