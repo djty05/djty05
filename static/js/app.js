@@ -1,5 +1,5 @@
 /* =============================================
-   Marketplace Scanner — Frontend JS
+   MarketScan — Frontend JS
    ============================================= */
 
 const API = '';
@@ -21,15 +21,59 @@ function escapeHtml(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// ---- Tab switching ----
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-        if (tab.dataset.tab === 'log') loadLog();
+// ---- Mobile bottom tab bar ----
+function initMobileTabs() {
+    const existing = document.querySelector('.mobile-tabs');
+    if (existing) return;
+
+    const bar = document.createElement('nav');
+    bar.className = 'mobile-tabs';
+    bar.innerHTML = `
+        <button class="mobile-tab active" data-tab="feed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Feed
+        </button>
+        <button class="mobile-tab" data-tab="search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search
+        </button>
+        <button class="mobile-tab" data-tab="log">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Log
+        </button>
+    `;
+    document.body.appendChild(bar);
+
+    bar.querySelectorAll('.mobile-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
+}
+initMobileTabs();
+
+// ---- Tab switching ----
+function switchTab(tabName) {
+    // Desktop nav tabs
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => {
+        if (t.dataset.tab === tabName) t.classList.add('active');
+    });
+
+    // Mobile tabs
+    document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.mobile-tab').forEach(t => {
+        if (t.dataset.tab === tabName) t.classList.add('active');
+    });
+
+    // Content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const target = document.getElementById('tab-' + tabName);
+    if (target) target.classList.add('active');
+
+    if (tabName === 'log') loadLog();
+}
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
 });
 
 // ---- Status polling ----
@@ -41,13 +85,13 @@ async function pollStatus() {
         const badge = document.getElementById('status-badge');
         if (data.scan_paused) {
             badge.textContent = 'Paused';
-            badge.className = 'badge paused';
+            badge.className = 'status-pill paused';
         } else if (data.scan_running) {
             badge.textContent = 'Scanning...';
-            badge.className = 'badge running';
+            badge.className = 'status-pill running';
         } else {
             badge.textContent = 'Idle';
-            badge.className = 'badge';
+            badge.className = 'status-pill';
         }
 
         document.getElementById('stat-total').textContent = data.stats.total || 0;
@@ -79,7 +123,7 @@ async function loadListings() {
     }
 }
 
-// ---- Populate filter dropdowns from listings data ----
+// ---- Populate filter dropdowns ----
 function populateFilterDropdowns(listings, mpId, locId) {
     const marketplaces = new Set();
     const locations = new Set();
@@ -91,12 +135,11 @@ function populateFilterDropdowns(listings, mpId, locId) {
 
     const mpSelect = document.getElementById(mpId);
     const locSelect = document.getElementById(locId);
+    if (!mpSelect || !locSelect) return;
 
-    // Preserve current selection
     const mpVal = mpSelect.value;
     const locVal = locSelect.value;
 
-    // Clear and rebuild options
     mpSelect.innerHTML = '<option value="">All Marketplaces</option>';
     [...marketplaces].sort().forEach(mp => {
         const opt = document.createElement('option');
@@ -120,7 +163,6 @@ function populateFilterDropdowns(listings, mpId, locId) {
 function filterAndSort(listings, opts) {
     let filtered = listings.slice();
 
-    // Keyword search
     if (opts.search) {
         const q = opts.search.toLowerCase();
         filtered = filtered.filter(l =>
@@ -129,34 +171,29 @@ function filterAndSort(listings, opts) {
         );
     }
 
-    // Marketplace
     if (opts.marketplace) {
         filtered = filtered.filter(l => l.marketplace === opts.marketplace);
     }
 
-    // Location
     if (opts.location) {
         const loc = opts.location.toLowerCase();
         filtered = filtered.filter(l => l.location && l.location.toLowerCase().includes(loc));
     }
 
-    // Price range
     if (opts.priceMin !== null || opts.priceMax !== null) {
         filtered = filtered.filter(l => {
             const p = parsePrice(l.price);
-            if (p === null) return true; // keep items without a parseable price
+            if (p === null) return true;
             if (opts.priceMin !== null && p < opts.priceMin) return false;
             if (opts.priceMax !== null && p > opts.priceMax) return false;
             return true;
         });
     }
 
-    // New only
     if (opts.newOnly) {
         filtered = filtered.filter(l => l.is_new);
     }
 
-    // Sort
     switch (opts.sort) {
         case 'date-desc':
             filtered.sort((a, b) => (b.date_found || '').localeCompare(a.date_found || ''));
@@ -194,7 +231,11 @@ function applyFeedFilters() {
 
     const filtered = filterAndSort(currentListings, opts);
     const countEl = document.getElementById('feed-count');
-    countEl.textContent = `${filtered.length} of ${currentListings.length} listings`;
+    if (currentListings.length > 0) {
+        countEl.textContent = `${filtered.length} of ${currentListings.length}`;
+    } else {
+        countEl.textContent = '';
+    }
     renderListings(filtered, document.getElementById('listings-feed'));
 }
 
@@ -212,15 +253,19 @@ function applySearchFilters() {
 
     const filtered = filterAndSort(searchResults, opts);
     const countEl = document.getElementById('search-count');
-    countEl.textContent = `${filtered.length} of ${searchResults.length} results`;
+    if (searchResults.length > 0) {
+        countEl.textContent = `${filtered.length} of ${searchResults.length}`;
+    } else {
+        countEl.textContent = '';
+    }
     renderListings(filtered, document.getElementById('manual-results'),
-        'No results found. Try the quick links above to search directly on those sites.');
+        'No results found. Try the quick links above to search directly.');
 }
 
 // ---- Render listing cards ----
 function renderListings(listings, container, emptyMsg) {
     if (listings.length === 0) {
-        container.innerHTML = `<div class="no-results">${emptyMsg || 'No listings found.'}</div>`;
+        container.innerHTML = `<div class="no-results">${emptyMsg || 'No listings match your filters.'}</div>`;
         return;
     }
 
@@ -279,9 +324,9 @@ async function doManualSearch() {
     const statusEl = document.getElementById('manual-status');
     const resultsEl = document.getElementById('manual-results');
     const filtersEl = document.getElementById('search-filters');
-    statusEl.textContent = 'Searching eBay...';
+    statusEl.textContent = 'Searching eBay Australia...';
     statusEl.style.color = '';
-    resultsEl.innerHTML = '<div class="loading-msg"><div class="spinner"></div></div>';
+    resultsEl.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
 
     // Update quick links
     const encoded = encodeURIComponent(query);
@@ -302,21 +347,22 @@ async function doManualSearch() {
 
         if (data.error) {
             statusEl.textContent = `Error: ${data.error}`;
-            statusEl.style.color = '#e94560';
+            statusEl.style.color = '#ef4444';
         } else {
             statusEl.textContent = `Found ${data.total} results for "${query}"`;
         }
 
-        // Show search filters and populate dropdowns
         if (searchResults.length > 0) {
             filtersEl.style.display = '';
             populateFilterDropdowns(searchResults, 'sf-marketplace', 'sf-location');
+        } else {
+            filtersEl.style.display = 'none';
         }
 
         applySearchFilters();
     } catch (e) {
-        statusEl.textContent = `Search request failed: ${e.message}. Check terminal for details.`;
-        statusEl.style.color = '#e94560';
+        statusEl.textContent = `Search failed: ${e.message}. Check the terminal.`;
+        statusEl.style.color = '#ef4444';
         resultsEl.innerHTML = '';
     }
 }
@@ -337,7 +383,7 @@ document.getElementById('manual-query').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') doManualSearch();
 });
 
-// Update quick links as user types
+// Live-update quick links as user types
 document.getElementById('manual-query').addEventListener('input', () => {
     const query = document.getElementById('manual-query').value.trim();
     if (query) {
@@ -350,7 +396,7 @@ document.getElementById('manual-query').addEventListener('input', () => {
     }
 });
 
-// ---- Feed filter event handlers ----
+// ---- Feed filter events ----
 let feedDebounce = null;
 document.getElementById('f-search').addEventListener('input', () => {
     clearTimeout(feedDebounce);
@@ -369,7 +415,7 @@ document.getElementById('f-price-max').addEventListener('input', () => {
 document.getElementById('f-sort').addEventListener('change', applyFeedFilters);
 document.getElementById('f-new-only').addEventListener('change', applyFeedFilters);
 
-// ---- Search filter event handlers ----
+// ---- Search filter events ----
 let searchDebounce = null;
 document.getElementById('sf-marketplace').addEventListener('change', applySearchFilters);
 document.getElementById('sf-location').addEventListener('change', applySearchFilters);
@@ -386,18 +432,14 @@ document.getElementById('sf-sort').addEventListener('change', applySearchFilters
 // ---- Init ----
 loadListings();
 pollStatus();
-
 pollInterval = setInterval(pollStatus, 5000);
 
-// Refresh log if log tab is active
 setInterval(() => {
     const logTab = document.getElementById('tab-log');
-    if (logTab && logTab.classList.contains('active')) {
-        loadLog();
-    }
+    if (logTab && logTab.classList.contains('active')) loadLog();
 }, 3000);
 
-// Register service worker for PWA
+// PWA service worker
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
