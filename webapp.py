@@ -325,31 +325,52 @@ def api_marketplaces():
 
 @app.route("/api/manual-search", methods=["POST"])
 def api_manual_search():
-    """Run a one-off search across eBay (fast, reliable) for any query."""
+    """Run a one-off search across ALL marketplace scanners for any query."""
     data = request.get_json(force=True)
     query = data.get("query", "").strip()
     if not query:
         return jsonify({"listings": [], "total": 0, "error": "No query provided"})
 
-    from scanners.ebay import EbayAUScanner
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    _log(f"[Manual Search] Searching eBay for: {query}")
+    _log(f"[Manual Search] Searching all marketplaces for: {query}")
     results = []
-    error = None
-    try:
-        scanner = EbayAUScanner(search_terms=[query])
-        listings = scanner.search_open(query)
-        for listing in listings:
-            results.append(_listing_to_dict(listing, is_new=False))
-        _log(f"[Manual Search] Found {len(results)} results for '{query}'")
-    except Exception as e:
-        error = str(e)
-        _log(f"[Manual Search] Error: {e}")
-        logger.exception(f"Manual search error: {e}")
+    errors = []
+
+    def search_one(scanner_cls):
+        """Run a single scanner with the user query."""
+        try:
+            scanner = scanner_cls(search_terms=[query])
+            # Use open search for eBay (no category/relevance filter)
+            if hasattr(scanner, 'search_open'):
+                listings = scanner.search_open(query)
+            else:
+                listings = scanner.scan()
+            return scanner_cls.scanner_id, listings
+        except Exception as e:
+            return scanner_cls.scanner_id, e
+
+    # Run all scanners in parallel with a timeout
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(search_one, cls): cls for cls in ALL_SCANNERS}
+        for future in as_completed(futures, timeout=30):
+            try:
+                scanner_id, result = future.result(timeout=5)
+                if isinstance(result, Exception):
+                    errors.append(f"{scanner_id}: {result}")
+                    _log(f"[Manual Search] {scanner_id} error: {result}")
+                else:
+                    for listing in result:
+                        results.append(_listing_to_dict(listing, is_new=False))
+                    _log(f"[Manual Search] {scanner_id}: {len(result)} results")
+            except Exception as e:
+                _log(f"[Manual Search] Scanner timed out: {e}")
+
+    _log(f"[Manual Search] Total: {len(results)} results for '{query}'")
 
     resp = {"listings": results, "total": len(results)}
-    if error:
-        resp["error"] = error
+    if errors and not results:
+        resp["error"] = f"All scanners failed: {'; '.join(errors)}"
     return jsonify(resp)
 
 

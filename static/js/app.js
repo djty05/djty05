@@ -174,9 +174,12 @@ async function doSearch() {
     const status = document.getElementById('manual-status');
     const results = document.getElementById('search-results');
     const filters = document.getElementById('search-filters');
-    status.textContent = 'Searching eBay Australia...';
+    const searchBtn = document.getElementById('btn-manual-search');
+    searchBtn.disabled = true;
+    searchBtn.textContent = 'Searching...';
+    status.textContent = 'Searching all marketplaces — eBay, Gumtree, Facebook, Cash Converters, Trading Post...';
     status.style.color = '';
-    results.innerHTML = '<div class="empty-state"><div class="spinner"></div></div>';
+    results.innerHTML = '<div class="empty-state"><div class="spinner"></div><p>Searching all Australian marketplaces...</p></div>';
 
     const enc = encodeURIComponent(q);
     document.getElementById('link-ebay').href = 'https://www.ebay.com.au/sch/i.html?_nkw=' + enc + '&LH_PrefLoc=1';
@@ -204,11 +207,21 @@ async function doSearch() {
         status.textContent = 'Search failed: ' + e.message;
         status.style.color = '#f85149';
         results.innerHTML = '';
+    } finally {
+        searchBtn.disabled = false;
+        searchBtn.textContent = 'Search';
     }
 }
 
 // ---- Event listeners ----
-document.getElementById('btn-scan').addEventListener('click', async () => { await fetch(API+'/api/scan-now',{method:'POST'}); poll(); });
+document.getElementById('btn-scan').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-scan');
+    btn.classList.add('spinning');
+    btn.disabled = true;
+    await fetch(API+'/api/scan-now',{method:'POST'});
+    poll();
+    setTimeout(() => { btn.classList.remove('spinning'); btn.disabled = false; }, 2000);
+});
 document.getElementById('btn-pause').addEventListener('click', async () => { await fetch(API+'/api/pause',{method:'POST'}); poll(); });
 document.getElementById('btn-manual-search').addEventListener('click', doSearch);
 document.getElementById('manual-query').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
