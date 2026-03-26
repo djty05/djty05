@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1a1a2e">
-    <title>Settings — Marketplace Scanner</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <meta name="theme-color" content="#080b12">
+    <title>Settings — MarketScan</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=3">
 </head>
 <body>
-    <header class="top-bar">
-        <a href="/" class="back-btn">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </a>
-        <h1>Settings</h1>
-        <div class="top-actions"></div>
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/" class="back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            </a>
+            <span class="logo-text">Settings</span>
+        </div>
+        <div class="topbar-right"></div>
     </header>
 
     <main class="settings-page">
         <!-- Scan interval -->
-        <section class="card">
+        <section class="settings-card">
             <h2>Scan Interval</h2>
             <div class="setting-row">
                 <label for="interval">Minutes between scans</label>
@@ -27,14 +32,14 @@
         </section>
 
         <!-- Enabled scanners -->
-        <section class="card">
+        <section class="settings-card">
             <h2>Marketplaces</h2>
             <p class="hint">Toggle which marketplaces to scan</p>
             <div id="scanner-toggles" class="scanner-toggles"></div>
         </section>
 
         <!-- Search terms -->
-        <section class="card">
+        <section class="settings-card">
             <h2>Search Terms</h2>
             <div class="term-input-row">
                 <input type="text" id="new-term" placeholder="Add search term..." class="term-input">
@@ -44,7 +49,7 @@
         </section>
 
         <!-- Notifications info -->
-        <section class="card">
+        <section class="settings-card">
             <h2>Notifications</h2>
             <p class="hint">Configure via environment variables in <code>.env</code>:</p>
             <ul class="env-list">
@@ -55,7 +60,7 @@
         </section>
 
         <!-- Danger zone -->
-        <section class="card danger">
+        <section class="settings-card danger">
             <h2>Data</h2>
             <button id="btn-reset-seen" class="btn btn-danger">Reset Seen Listings</button>
             <p class="hint">Mark all listings as unseen so they show as "new" again.</p>

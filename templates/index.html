@@ -3,208 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0a0a14">
+    <meta name="theme-color" content="#080b12">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <title>Marketplace Scanner</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <title>MarketScan</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=3">
 </head>
 <body>
-    <!-- Top nav -->
-    <header class="navbar">
-        <div class="navbar-inner">
-            <div class="navbar-brand">
-                <div class="brand-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                </div>
-                <span class="brand-text">MarketScan</span>
-                <span id="status-badge" class="status-pill">Idle</span>
-            </div>
-            <nav class="navbar-tabs">
-                <button class="nav-tab active" data-tab="feed">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                    Live Feed
-                </button>
-                <button class="nav-tab" data-tab="search">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    Search
-                </button>
-                <button class="nav-tab" data-tab="log">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Log
-                </button>
-            </nav>
-            <div class="navbar-actions">
-                <button id="btn-scan" class="action-btn" title="Scan Now">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-                </button>
-                <button id="btn-pause" class="action-btn" title="Pause/Resume">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                </button>
-                <a href="/settings" class="action-btn" title="Settings">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-                </a>
-            </div>
-        </div>
-    </header>
 
-    <!-- ========== TAB: LIVE FEED ========== -->
-    <div id="tab-feed" class="tab-content active">
-        <!-- Stats row -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <span class="stat-value" id="stat-total">0</span>
-                <span class="stat-label">Total Listings</span>
-            </div>
-            <div class="stat-card accent">
-                <span class="stat-value" id="stat-new">0</span>
-                <span class="stat-label">New Found</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="stat-ok">0</span>
-                <span class="stat-label">Sources Active</span>
-            </div>
-            <div class="stat-card">
-                <span class="stat-value" id="stat-time">--</span>
-                <span class="stat-label">Last Scan</span>
-            </div>
+<!-- ====== NAVBAR ====== -->
+<header class="topbar">
+    <div class="topbar-left">
+        <div class="logo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         </div>
+        <span class="logo-text">MarketScan</span>
+        <span id="status-badge" class="pill">Idle</span>
+    </div>
+    <div class="topbar-center">
+        <button class="tab active" data-tab="feed">Live Feed</button>
+        <button class="tab" data-tab="search">Search</button>
+        <button class="tab" data-tab="log">Log</button>
+    </div>
+    <div class="topbar-right">
+        <button id="btn-scan" class="icon-btn" title="Scan Now">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+        <button id="btn-pause" class="icon-btn" title="Pause / Resume">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+        <a href="/settings" class="icon-btn" title="Settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </a>
+    </div>
+</header>
 
-        <!-- Filter panel -->
-        <div class="filter-panel">
-            <div class="filter-header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                <span>Filters</span>
-                <span class="results-badge" id="feed-count"></span>
-            </div>
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label class="filter-label">Keyword</label>
-                    <input type="search" id="f-search" class="filter-input" placeholder="Search titles..." autocomplete="off">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Marketplace</label>
-                    <select id="f-marketplace" class="filter-select">
-                        <option value="">All Marketplaces</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Location</label>
-                    <select id="f-location" class="filter-select">
-                        <option value="">All Locations</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Price Range</label>
-                    <div class="price-range">
-                        <input type="number" id="f-price-min" class="filter-input price-input" placeholder="Min" min="0" step="1">
-                        <span class="range-divider"></span>
-                        <input type="number" id="f-price-max" class="filter-input price-input" placeholder="Max" min="0" step="1">
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Sort By</label>
-                    <select id="f-sort" class="filter-select">
-                        <option value="date-desc">Newest First</option>
-                        <option value="date-asc">Oldest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="marketplace">By Marketplace</option>
-                    </select>
-                </div>
-                <div class="filter-group filter-toggle-group">
-                    <label class="filter-toggle">
-                        <input type="checkbox" id="f-new-only">
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">New only</span>
-                    </label>
-                </div>
-            </div>
+<!-- ====== TAB: LIVE FEED ====== -->
+<div id="tab-feed" class="page active">
+
+    <!-- Stats -->
+    <div class="stats">
+        <div class="stat-box">
+            <span class="stat-num" id="stat-total">0</span>
+            <span class="stat-lbl">Total</span>
         </div>
-
-        <!-- Listings grid -->
-        <main id="listings-feed" class="listings-grid">
-            <div class="empty-state" id="loading-msg">
-                <div class="spinner"></div>
-                <p>Waiting for first scan...</p>
-            </div>
-        </main>
+        <div class="stat-box highlight">
+            <span class="stat-num" id="stat-new">0</span>
+            <span class="stat-lbl">New</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-num" id="stat-ok">0</span>
+            <span class="stat-lbl">Sources</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-num" id="stat-time">--</span>
+            <span class="stat-lbl">Last Scan</span>
+        </div>
     </div>
 
-    <!-- ========== TAB: SEARCH ========== -->
-    <div id="tab-search" class="tab-content">
-        <!-- Search bar -->
-        <div class="search-section">
-            <h2 class="search-title">Search Australian Marketplaces</h2>
-            <p class="search-subtitle">Find listings across eBay, Gumtree, Facebook Marketplace, and more</p>
-            <div class="search-input-wrap">
-                <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                <input type="search" id="manual-query" class="search-input" placeholder="Search for equipment, tools, electronics..." autocomplete="off">
-                <button id="btn-manual-search" class="search-btn">Search</button>
+    <!-- Filters -->
+    <div class="filters">
+        <div class="filters-row">
+            <input type="search" id="f-search" class="f-input f-search" placeholder="Search listings..." autocomplete="off">
+            <select id="f-marketplace" class="f-select"><option value="">All Marketplaces</option></select>
+            <select id="f-location" class="f-select"><option value="">All Locations</option></select>
+            <div class="f-price">
+                <input type="number" id="f-price-min" class="f-input f-price-input" placeholder="Min $" min="0">
+                <span class="f-dash"></span>
+                <input type="number" id="f-price-max" class="f-input f-price-input" placeholder="Max $" min="0">
             </div>
-            <div class="quick-links">
-                <span class="quick-label">Open directly:</span>
-                <a id="link-ebay" href="#" target="_blank" class="chip">eBay AU</a>
-                <a id="link-gumtree" href="#" target="_blank" class="chip">Gumtree</a>
-                <a id="link-facebook" href="#" target="_blank" class="chip">FB Marketplace</a>
-                <a id="link-cashconv" href="#" target="_blank" class="chip">Cash Converters</a>
-                <a id="link-tradingpost" href="#" target="_blank" class="chip">Trading Post</a>
-            </div>
+            <select id="f-sort" class="f-select">
+                <option value="date-desc">Newest First</option>
+                <option value="date-asc">Oldest First</option>
+                <option value="price-asc">Price: Low → High</option>
+                <option value="price-desc">Price: High → Low</option>
+                <option value="marketplace">By Marketplace</option>
+            </select>
+            <label class="f-toggle"><input type="checkbox" id="f-new-only"><span class="f-toggle-switch"></span> New only</label>
         </div>
-
-        <!-- Search filters (shown after results) -->
-        <div id="search-filters" class="filter-panel" style="display:none;">
-            <div class="filter-header">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-                <span>Filter Results</span>
-                <span class="results-badge" id="search-count"></span>
-            </div>
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label class="filter-label">Marketplace</label>
-                    <select id="sf-marketplace" class="filter-select">
-                        <option value="">All Marketplaces</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Location</label>
-                    <select id="sf-location" class="filter-select">
-                        <option value="">All Locations</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Price Range</label>
-                    <div class="price-range">
-                        <input type="number" id="sf-price-min" class="filter-input price-input" placeholder="Min" min="0" step="1">
-                        <span class="range-divider"></span>
-                        <input type="number" id="sf-price-max" class="filter-input price-input" placeholder="Max" min="0" step="1">
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Sort By</label>
-                    <select id="sf-sort" class="filter-select">
-                        <option value="date-desc">Newest First</option>
-                        <option value="price-asc">Price: Low to High</option>
-                        <option value="price-desc">Price: High to Low</option>
-                        <option value="marketplace">By Marketplace</option>
-                    </select>
-                </div>
-            </div>
+        <div class="filters-meta">
+            <span id="feed-count" class="count-badge"></span>
         </div>
-
-        <div id="manual-status" class="search-status"></div>
-        <div id="manual-results" class="listings-grid"></div>
     </div>
 
-    <!-- ========== TAB: LOG ========== -->
-    <div id="tab-log" class="tab-content">
-        <pre id="log-content" class="log-panel"></pre>
+    <!-- Grid -->
+    <div id="listings-grid" class="grid">
+        <div class="empty-state" id="loading-msg"><div class="spinner"></div><p>Waiting for first scan...</p></div>
+    </div>
+</div>
+
+<!-- ====== TAB: SEARCH ====== -->
+<div id="tab-search" class="page">
+    <div class="search-hero">
+        <h2>Search Australian Marketplaces</h2>
+        <p class="search-sub">Find listings across eBay, Gumtree, Facebook, Cash Converters &amp; more</p>
+        <div class="search-bar">
+            <svg class="search-bar-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="search" id="manual-query" class="search-bar-input" placeholder="Search for equipment, tools, electronics..." autocomplete="off">
+            <button id="btn-manual-search" class="search-bar-btn">Search</button>
+        </div>
+        <div class="chips">
+            <span class="chips-label">Open directly:</span>
+            <a id="link-ebay" href="#" target="_blank" class="chip">eBay AU</a>
+            <a id="link-gumtree" href="#" target="_blank" class="chip">Gumtree</a>
+            <a id="link-facebook" href="#" target="_blank" class="chip">FB Marketplace</a>
+            <a id="link-cashconv" href="#" target="_blank" class="chip">Cash Converters</a>
+            <a id="link-tradingpost" href="#" target="_blank" class="chip">Trading Post</a>
+        </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <!-- Search result filters -->
+    <div id="search-filters" class="filters" style="display:none;">
+        <div class="filters-row">
+            <select id="sf-marketplace" class="f-select"><option value="">All Marketplaces</option></select>
+            <select id="sf-location" class="f-select"><option value="">All Locations</option></select>
+            <div class="f-price">
+                <input type="number" id="sf-price-min" class="f-input f-price-input" placeholder="Min $" min="0">
+                <span class="f-dash"></span>
+                <input type="number" id="sf-price-max" class="f-input f-price-input" placeholder="Max $" min="0">
+            </div>
+            <select id="sf-sort" class="f-select">
+                <option value="date-desc">Newest First</option>
+                <option value="price-asc">Price: Low → High</option>
+                <option value="price-desc">Price: High → Low</option>
+                <option value="marketplace">By Marketplace</option>
+            </select>
+        </div>
+        <div class="filters-meta">
+            <span id="search-count" class="count-badge"></span>
+        </div>
+    </div>
+
+    <div id="manual-status" class="search-status"></div>
+    <div id="search-results" class="grid"></div>
+</div>
+
+<!-- ====== TAB: LOG ====== -->
+<div id="tab-log" class="page">
+    <pre id="log-content" class="log-box"></pre>
+</div>
+
+<!-- Mobile bottom tabs -->
+<nav class="mobile-tabs">
+    <button class="m-tab active" data-tab="feed">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Feed
+    </button>
+    <button class="m-tab" data-tab="search">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Search
+    </button>
+    <button class="m-tab" data-tab="log">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Log
+    </button>
+</nav>
+
+<script src="/static/js/app.js?v=3"></script>
 </body>
 </html>
