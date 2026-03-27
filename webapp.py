@@ -52,6 +52,7 @@ state = {
     "last_scan": None,        # ISO timestamp
     "log": [],                # recent log messages (ring buffer)
     "stats": {"total": 0, "new": 0, "scanners_ok": 0, "scanners_failed": 0},
+    "current_scanner": "",    # name of scanner currently running
 }
 
 MAX_LOG = 200  # keep last N log lines
@@ -152,6 +153,8 @@ def _scanner_loop_inner():
                 time.sleep(stagger)
 
             _log(f"  [{scanner_cls.name}] Scanning...")
+            with STATE_LOCK:
+                state["current_scanner"] = scanner_cls.name
 
             try:
                 scanner = scanner_cls(search_terms=search_terms)
@@ -282,6 +285,7 @@ def api_status():
             "last_scan": state["last_scan"],
             "stats": state["stats"],
             "listing_count": len(state["listings"]),
+            "current_scanner": state.get("current_scanner", ""),
         })
 
 
@@ -293,8 +297,10 @@ def api_log():
 
 @app.route("/api/scan-now", methods=["POST"])
 def api_scan_now():
+    if state["scan_paused"]:
+        state["scan_paused"] = False
     scan_now_event.set()
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "was_paused": False})
 
 
 @app.route("/api/pause", methods=["POST"])
@@ -325,7 +331,8 @@ def api_marketplaces():
 
 @app.route("/api/manual-search", methods=["POST"])
 def api_manual_search():
-    """Run a one-off search across ALL marketplace scanners for any query."""
+    """Run a one-off search across ALL marketplace scanners for any query.
+    Uses Server-Sent Events to stream results as each scanner finishes."""
     data = request.get_json(force=True)
     query = data.get("query", "").strip()
     if not query:
@@ -334,44 +341,97 @@ def api_manual_search():
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     _log(f"[Manual Search] Searching all marketplaces for: {query}")
-    results = []
-    errors = []
 
     def search_one(scanner_cls):
-        """Run a single scanner with the user query."""
         try:
             scanner = scanner_cls(search_terms=[query])
-            # Use open search for eBay (no category/relevance filter)
             if hasattr(scanner, 'search_open'):
                 listings = scanner.search_open(query)
             else:
                 listings = scanner.scan()
-            return scanner_cls.scanner_id, listings
+            return scanner_cls.scanner_id, scanner_cls.name, listings
         except Exception as e:
-            return scanner_cls.scanner_id, e
+            return scanner_cls.scanner_id, scanner_cls.name, e
 
-    # Run all scanners in parallel with a timeout
+    results = []
+    errors = []
     with ThreadPoolExecutor(max_workers=6) as pool:
         futures = {pool.submit(search_one, cls): cls for cls in ALL_SCANNERS}
-        for future in as_completed(futures, timeout=30):
+        for future in as_completed(futures, timeout=45):
             try:
-                scanner_id, result = future.result(timeout=5)
+                scanner_id, name, result = future.result(timeout=5)
                 if isinstance(result, Exception):
-                    errors.append(f"{scanner_id}: {result}")
-                    _log(f"[Manual Search] {scanner_id} error: {result}")
+                    errors.append(f"{name}: {result}")
+                    _log(f"[Manual Search] {name} error: {result}")
                 else:
                     for listing in result:
                         results.append(_listing_to_dict(listing, is_new=False))
-                    _log(f"[Manual Search] {scanner_id}: {len(result)} results")
+                    _log(f"[Manual Search] {name}: {len(result)} results")
             except Exception as e:
                 _log(f"[Manual Search] Scanner timed out: {e}")
 
     _log(f"[Manual Search] Total: {len(results)} results for '{query}'")
-
     resp = {"listings": results, "total": len(results)}
     if errors and not results:
         resp["error"] = f"All scanners failed: {'; '.join(errors)}"
     return jsonify(resp)
+
+
+@app.route("/api/stream-search")
+def stream_search():
+    """SSE endpoint — streams search results as each scanner finishes."""
+    query = request.args.get("q", "").strip()
+    if not query:
+        return Response("data: {\"done\":true,\"error\":\"No query\"}\n\n",
+                        content_type="text/event-stream")
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    _log(f"[Stream Search] Searching all marketplaces for: {query}")
+
+    def search_one(scanner_cls):
+        try:
+            scanner = scanner_cls(search_terms=[query])
+            if hasattr(scanner, 'search_open'):
+                listings = scanner.search_open(query)
+            else:
+                listings = scanner.scan()
+            return scanner_cls.scanner_id, scanner_cls.name, listings
+        except Exception as e:
+            return scanner_cls.scanner_id, scanner_cls.name, e
+
+    def generate():
+        # Tell client how many scanners we're querying
+        yield f"data: {json.dumps({'type':'start','scanners': len(ALL_SCANNERS)})}\n\n"
+
+        total = 0
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            futures = {pool.submit(search_one, cls): cls for cls in ALL_SCANNERS}
+            done_count = 0
+            try:
+                for future in as_completed(futures, timeout=45):
+                    done_count += 1
+                    try:
+                        scanner_id, name, result = future.result(timeout=5)
+                        if isinstance(result, Exception):
+                            _log(f"[Stream Search] {name} error: {result}")
+                            yield f"data: {json.dumps({'type':'scanner_done','scanner': name,'count': 0,'error': str(result),'progress': done_count})}\n\n"
+                        else:
+                            listings = [_listing_to_dict(l, is_new=False) for l in result]
+                            total += len(listings)
+                            _log(f"[Stream Search] {name}: {len(listings)} results")
+                            yield f"data: {json.dumps({'type':'results','scanner': name,'listings': listings,'count': len(listings),'progress': done_count,'total': total})}\n\n"
+                    except Exception as e:
+                        done_count_safe = done_count
+                        yield f"data: {json.dumps({'type':'scanner_done','scanner':'unknown','count':0,'error':str(e),'progress': done_count_safe})}\n\n"
+            except Exception:
+                pass
+
+        yield f"data: {json.dumps({'type':'done','total': total})}\n\n"
+        _log(f"[Stream Search] Complete: {total} results for '{query}'")
+
+    return Response(generate(), content_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.route("/api/reset-seen", methods=["POST"])
