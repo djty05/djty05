@@ -1,175 +1,320 @@
 """Facebook Marketplace scanner.
 
-Facebook Marketplace requires JS rendering and login to scrape directly.
-This scanner uses multi-engine search (Google, Bing, DuckDuckGo) to find
-indexed FB Marketplace listings.
-
-To work around Facebook's 402km distance limit, it searches from multiple
-Australian cities to achieve national coverage.
+Facebook Marketplace is NOT indexed by Google, so search engine dorking
+does not work. This scanner uses:
+  1. Direct Facebook Marketplace URLs via Playwright (if available)
+  2. Direct search links for manual opening
+  3. Search engines as a last resort (may find cached/forum references)
 """
 
 import logging
 import re
 
-from .base import BaseScanner, Listing
-from .search_engines import search_google, search_bing, search_duckduckgo, SearchResult
+from .base import BaseScanner, Listing, HTML_PARSER
+from .search_engines import search_multi
 
 logger = logging.getLogger(__name__)
 
-AU_SEARCH_CITIES = [
-    "Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide",
-    "Hobart", "Darwin", "Cairns", "Townsville", "Gold Coast",
-    "Newcastle", "Canberra",
-]
+AU_CITIES_FB = {
+    "Sydney": "sydney",
+    "Melbourne": "melbourne",
+    "Brisbane": "brisbane",
+    "Perth": "perth",
+    "Adelaide": "adelaide",
+    "Hobart": "hobart",
+    "Darwin": "darwin",
+    "Cairns": "cairns",
+    "Gold Coast": "goldcoast",
+    "Newcastle": "newcastle",
+    "Canberra": "canberra",
+    "Townsville": "townsville",
+}
 
 
 class FacebookMarketplaceScanner(BaseScanner):
     scanner_id = "facebook"
     name = "Facebook Marketplace"
     base_url = "https://www.facebook.com/marketplace"
-    min_request_delay = 5.0
-    max_request_delay = 10.0
+    min_request_delay = 3.0
+    max_request_delay = 6.0
 
     QUICK_CITIES = ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide"]
 
     def scan(self, quick: bool = False) -> list[Listing]:
-        """Scan via search-engine-indexed FB Marketplace queries."""
-        batches = self._batch_terms(self.search_terms, batch_size=6)
+        """Scan Facebook Marketplace. Tries Playwright first, then search engines."""
+        cities = self.QUICK_CITIES if quick else list(AU_CITIES_FB.keys())
         listings = []
 
-        for batch_query in batches:
-            try:
-                found = self._multi_engine_national(batch_query, quick=quick)
-                listings.extend(found)
-            except Exception as e:
-                logger.error(f"[{self.name}] Error searching batch: {e}")
+        # Try Playwright first (best approach for FB)
+        try:
+            from playwright.sync_api import sync_playwright
+            listings = self._scan_playwright(cities)
+            if listings:
+                return self._deduplicate(listings)
+        except ImportError:
+            logger.info(f"[{self.name}] Playwright not available — FB Marketplace requires a browser")
+
+        # Fallback: search engines (finds forum posts, cached links, not direct listings)
+        logger.info(f"[{self.name}] Trying search engines (limited results expected)")
+        for term in self.search_terms[:6]:  # Limit to avoid rate limiting
+            results = search_multi(f'facebook marketplace australia {term}')
+            for r in results:
+                if "facebook.com" in r.url or "marketplace" in r.title.lower():
+                    price = "See listing"
+                    price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                    if price_match:
+                        price = price_match.group(0)
+                    listings.append(Listing(
+                        title=r.title,
+                        price=price,
+                        url=r.url,
+                        location="Australia",
+                        marketplace=self.name,
+                        description=r.snippet,
+                        image_url=r.image_url,
+                    ))
 
         return self._deduplicate(listings)
 
     def search_open(self, query: str) -> list[Listing]:
-        """Manual search — uses all three search engines for best coverage."""
+        """Manual search — tries Playwright first, generates direct links as fallback."""
         logger.info(f"[{self.name}] Manual search for '{query}'")
         listings = []
 
-        # Try all three engines for national search
-        fb_query = f'site:facebook.com/marketplace {query}'
+        # Try Playwright
+        try:
+            from playwright.sync_api import sync_playwright
+            listings = self._playwright_search(query, self.QUICK_CITIES)
+            if listings:
+                logger.info(f"[{self.name}] Playwright found {len(listings)} results")
+                return self._deduplicate(listings)
+        except ImportError:
+            logger.info(f"[{self.name}] Playwright not installed")
+        except Exception as e:
+            logger.warning(f"[{self.name}] Playwright error: {e}")
 
-        for engine_name, engine_fn in [("Google", search_google), ("Bing", search_bing), ("DuckDuckGo", search_duckduckgo)]:
+        # Fallback: generate direct links user can open + search engine results
+        logger.info(f"[{self.name}] Generating direct links + searching engines")
+
+        # Create clickable direct links as listings
+        for city_name, city_slug in list(AU_CITIES_FB.items())[:5]:
+            fb_url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={query}"
+            listings.append(Listing(
+                title=f"Facebook Marketplace: '{query}' in {city_name}",
+                price="Click to search",
+                url=fb_url,
+                location=city_name,
+                marketplace=self.name,
+                description=f"Open Facebook Marketplace directly to search for '{query}' in {city_name}. Login may be required.",
+                image_url="",
+            ))
+
+        # Also try search engines for any cached/referenced listings
+        for engine_query in [
+            f'facebook marketplace {query} australia',
+            f'facebook.com marketplace {query}',
+        ]:
+            results = search_multi(engine_query)
+            for r in results:
+                if "facebook.com" in r.url:
+                    price = "See listing"
+                    price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                    if price_match:
+                        price = price_match.group(0)
+                    location = "Australia"
+                    for city in AU_CITIES_FB:
+                        if city.lower() in f"{r.title} {r.snippet}".lower():
+                            location = city
+                            break
+                    listings.append(Listing(
+                        title=r.title,
+                        price=price,
+                        url=r.url,
+                        location=location,
+                        marketplace=self.name,
+                        description=r.snippet,
+                        image_url=r.image_url,
+                    ))
+
+        return self._deduplicate(listings)
+
+    def _scan_playwright(self, cities: list[str]) -> list[Listing]:
+        """Use Playwright to browse FB Marketplace directly."""
+        from playwright.sync_api import sync_playwright
+        from bs4 import BeautifulSoup
+
+        listings = []
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                    locale="en-AU",
+                    timezone_id="Australia/Sydney",
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = context.new_page()
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                """)
+
+                for term in self.search_terms[:8]:
+                    for city_name in cities[:3]:
+                        city_slug = AU_CITIES_FB.get(city_name, city_name.lower())
+                        url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={term}"
+
+                        try:
+                            page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                            page.wait_for_timeout(3000)
+
+                            # Try to dismiss login popup
+                            try:
+                                close_btn = page.locator('[aria-label="Close"]').first
+                                if close_btn:
+                                    close_btn.click(timeout=2000)
+                                    page.wait_for_timeout(1000)
+                            except Exception:
+                                pass
+
+                            html = page.content()
+                            found = self._parse_fb_html(html, city_name)
+                            listings.extend(found)
+
+                            if found:
+                                logger.info(f"[{self.name}] {city_name}/{term}: {len(found)} results")
+
+                            page.wait_for_timeout(2000)
+                        except Exception as e:
+                            logger.debug(f"[{self.name}] Error {city_name}/{term}: {e}")
+                            continue
+
+                browser.close()
+        except Exception as e:
+            logger.error(f"[{self.name}] Playwright error: {e}")
+
+        return listings
+
+    def _playwright_search(self, query: str, cities: list[str]) -> list[Listing]:
+        """Playwright search for a single manual query."""
+        from playwright.sync_api import sync_playwright
+        from bs4 import BeautifulSoup
+
+        listings = []
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=(
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/131.0.0.0 Safari/537.36"
+                    ),
+                    locale="en-AU",
+                    timezone_id="Australia/Sydney",
+                    viewport={"width": 1920, "height": 1080},
+                )
+                page = context.new_page()
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                """)
+
+                for city_name in cities:
+                    city_slug = AU_CITIES_FB.get(city_name, city_name.lower())
+                    url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={query}"
+
+                    try:
+                        page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                        page.wait_for_timeout(4000)
+
+                        try:
+                            close_btn = page.locator('[aria-label="Close"]').first
+                            if close_btn:
+                                close_btn.click(timeout=2000)
+                                page.wait_for_timeout(1000)
+                        except Exception:
+                            pass
+
+                        html = page.content()
+                        found = self._parse_fb_html(html, city_name)
+                        listings.extend(found)
+
+                        if found:
+                            logger.info(f"[{self.name}] {city_name}: {len(found)} results")
+
+                        page.wait_for_timeout(2000)
+                    except Exception as e:
+                        logger.debug(f"[{self.name}] Error {city_name}: {e}")
+                        continue
+
+                browser.close()
+        except Exception as e:
+            logger.error(f"[{self.name}] Playwright search error: {e}")
+
+        return listings
+
+    def _parse_fb_html(self, html: str, city: str) -> list[Listing]:
+        """Parse Facebook Marketplace HTML for listings."""
+        from bs4 import BeautifulSoup
+
+        soup = BeautifulSoup(html, HTML_PARSER)
+        results = []
+
+        # FB Marketplace uses various div structures
+        # Look for listing links that contain /marketplace/item/
+        for link in soup.select('a[href*="/marketplace/item/"]'):
             try:
-                results = engine_fn(fb_query)
-                if results:
-                    parsed = self._results_to_listings(results)
-                    listings.extend(parsed)
-                    logger.info(f"[{self.name}] {engine_name}: {len(parsed)} results")
-                else:
-                    logger.info(f"[{self.name}] {engine_name}: 0 results")
-            except Exception as e:
-                logger.warning(f"[{self.name}] {engine_name} error: {e}")
+                href = link.get("href", "")
+                if not href.startswith("http"):
+                    href = f"https://www.facebook.com{href}"
 
-        # Also try city-specific searches on whichever engine works
-        for city in self.QUICK_CITIES:
-            city_query = f'site:facebook.com/marketplace {query} "{city}"'
-            for engine_fn in [search_bing, search_duckduckgo, search_google]:
-                try:
-                    results = engine_fn(city_query)
-                    if results:
-                        parsed = self._results_to_listings(results, default_location=city)
-                        listings.extend(parsed)
-                        logger.info(f"[{self.name}] {city}: {len(parsed)} results")
-                        break  # Got results for this city, move on
-                except Exception:
+                # Get text content
+                text = link.get_text(separator=" ", strip=True)
+                if not text or len(text) < 3:
                     continue
 
-        unique = self._deduplicate(listings)
-        logger.info(f"[{self.name}] Manual search total: {len(unique)} unique listings")
-        return unique
+                # Try to extract price and title from text
+                price = "See listing"
+                price_match = re.search(r'[\$A][\$]?\s*[\d,.]+', text)
+                if price_match:
+                    price = price_match.group(0)
 
-    def _multi_engine_national(self, terms_query: str, quick: bool = False) -> list[Listing]:
-        """Search multiple engines for FB Marketplace listings across AU."""
-        all_results = []
+                # Get image
+                img_el = link.select_one("img")
+                image_url = ""
+                if img_el:
+                    image_url = img_el.get("src", "") or img_el.get("data-src", "")
 
-        # National search — try engines in order
-        national_query = f'site:facebook.com/marketplace ({terms_query})'
-        for engine_fn in [search_google, search_bing, search_duckduckgo]:
-            try:
-                results = engine_fn(national_query)
-                if results:
-                    all_results.extend(self._results_to_listings(results))
-                    break
+                # Title is usually the longest text segment
+                parts = [p.strip() for p in text.split('\n') if p.strip()]
+                title = max(parts, key=len) if parts else text[:100]
+
+                results.append(Listing(
+                    title=title,
+                    price=price,
+                    url=href,
+                    location=city,
+                    marketplace=self.name,
+                    description=text[:200],
+                    image_url=image_url,
+                ))
             except Exception:
                 continue
 
-        # City-specific searches
-        cities = self.QUICK_CITIES if quick else AU_SEARCH_CITIES
-        consecutive_failures = 0
-        max_failures = 2 if quick else 3
-
-        for city in cities:
-            if consecutive_failures >= max_failures:
-                logger.info(f"[{self.name}] Too many failures, stopping city searches")
-                break
-
-            city_query = f'site:facebook.com/marketplace ({terms_query}) "{city}"'
-            found = False
-            for engine_fn in [search_bing, search_duckduckgo, search_google]:
-                try:
-                    results = engine_fn(city_query)
-                    if results:
-                        all_results.extend(self._results_to_listings(results, default_location=city))
-                        found = True
-                        consecutive_failures = 0
-                        break
-                except Exception:
-                    continue
-
-            if not found:
-                consecutive_failures += 1
-
-        return all_results
-
-    def _results_to_listings(self, results: list[SearchResult], default_location: str = "Australia") -> list[Listing]:
-        """Convert SearchResult objects to Listings, filtering to FB Marketplace URLs."""
-        listings = []
-        for r in results:
-            if "facebook.com/marketplace" not in r.url:
-                continue
-
-            price = "See listing"
-            price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
-            if price_match:
-                price = price_match.group(0)
-
-            detected_location = default_location
-            for city in AU_SEARCH_CITIES:
-                if city.lower() in f"{r.title} {r.snippet}".lower():
-                    detected_location = city
-                    break
-
-            listings.append(Listing(
-                title=r.title,
-                price=price,
-                url=r.url,
-                location=detected_location,
-                marketplace=self.name,
-                description=r.snippet,
-                image_url=r.image_url,
-            ))
-        return listings
-
-    def _batch_terms(self, terms: list[str], batch_size: int = 6) -> list[str]:
-        batches = []
-        for i in range(0, len(terms), batch_size):
-            chunk = terms[i:i + batch_size]
-            or_query = " OR ".join(f'"{t}"' for t in chunk)
-            batches.append(or_query)
-        return batches
+        return results
 
     def _deduplicate(self, listings: list[Listing]) -> list[Listing]:
         seen_urls = set()
         unique = []
         for listing in listings:
-            if listing.url not in seen_urls:
-                seen_urls.add(listing.url)
+            key = listing.url.split("?")[0]  # Ignore query params for dedup
+            if key not in seen_urls:
+                seen_urls.add(key)
                 unique.append(listing)
         logger.info(f"[{self.name}] Total: {len(unique)} unique listings")
         return unique

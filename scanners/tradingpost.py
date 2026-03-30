@@ -1,11 +1,12 @@
 """Trading Post Australia scanner.
 
-Uses direct HTTP requests as primary approach, with Playwright and
-multi-engine search as fallbacks.
+Trading Post uses /Search/ and /search-results as search endpoints.
+Uses direct HTTP as primary, with Playwright and search engines as fallbacks.
 """
 
 import logging
 import re
+from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
@@ -21,12 +22,10 @@ class TradingPostScanner(BaseScanner):
     base_url = "https://www.tradingpost.com.au"
 
     def scan(self) -> list[Listing]:
-        # Try direct HTTP first
         listings = self._scan_http()
         if listings:
             return listings
 
-        # Try Playwright if available
         try:
             from playwright.sync_api import sync_playwright
             listings = self._scan_playwright()
@@ -35,7 +34,6 @@ class TradingPostScanner(BaseScanner):
         except ImportError:
             logger.info(f"[{self.name}] Playwright not available")
 
-        # Last resort: multi-engine search
         logger.info(f"[{self.name}] Falling back to search engines")
         return self._scan_search_engine_fallback()
 
@@ -63,19 +61,25 @@ class TradingPostScanner(BaseScanner):
                         logger.info(f"[{self.name}] HTTP not working, skipping")
                         return []
             except Exception as e:
-                logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
+                logger.debug(f"[{self.name}] HTTP error for '{term}': {e}")
                 consecutive_failures += 1
                 if consecutive_failures >= 2 and not all_listings:
                     return []
 
         if all_listings:
-            logger.info(f"[{self.name}] HTTP found {len(all_listings)} total results")
+            logger.info(f"[{self.name}] HTTP found {len(all_listings)} total")
         return all_listings
 
     def _search_http(self, term: str) -> list[Listing]:
+        """Search Trading Post via direct HTTP — try multiple URL patterns."""
+        encoded = quote_plus(term)
+
         search_urls = [
-            f"{self.base_url}/search?q={term}&sort=date",
-            f"{self.base_url}/search?keyword={term}",
+            f"{self.base_url}/Search/?search={encoded}",
+            f"{self.base_url}/search-results?search={encoded}",
+            f"{self.base_url}/Search/?keyword={encoded}",
+            f"{self.base_url}/search-results?keyword={encoded}",
+            f"{self.base_url}/search?q={encoded}&sort=date",
         ]
 
         for search_url in search_urls:
@@ -97,10 +101,40 @@ class TradingPostScanner(BaseScanner):
         soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
+        # Try JSON-LD first
+        for script in soup.select('script[type="application/ld+json"]'):
+            try:
+                import json
+                data = json.loads(script.string)
+                if isinstance(data, dict) and data.get("@type") == "ItemList":
+                    for item in data.get("itemListElement", []):
+                        obj = item.get("item", item)
+                        url = obj.get("url", "")
+                        if url and not url.startswith("http"):
+                            url = f"{self.base_url}{url}"
+                        offers = obj.get("offers", {})
+                        price = "See listing"
+                        if isinstance(offers, dict) and offers.get("price"):
+                            price = f"${offers['price']}"
+                        results.append(Listing(
+                            title=obj.get("name", "No title"),
+                            price=price,
+                            url=url,
+                            location="Australia",
+                            marketplace=self.name,
+                            image_url=str(obj.get("image", "")),
+                        ))
+                    if results:
+                        return results
+            except Exception:
+                continue
+
+        # HTML card selectors
         card_selectors = [
             "div.listing-card", "div.search-result", "article.listing",
-            "div.ad-card", "div[class*='listing']", "div[class*='result']",
-            "div[class*='product']", "a[class*='listing']",
+            "div.ad-card", "a[class*='listing']",
+            "div[class*='listing']", "div[class*='result']",
+            "div[class*='product']", "div[class*='ad-']",
         ]
 
         cards = []
@@ -109,6 +143,10 @@ class TradingPostScanner(BaseScanner):
             if cards:
                 break
 
+        # Also try looking for links that look like ad links
+        if not cards:
+            cards = soup.select("a[href*='/ad-']")
+
         for card in cards:
             try:
                 title_el = card.select_one("h2, h3, h4, a.title, span.title, .title, .name")
@@ -116,6 +154,12 @@ class TradingPostScanner(BaseScanner):
                 loc_el = card.select_one("span.location, div.location, [class*='location']")
 
                 title = self._safe_text(title_el, "No title")
+                if not title or title == "No title":
+                    # Try the link text or card text
+                    title = card.get("title", "") or card.get_text(strip=True)[:80]
+                if not title or title == "No title":
+                    continue
+
                 price = self._safe_text(price_el, "See listing")
                 location = self._safe_text(loc_el, "Australia")
 
@@ -131,7 +175,7 @@ class TradingPostScanner(BaseScanner):
                                 img_el.get("data-src", "") or
                                 img_el.get("data-lazy-src", ""))
 
-                if title and title != "No title" and href:
+                if title and href:
                     results.append(Listing(
                         title=title,
                         price=price,
@@ -145,7 +189,7 @@ class TradingPostScanner(BaseScanner):
                 continue
 
         if results:
-            logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
+            logger.info(f"[{self.name}] Found {len(results)} for '{term}'")
         return results
 
     def _scan_playwright(self) -> list[Listing]:
@@ -167,25 +211,23 @@ class TradingPostScanner(BaseScanner):
                     viewport={"width": 1920, "height": 1080},
                 )
                 page = context.new_page()
-
                 page.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                 """)
 
-                logger.info(f"[{self.name}] Loading site...")
                 page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
                 page.wait_for_timeout(3000)
 
                 for term in self.search_terms:
                     try:
-                        search_urls = [
-                            f"{self.base_url}/search?q={term}&sort=date",
-                            f"{self.base_url}/search?keyword={term}",
+                        encoded = quote_plus(term)
+                        urls = [
+                            f"{self.base_url}/Search/?search={encoded}",
+                            f"{self.base_url}/search-results?search={encoded}",
                         ]
-
-                        for search_url in search_urls:
+                        for url in urls:
                             try:
-                                page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
+                                page.goto(url, wait_until="domcontentloaded", timeout=15000)
                                 page.wait_for_timeout(3000)
                             except Exception:
                                 continue
@@ -211,9 +253,7 @@ class TradingPostScanner(BaseScanner):
         return all_listings
 
     def _scan_search_engine_fallback(self) -> list[Listing]:
-        """Use multi-engine search as last resort."""
         all_results = []
-
         for i in range(0, len(self.search_terms), 6):
             chunk = self.search_terms[i:i + 6]
             or_query = " OR ".join(f'"{t}"' for t in chunk)
@@ -232,12 +272,10 @@ class TradingPostScanner(BaseScanner):
                     description=r.snippet,
                     image_url=r.image_url,
                 ))
-
-        logger.info(f"[{self.name}] Search engines found {len(all_results)} total results")
+        logger.info(f"[{self.name}] Search engines found {len(all_results)} results")
         return all_results
 
     def _search_engine_term(self, term: str) -> list[Listing]:
-        """Search engine fallback for a single term."""
         results = site_search("tradingpost.com.au", term)
         listings = []
         for r in results:

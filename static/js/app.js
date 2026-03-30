@@ -179,8 +179,8 @@ function updateQuickLinks(q) {
     const el = id => document.getElementById(id);
     el('link-ebay').href = 'https://www.ebay.com.au/sch/i.html?_nkw=' + enc + '&LH_PrefLoc=1';
     el('link-gumtree').href = 'https://www.gumtree.com.au/s-' + enc.replace(/%20/g,'+') + '/k0';
-    el('link-facebook').href = 'https://www.facebook.com/marketplace/search/?query=' + enc;
-    el('link-cashconv').href = 'https://www.cashconverters.com.au/shop?q=' + enc;
+    el('link-facebook').href = 'https://www.facebook.com/marketplace/sydney/search/?query=' + enc;
+    el('link-cashconv').href = 'https://www.cashconverters.com.au/shop/tools-motor-hardware/power-tools-industrial/multimeters-electrical-testers/multimeter';
     el('link-tradingpost').href = 'https://www.tradingpost.com.au/search?q=' + enc;
 }
 
