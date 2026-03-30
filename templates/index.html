@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>MarketScan</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=7">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
 </head>
 <body>
 
@@ -159,7 +159,44 @@
 <div id="tab-search" class="page">
     <div class="search-hero">
         <h2>Search Australian Marketplaces</h2>
-        <p class="search-sub">eBay, Gumtree, Facebook, Cash Converters, Trading Post &amp; more</p>
+        <p class="search-sub">Find listings across eBay, Gumtree, Facebook, Cash Converters, Trading Post &amp; more</p>
+
+        <!-- Search options BEFORE searching -->
+        <div class="search-options">
+            <div class="search-opt">
+                <label class="search-opt-label">Marketplace</label>
+                <select id="s-marketplace" class="search-opt-select">
+                    <option value="">All Marketplaces</option>
+                    <option value="ebay">eBay AU</option>
+                    <option value="gumtree">Gumtree</option>
+                    <option value="facebook">Facebook Marketplace</option>
+                    <option value="cashconverters">Cash Converters</option>
+                    <option value="tradingpost">Trading Post</option>
+                    <option value="other">Other Classifieds</option>
+                </select>
+            </div>
+            <div class="search-opt">
+                <label class="search-opt-label">Location</label>
+                <select id="s-location" class="search-opt-select">
+                    <option value="">All Australia</option>
+                    <option value="Sydney">Sydney, NSW</option>
+                    <option value="Melbourne">Melbourne, VIC</option>
+                    <option value="Brisbane">Brisbane, QLD</option>
+                    <option value="Perth">Perth, WA</option>
+                    <option value="Adelaide">Adelaide, SA</option>
+                    <option value="Hobart">Hobart, TAS</option>
+                    <option value="Darwin">Darwin, NT</option>
+                    <option value="Canberra">Canberra, ACT</option>
+                    <option value="Gold Coast">Gold Coast, QLD</option>
+                    <option value="Newcastle">Newcastle, NSW</option>
+                    <option value="Cairns">Cairns, QLD</option>
+                    <option value="Townsville">Townsville, QLD</option>
+                    <option value="Geelong">Geelong, VIC</option>
+                    <option value="Wollongong">Wollongong, NSW</option>
+                </select>
+            </div>
+        </div>
+
         <div class="quick-links">
             <span class="quick-label">Open directly:</span>
             <a id="link-ebay" href="#" target="_blank" class="quick-chip">eBay AU</a>
@@ -175,11 +212,11 @@
     <div id="tab-search-results" class="shop-layout" style="display:none;">
         <aside class="sidebar">
             <div class="sidebar-section">
-                <h3 class="sidebar-title">Marketplace</h3>
+                <h3 class="sidebar-title">Filter Marketplace</h3>
                 <select id="sf-marketplace" class="sidebar-select"><option value="">All</option></select>
             </div>
             <div class="sidebar-section">
-                <h3 class="sidebar-title">Location</h3>
+                <h3 class="sidebar-title">Filter Location</h3>
                 <select id="sf-location" class="sidebar-select"><option value="">All</option></select>
             </div>
             <div class="sidebar-section">
@@ -227,6 +264,6 @@
     </button>
 </nav>
 
-<script src="/static/js/app.js?v=7"></script>
+<script src="/static/js/app.js?v=8"></script>
 </body>
 </html>

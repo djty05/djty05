@@ -192,6 +192,10 @@ async function doSearch(query) {
     const resultsEl = document.getElementById('search-results');
     const searchBtn = document.getElementById('btn-global-search');
 
+    // Get pre-search marketplace and location selections
+    const marketplace = document.getElementById('s-marketplace')?.value || '';
+    const location = document.getElementById('s-location')?.value || '';
+
     searchBtn.disabled = true;
     searchResults = [];
     resultsEl.innerHTML = '';
@@ -199,14 +203,21 @@ async function doSearch(query) {
     updateQuickLinks(query);
 
     // Show progress
+    const mpLabel = marketplace ? document.getElementById('s-marketplace').selectedOptions[0].text : 'all marketplaces';
+    const locLabel = location || 'All Australia';
     statusEl.innerHTML = '<div class="search-progress">' +
         '<div class="progress-bar"><div class="progress-fill" id="search-progress-fill"></div></div>' +
-        '<span class="progress-text" id="search-progress-text">Searching 6 marketplaces...</span></div>';
+        '<span class="progress-text" id="search-progress-text">Searching ' + mpLabel + ' in ' + locLabel + '...</span></div>';
 
     let totalScanners = 6, doneScanners = 0, totalResults = 0;
 
+    // Build URL with marketplace and location params
+    let streamUrl = API + '/api/stream-search?q=' + encodeURIComponent(query);
+    if (marketplace) streamUrl += '&marketplace=' + encodeURIComponent(marketplace);
+    if (location) streamUrl += '&location=' + encodeURIComponent(location);
+
     try {
-        const response = await fetch(API + '/api/stream-search?q=' + encodeURIComponent(query));
+        const response = await fetch(streamUrl);
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -255,7 +266,7 @@ async function doSearch(query) {
         try {
             const r = await fetch(API + '/api/manual-search', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({ query, marketplace, location }),
             });
             const d = await r.json();
             searchResults = d.listings || [];

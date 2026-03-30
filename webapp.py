@@ -331,16 +331,24 @@ def api_marketplaces():
 
 @app.route("/api/manual-search", methods=["POST"])
 def api_manual_search():
-    """Run a one-off search across ALL marketplace scanners for any query.
-    Uses Server-Sent Events to stream results as each scanner finishes."""
+    """Fallback non-streaming search. JSON body: { query, marketplace?, location? }"""
     data = request.get_json(force=True)
     query = data.get("query", "").strip()
+    marketplace = data.get("marketplace", "").strip()
+    location = data.get("location", "").strip()
     if not query:
         return jsonify({"listings": [], "total": 0, "error": "No query provided"})
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    _log(f"[Manual Search] Searching all marketplaces for: {query}")
+    if marketplace:
+        scanners_to_use = [s for s in ALL_SCANNERS if s.scanner_id == marketplace]
+        if not scanners_to_use:
+            scanners_to_use = list(ALL_SCANNERS)
+    else:
+        scanners_to_use = list(ALL_SCANNERS)
+
+    _log(f"[Manual Search] q='{query}' marketplace={marketplace or 'all'} location={location or 'all'}")
 
     def search_one(scanner_cls):
         try:
@@ -349,14 +357,17 @@ def api_manual_search():
                 listings = scanner.search_open(query)
             else:
                 listings = scanner.scan()
+            if location:
+                loc_lower = location.lower()
+                listings = [l for l in listings if l.location and loc_lower in l.location.lower()]
             return scanner_cls.scanner_id, scanner_cls.name, listings
         except Exception as e:
             return scanner_cls.scanner_id, scanner_cls.name, e
 
     results = []
     errors = []
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        futures = {pool.submit(search_one, cls): cls for cls in ALL_SCANNERS}
+    with ThreadPoolExecutor(max_workers=min(len(scanners_to_use), 6)) as pool:
+        futures = {pool.submit(search_one, cls): cls for cls in scanners_to_use}
         for future in as_completed(futures, timeout=45):
             try:
                 scanner_id, name, result = future.result(timeout=5)
@@ -379,15 +390,34 @@ def api_manual_search():
 
 @app.route("/api/stream-search")
 def stream_search():
-    """SSE endpoint — streams search results as each scanner finishes."""
+    """SSE endpoint — streams search results as each scanner finishes.
+
+    Query params:
+      q          - search query (required)
+      marketplace - scanner_id to limit to one marketplace (optional)
+      location   - city name to filter results by (optional)
+    """
     query = request.args.get("q", "").strip()
+    marketplace = request.args.get("marketplace", "").strip()
+    location = request.args.get("location", "").strip()
+
     if not query:
         return Response("data: {\"done\":true,\"error\":\"No query\"}\n\n",
                         content_type="text/event-stream")
 
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    _log(f"[Stream Search] Searching all marketplaces for: {query}")
+    # Filter scanners by marketplace selection
+    if marketplace:
+        scanners_to_use = [s for s in ALL_SCANNERS if s.scanner_id == marketplace]
+        if not scanners_to_use:
+            scanners_to_use = list(ALL_SCANNERS)
+    else:
+        scanners_to_use = list(ALL_SCANNERS)
+
+    mp_label = marketplace or "all"
+    loc_label = location or "all AU"
+    _log(f"[Stream Search] q='{query}' marketplace={mp_label} location={loc_label} ({len(scanners_to_use)} scanners)")
 
     def search_one(scanner_cls):
         try:
@@ -396,17 +426,22 @@ def stream_search():
                 listings = scanner.search_open(query)
             else:
                 listings = scanner.scan()
+            # Filter by location if specified
+            if location:
+                loc_lower = location.lower()
+                listings = [l for l in listings
+                            if l.location and loc_lower in l.location.lower()]
             return scanner_cls.scanner_id, scanner_cls.name, listings
         except Exception as e:
             return scanner_cls.scanner_id, scanner_cls.name, e
 
     def generate():
-        # Tell client how many scanners we're querying
-        yield f"data: {json.dumps({'type':'start','scanners': len(ALL_SCANNERS)})}\n\n"
+        num = len(scanners_to_use)
+        yield f"data: {json.dumps({'type':'start','scanners': num})}\n\n"
 
         total = 0
-        with ThreadPoolExecutor(max_workers=6) as pool:
-            futures = {pool.submit(search_one, cls): cls for cls in ALL_SCANNERS}
+        with ThreadPoolExecutor(max_workers=min(num, 6)) as pool:
+            futures = {pool.submit(search_one, cls): cls for cls in scanners_to_use}
             done_count = 0
             try:
                 for future in as_completed(futures, timeout=45):
@@ -422,8 +457,7 @@ def stream_search():
                             _log(f"[Stream Search] {name}: {len(listings)} results")
                             yield f"data: {json.dumps({'type':'results','scanner': name,'listings': listings,'count': len(listings),'progress': done_count,'total': total})}\n\n"
                     except Exception as e:
-                        done_count_safe = done_count
-                        yield f"data: {json.dumps({'type':'scanner_done','scanner':'unknown','count':0,'error':str(e),'progress': done_count_safe})}\n\n"
+                        yield f"data: {json.dumps({'type':'scanner_done','scanner':'unknown','count':0,'error':str(e),'progress': done_count})}\n\n"
             except Exception:
                 pass
 
