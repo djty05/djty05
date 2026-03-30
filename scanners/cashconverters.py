@@ -1,7 +1,7 @@
 """Cash Converters Australia scanner.
 
 Uses direct HTTP requests to the Cash Converters online shop as primary approach.
-Falls back to Playwright for API interception, then Google dorking.
+Falls back to Playwright for API interception, then multi-engine search.
 """
 
 import json
@@ -11,6 +11,7 @@ import re
 from bs4 import BeautifulSoup
 
 from .base import BaseScanner, Listing, HTML_PARSER
+from .search_engines import site_search
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +38,19 @@ class CashConvertersScanner(BaseScanner):
         except ImportError:
             logger.info(f"[{self.name}] Playwright not available")
 
-        # Last resort: Google dorking
-        logger.info(f"[{self.name}] Falling back to Google dorking")
-        return self._scan_google_fallback()
+        # Last resort: multi-engine search
+        logger.info(f"[{self.name}] Falling back to search engines")
+        return self._scan_search_engine_fallback()
+
+    def search_open(self, term: str) -> list[Listing]:
+        """Manual search — try direct HTTP, then search engines."""
+        results = self._search_http(term)
+        if results:
+            return results
+        logger.info(f"[{self.name}] Direct search failed, trying search engines")
+        return self._search_engine_term(term)
 
     def _scan_http(self) -> list[Listing]:
-        """Try direct HTTP requests to Cash Converters shop search.
-        Fail fast if the site is blocking HTTP requests.
-        """
         all_listings = []
         consecutive_failures = 0
 
@@ -70,11 +76,10 @@ class CashConvertersScanner(BaseScanner):
         return all_listings
 
     def _search_http(self, term: str) -> list[Listing]:
-        """Search Cash Converters via direct HTTP."""
         results = []
 
-        # Try multiple search URL patterns
         search_urls = [
+            f"{self.base_url}/shop/buy?q={term}",
             f"{self.base_url}/shop?q={term}",
             f"{self.base_url}/shop?search={term}",
             f"{self.base_url}/shop/search?q={term}",
@@ -96,7 +101,6 @@ class CashConvertersScanner(BaseScanner):
         return results
 
     def _parse_shop_html(self, html: str, term: str) -> list[Listing]:
-        """Parse Cash Converters shop HTML for product listings."""
         soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
@@ -105,7 +109,6 @@ class CashConvertersScanner(BaseScanner):
             if not script.string:
                 continue
             text = script.string
-            # Look for product data in various JSON patterns
             for pattern in [r'window\.__INITIAL_STATE__\s*=\s*({.*?});',
                            r'window\.__NEXT_DATA__\s*=\s*({.*?});',
                            r'"products"\s*:\s*(\[.*?\])',
@@ -185,7 +188,6 @@ class CashConvertersScanner(BaseScanner):
         return results
 
     def _parse_json_products(self, data) -> list[Listing]:
-        """Parse product data from JSON."""
         results = []
         items = []
 
@@ -233,7 +235,6 @@ class CashConvertersScanner(BaseScanner):
         return results
 
     def _scan_playwright(self) -> list[Listing]:
-        """Use Playwright to search the Cash Converters online shop."""
         from playwright.sync_api import sync_playwright
 
         all_listings = []
@@ -245,7 +246,7 @@ class CashConvertersScanner(BaseScanner):
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                         "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36"
+                        "Chrome/131.0.0.0 Safari/537.36"
                     ),
                     locale="en-AU",
                     timezone_id="Australia/Sydney",
@@ -257,7 +258,6 @@ class CashConvertersScanner(BaseScanner):
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                 """)
 
-                # Collect API responses
                 api_results = []
 
                 def capture_response(response):
@@ -283,8 +283,8 @@ class CashConvertersScanner(BaseScanner):
                     try:
                         api_results.clear()
                         search_urls = [
+                            f"{self.base_url}/shop/buy?q={term}",
                             f"{self.base_url}/shop?q={term}",
-                            f"{self.base_url}/shop?search={term}",
                         ]
 
                         for search_url in search_urls:
@@ -321,67 +321,51 @@ class CashConvertersScanner(BaseScanner):
 
         return all_listings
 
-    # ------------------------------------------------------------------
-    # Google fallback (batched to reduce requests)
-    # ------------------------------------------------------------------
-    def _scan_google_fallback(self) -> list[Listing]:
-        """Fall back to Google dorking with batched terms."""
+    def _scan_search_engine_fallback(self) -> list[Listing]:
+        """Use multi-engine search as last resort."""
         all_results = []
         for i in range(0, len(self.search_terms), 6):
             chunk = self.search_terms[i:i + 6]
             or_query = " OR ".join(f'"{t}"' for t in chunk)
-            query = f'site:cashconverters.com.au ({or_query})'
-
-            url = "https://www.google.com.au/search"
-            params = {"q": query, "num": 30, "gl": "au"}
-
-            resp = self._get(url, params=params, retries=1, delay=5.0)
-            if not resp:
-                continue
-
-            soup = BeautifulSoup(resp.text, HTML_PARSER)
-
-            for result in soup.select("div.g, div.tF2Cxc"):
-                try:
-                    link_el = result.select_one("a")
-                    title_el = result.select_one("h3")
-                    snippet_el = result.select_one("span.aCOpRe, div.VwiC3b, span.st")
-
-                    href = link_el.get("href", "") if link_el else ""
-                    title = self._safe_text(title_el, "No title")
-                    description = self._safe_text(snippet_el)
-
-                    if "cashconverters.com.au" not in href:
-                        continue
-                    if any(skip in href for skip in ("/store-locator", "/about", "/sell", "/contact")):
-                        continue
-
-                    # Try to extract thumbnail
-                    image_url = ""
-                    img_el = result.select_one("img")
-                    if img_el:
-                        src = img_el.get("src", "") or img_el.get("data-src", "")
-                        if src and src.startswith("http"):
-                            image_url = src
-
-                    price = "See listing"
-                    price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
-                    if price_match:
-                        price = price_match.group(0)
-
-                    if title and href:
-                        all_results.append(Listing(
-                            title=title,
-                            price=price,
-                            url=href,
-                            location="Australia",
-                            marketplace=self.name,
-                            description=description,
-                            image_url=image_url,
-                        ))
-                except Exception as e:
-                    logger.debug(f"[{self.name}] Google parse error: {e}")
+            results = site_search("cashconverters.com.au", or_query)
+            for r in results:
+                if any(skip in r.url for skip in ("/store-locator", "/about", "/sell", "/contact")):
                     continue
+                price = "See listing"
+                price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                if price_match:
+                    price = price_match.group(0)
+                all_results.append(Listing(
+                    title=r.title,
+                    price=price,
+                    url=r.url,
+                    location="Australia",
+                    marketplace=self.name,
+                    description=r.snippet,
+                    image_url=r.image_url,
+                ))
 
-        logger.info(f"[{self.name}] Google found {len(all_results)} total results")
+        logger.info(f"[{self.name}] Search engines found {len(all_results)} total results")
         return all_results
+
+    def _search_engine_term(self, term: str) -> list[Listing]:
+        """Search engine fallback for a single term."""
+        results = site_search("cashconverters.com.au", term)
+        listings = []
+        for r in results:
+            if any(skip in r.url for skip in ("/store-locator", "/about", "/sell", "/contact")):
+                continue
+            price = "See listing"
+            price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+            if price_match:
+                price = price_match.group(0)
+            listings.append(Listing(
+                title=r.title,
+                price=price,
+                url=r.url,
+                location="Australia",
+                marketplace=self.name,
+                description=r.snippet,
+                image_url=r.image_url,
+            ))
+        return listings

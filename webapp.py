@@ -484,6 +484,73 @@ def api_reset_seen():
     return jsonify({"ok": True})
 
 
+@app.route("/api/test-scanners")
+def test_scanners():
+    """Diagnostic endpoint — tests each scanner with a quick search.
+
+    Returns per-scanner status so you can see what's working.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    test_query = request.args.get("q", "fluke multimeter").strip()
+    _log(f"[Diagnostics] Testing all scanners with '{test_query}'")
+
+    def test_one(scanner_cls):
+        start = time.time()
+        try:
+            scanner = scanner_cls(search_terms=[test_query])
+            if hasattr(scanner, 'search_open'):
+                listings = scanner.search_open(test_query)
+            else:
+                listings = scanner.scan(quick=True) if 'quick' in scanner.scan.__code__.co_varnames else scanner.scan()
+            elapsed = round(time.time() - start, 1)
+            return {
+                "scanner_id": scanner_cls.scanner_id,
+                "name": scanner_cls.name,
+                "status": "ok" if listings else "no_results",
+                "count": len(listings),
+                "time_seconds": elapsed,
+                "sample": listings[0].title if listings else None,
+                "error": None,
+            }
+        except Exception as e:
+            elapsed = round(time.time() - start, 1)
+            return {
+                "scanner_id": scanner_cls.scanner_id,
+                "name": scanner_cls.name,
+                "status": "error",
+                "count": 0,
+                "time_seconds": elapsed,
+                "sample": None,
+                "error": str(e),
+            }
+
+    results = []
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = {pool.submit(test_one, cls): cls for cls in ALL_SCANNERS}
+        for future in as_completed(futures, timeout=180):
+            try:
+                result = future.result(timeout=10)
+                results.append(result)
+                status_icon = "OK" if result["status"] == "ok" else "FAIL"
+                _log(f"[Diagnostics] {result['name']}: {status_icon} ({result['count']} results, {result['time_seconds']}s)")
+            except Exception as e:
+                cls = futures[future]
+                results.append({
+                    "scanner_id": cls.scanner_id,
+                    "name": cls.name,
+                    "status": "timeout",
+                    "count": 0,
+                    "time_seconds": 180,
+                    "sample": None,
+                    "error": str(e),
+                })
+
+    ok = sum(1 for r in results if r["status"] == "ok")
+    _log(f"[Diagnostics] Complete: {ok}/{len(results)} scanners working")
+    return jsonify({"results": results, "query": test_query})
+
+
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------

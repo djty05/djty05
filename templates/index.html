@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>MarketScan</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=10">
+    <link rel="stylesheet" href="/static/css/style.css?v=11">
 </head>
 <body>
 
@@ -207,6 +207,22 @@
         </div>
     </div>
 
+    <!-- Scanner Status Panel -->
+    <div id="scanner-status-panel" class="scanner-panel">
+        <div class="scanner-panel-header">
+            <h3>Scanner Status</h3>
+            <button id="btn-test-scanners" class="btn-test">Test All Scanners</button>
+        </div>
+        <div id="scanner-status-grid" class="scanner-grid">
+            <div class="scanner-card" data-scanner="ebay"><span class="scanner-dot"></span><span class="scanner-name">eBay AU</span><span class="scanner-result">--</span></div>
+            <div class="scanner-card" data-scanner="gumtree"><span class="scanner-dot"></span><span class="scanner-name">Gumtree</span><span class="scanner-result">--</span></div>
+            <div class="scanner-card" data-scanner="facebook"><span class="scanner-dot"></span><span class="scanner-name">Facebook</span><span class="scanner-result">--</span></div>
+            <div class="scanner-card" data-scanner="cashconverters"><span class="scanner-dot"></span><span class="scanner-name">Cash Converters</span><span class="scanner-result">--</span></div>
+            <div class="scanner-card" data-scanner="tradingpost"><span class="scanner-dot"></span><span class="scanner-name">Trading Post</span><span class="scanner-result">--</span></div>
+            <div class="scanner-card" data-scanner="other"><span class="scanner-dot"></span><span class="scanner-name">Other</span><span class="scanner-result">--</span></div>
+        </div>
+    </div>
+
     <div id="manual-status" class="search-status"></div>
 
     <div id="tab-search-results" class="shop-layout" style="display:none;">
@@ -264,6 +280,6 @@
     </button>
 </nav>
 
-<script src="/static/js/app.js?v=10"></script>
+<script src="/static/js/app.js?v=11"></script>
 </body>
 </html>

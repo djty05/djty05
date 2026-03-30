@@ -236,6 +236,11 @@ async function doSearch(query) {
 
                 if (msg.type === 'start') {
                     totalScanners = msg.scanners;
+                    // Mark all scanner cards as searching
+                    document.querySelectorAll('.scanner-card').forEach(c => {
+                        c.className = 'scanner-card testing';
+                        c.querySelector('.scanner-result').textContent = 'searching...';
+                    });
                 } else if (msg.type === 'results') {
                     doneScanners = msg.progress;
                     totalResults = msg.total;
@@ -248,13 +253,15 @@ async function doSearch(query) {
                     const text = document.getElementById('search-progress-text');
                     if (fill) fill.style.width = pct + '%';
                     if (text) text.textContent = `${msg.scanner}: +${msg.count} — ${doneScanners}/${totalScanners} sources (${totalResults} total)`;
+                    updateScannerCard(msg.scanner, msg.count > 0 ? 'ok' : 'error', msg.count);
                 } else if (msg.type === 'scanner_done') {
                     doneScanners = msg.progress;
                     const pct = (doneScanners / totalScanners * 100).toFixed(0);
                     const fill = document.getElementById('search-progress-fill');
                     const text = document.getElementById('search-progress-text');
                     if (fill) fill.style.width = pct + '%';
-                    if (text) text.textContent = `${msg.scanner}: ${msg.error ? 'no results' : '0'} — ${doneScanners}/${totalScanners} sources`;
+                    if (text) text.textContent = `${msg.scanner}: ${msg.error ? 'failed' : '0 results'} — ${doneScanners}/${totalScanners} sources`;
+                    updateScannerCard(msg.scanner, msg.error ? 'error' : 'error', 0);
                 } else if (msg.type === 'done') {
                     statusEl.textContent = `Found ${msg.total} results for "${query}" across ${totalScanners} marketplaces`;
                 }
@@ -333,6 +340,70 @@ document.getElementById('sf-marketplace').addEventListener('change', applySearch
 document.getElementById('sf-location').addEventListener('change', applySearchFilters);
 document.getElementById('sf-price-go').addEventListener('click', applySearchFilters);
 document.getElementById('sf-sort').addEventListener('change', applySearchFilters);
+
+// ---- Scanner Diagnostics ----
+document.getElementById('btn-test-scanners')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-test-scanners');
+    const cards = document.querySelectorAll('.scanner-card');
+
+    btn.textContent = 'Testing...';
+    btn.classList.add('testing');
+
+    cards.forEach(card => {
+        card.className = 'scanner-card testing';
+        card.querySelector('.scanner-result').textContent = 'testing...';
+    });
+
+    try {
+        const r = await fetch(API + '/api/test-scanners');
+        const d = await r.json();
+
+        // Reset all first
+        cards.forEach(card => { card.className = 'scanner-card'; });
+
+        for (const result of d.results) {
+            const card = document.querySelector(`.scanner-card[data-scanner="${result.scanner_id}"]`);
+            if (!card) continue;
+
+            if (result.status === 'ok') {
+                card.className = 'scanner-card ok';
+                card.querySelector('.scanner-result').textContent = `${result.count} results (${result.time_seconds}s)`;
+            } else {
+                card.className = 'scanner-card fail';
+                card.querySelector('.scanner-result').textContent = result.error ? result.error.substring(0, 30) : 'no results';
+            }
+        }
+    } catch(e) {
+        cards.forEach(card => {
+            card.className = 'scanner-card fail';
+            card.querySelector('.scanner-result').textContent = 'test failed';
+        });
+    }
+
+    btn.textContent = 'Test All Scanners';
+    btn.classList.remove('testing');
+});
+
+// Update scanner panel during streaming search
+function updateScannerCard(scannerName, status, count) {
+    const cards = document.querySelectorAll('.scanner-card');
+    for (const card of cards) {
+        const name = card.querySelector('.scanner-name').textContent;
+        if (scannerName.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(scannerName.split(' ')[0].toLowerCase())) {
+            if (status === 'ok') {
+                card.className = 'scanner-card ok';
+                card.querySelector('.scanner-result').textContent = count + ' found';
+            } else if (status === 'error') {
+                card.className = 'scanner-card fail';
+                card.querySelector('.scanner-result').textContent = 'failed';
+            } else if (status === 'searching') {
+                card.className = 'scanner-card testing';
+                card.querySelector('.scanner-result').textContent = 'searching...';
+            }
+            break;
+        }
+    }
+}
 
 // ---- Init ----
 loadListings();

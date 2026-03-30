@@ -2,14 +2,18 @@
 
 Supports both the legacy .s-item layout and the newer .s-card layout
 that eBay has been rolling out since late 2025.
+
+Falls back to multi-engine search if direct scraping fails.
 """
 
 import logging
+import re
 from urllib.parse import quote_plus
 
 from bs4 import BeautifulSoup
 
 from .base import BaseScanner, Listing, HTML_PARSER
+from .search_engines import site_search
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +22,9 @@ class EbayAUScanner(BaseScanner):
     scanner_id = "ebay"
     name = "eBay AU"
     base_url = "https://www.ebay.com.au"
-    # eBay is aggressive with bot detection — be more conservative
     min_request_delay = 3.0
     max_request_delay = 7.0
 
-    # Keywords that a relevant listing title should contain at least one of.
-    # This filters out junk like jellybean cookies or toy figurines.
     RELEVANCE_KEYWORDS = {
         "fluke", "tester", "multimeter", "meter", "clamp", "insulation",
         "rcd", "loop", "impedance", "electrical", "multifunction",
@@ -31,6 +32,25 @@ class EbayAUScanner(BaseScanner):
     }
 
     def scan(self) -> list[Listing]:
+        listings = self._scan_direct()
+        if listings:
+            return listings
+
+        # Fallback: search engines
+        logger.info(f"[{self.name}] Direct scraping failed, trying search engines")
+        return self._scan_search_engine_fallback()
+
+    def search_open(self, term: str) -> list[Listing]:
+        """Open search without category/relevance filters (for manual search)."""
+        results = self._search(term, open_search=True)
+        if results:
+            return results
+        # Fallback to search engines for manual search too
+        logger.info(f"[{self.name}] Direct search failed for '{term}', trying search engines")
+        return self._search_engine_term(term)
+
+    def _scan_direct(self) -> list[Listing]:
+        """Try direct HTTP to eBay search."""
         listings = []
         consecutive_failures = 0
         for term in self.search_terms:
@@ -42,28 +62,27 @@ class EbayAUScanner(BaseScanner):
                 else:
                     consecutive_failures += 1
                     if consecutive_failures >= 3 and not listings:
-                        logger.info(f"[{self.name}] Site unreachable after {consecutive_failures} failures, stopping")
-                        break
+                        logger.info(f"[{self.name}] Site unreachable after {consecutive_failures} failures")
+                        return []
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching '{term}': {e}")
                 consecutive_failures += 1
                 if consecutive_failures >= 3 and not listings:
-                    logger.info(f"[{self.name}] Site unreachable, stopping")
-                    break
+                    return []
         return listings
 
     def _search(self, term: str, open_search: bool = False) -> list[Listing]:
         url = f"{self.base_url}/sch/i.html"
         params = {
             "_nkw": term,
-            "_sop": 10,       # newly listed
-            "_ipg": 100,       # results per page
-            "LH_PrefLoc": 1,   # items located in Australia
+            "_sop": 10,
+            "_ipg": 100,
+            "LH_PrefLoc": 1,
             "rt": "nc",
         }
         if not open_search:
-            params["LH_ItemCondition"] = "4"   # used items only
-            params["_sacat"] = 58277            # Electrical Test Equipment
+            params["LH_ItemCondition"] = "4"
+            params["_sacat"] = 58277
 
         resp = self._get(url, params=params)
         if not resp:
@@ -73,7 +92,6 @@ class EbayAUScanner(BaseScanner):
         soup = BeautifulSoup(resp.text, HTML_PARSER)
         results = []
 
-        # Detect which layout eBay is serving
         s_cards = soup.select("li.s-card")
         s_items = soup.select("li.s-item, div.s-item__wrapper")
 
@@ -82,23 +100,63 @@ class EbayAUScanner(BaseScanner):
         if s_items:
             results.extend(self._parse_s_item(s_items))
 
-        # Only apply relevance filter for auto-scan, not manual search
         if not open_search:
             results = [r for r in results if self._is_relevant(r.title)]
         logger.info(f"[{self.name}] Found {len(results)} results for '{term}'")
         return results
 
-    def search_open(self, term: str) -> list[Listing]:
-        """Open search without category/relevance filters (for manual search)."""
-        return self._search(term, open_search=True)
+    def _scan_search_engine_fallback(self) -> list[Listing]:
+        """Use search engines when direct eBay scraping is blocked."""
+        all_results = []
+        # Batch terms to reduce queries
+        for i in range(0, len(self.search_terms), 4):
+            chunk = self.search_terms[i:i + 4]
+            or_query = " OR ".join(f'"{t}"' for t in chunk)
+            results = site_search("ebay.com.au", or_query)
+            for r in results:
+                if "/sch/" in r.url or "/itm/" not in r.url:
+                    continue  # Skip search pages, only want item pages
+                price = "See listing"
+                price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                if price_match:
+                    price = price_match.group(0)
+                all_results.append(Listing(
+                    title=r.title,
+                    price=price,
+                    url=r.url,
+                    location="Australia",
+                    marketplace=self.name,
+                    description=r.snippet,
+                    image_url=r.image_url,
+                ))
+        logger.info(f"[{self.name}] Search engine fallback: {len(all_results)} results")
+        return all_results
+
+    def _search_engine_term(self, term: str) -> list[Listing]:
+        """Search engines fallback for a single term."""
+        results = site_search("ebay.com.au", term)
+        listings = []
+        for r in results:
+            price = "See listing"
+            price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+            if price_match:
+                price = price_match.group(0)
+            listings.append(Listing(
+                title=r.title,
+                price=price,
+                url=r.url,
+                location="Australia",
+                marketplace=self.name,
+                description=r.snippet,
+                image_url=r.image_url,
+            ))
+        return listings
 
     def _is_relevant(self, title: str) -> bool:
-        """Check if a listing title contains at least one relevance keyword."""
         title_lower = title.lower()
         return any(kw in title_lower for kw in self.RELEVANCE_KEYWORDS)
 
     def _parse_s_card(self, cards) -> list[Listing]:
-        """Parse the newer .s-card layout."""
         results = []
         for card in cards:
             try:
@@ -141,7 +199,6 @@ class EbayAUScanner(BaseScanner):
         return results
 
     def _parse_s_item(self, items) -> list[Listing]:
-        """Parse the legacy .s-item layout."""
         results = []
         for item in items:
             try:

@@ -334,6 +334,53 @@ html, body {
 }
 .quick-chip:hover { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
 
+/* Scanner Status Panel */
+.scanner-panel {
+    max-width: 700px; margin: 16px auto; padding: 0 20px;
+}
+.scanner-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+}
+.scanner-panel-header h3 {
+    font-size: 15px; font-weight: 500; color: var(--text);
+}
+.btn-test {
+    padding: 6px 16px; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--blue); color: var(--blue);
+    background: var(--white); border-radius: var(--radius-pill);
+    cursor: pointer; transition: all 0.15s;
+}
+.btn-test:hover { background: var(--blue-bg); }
+.btn-test.testing {
+    color: var(--text3); border-color: var(--border);
+    pointer-events: none;
+}
+.scanner-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.scanner-card {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: var(--white);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 13px; transition: all 0.2s;
+}
+.scanner-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); flex-shrink: 0;
+}
+.scanner-card.ok .scanner-dot { background: #34a853; }
+.scanner-card.fail .scanner-dot { background: var(--red); }
+.scanner-card.testing .scanner-dot {
+    background: var(--orange);
+    animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.scanner-name { font-weight: 500; color: var(--text); flex: 1; }
+.scanner-result { color: var(--text3); font-size: 12px; }
+.scanner-card.ok .scanner-result { color: #34a853; }
+.scanner-card.fail .scanner-result { color: var(--red); }
+
 .search-status {
     text-align: center; padding: 12px 20px;
     color: var(--text2); font-size: 14px;
@@ -478,6 +525,8 @@ html, body {
     .product-grid { padding-bottom: 80px; }
     .search-hero { padding: 20px 12px 12px; }
     .search-hero h2 { font-size: 20px; }
+    .scanner-grid { grid-template-columns: repeat(2, 1fr); }
+    .scanner-panel { padding: 0 12px; }
 }
 @media (min-width: 769px) {
     .mobile-tabs { display: none !important; }

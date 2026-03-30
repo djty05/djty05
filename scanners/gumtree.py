@@ -1,7 +1,7 @@
 """Gumtree Australia scanner.
 
 Uses direct HTTP requests with robust headers as the primary approach.
-Falls back to Playwright if available, then Google dorking as last resort.
+Falls back to Playwright if available, then multi-engine search as last resort.
 """
 
 import json
@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 
 from .base import BaseScanner, Listing, HTML_PARSER
+from .search_engines import site_search
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class GumtreeScanner(BaseScanner):
     max_request_delay = 6.0
 
     def scan(self) -> list[Listing]:
-        # Try direct HTTP first (works most of the time without Playwright)
+        # Try direct HTTP first
         listings = self._scan_http()
         if listings:
             return listings
@@ -38,15 +39,20 @@ class GumtreeScanner(BaseScanner):
         except ImportError:
             logger.info(f"[{self.name}] Playwright not available")
 
-        # Last resort: Google dorking
-        logger.info(f"[{self.name}] Falling back to Google dorking")
-        return self._scan_google_fallback()
+        # Last resort: multi-engine search
+        logger.info(f"[{self.name}] Falling back to search engines")
+        return self._scan_search_engine_fallback()
+
+    def search_open(self, term: str) -> list[Listing]:
+        """Manual search — try direct HTTP, then search engines."""
+        results = self._search_http(term)
+        if results:
+            return results
+
+        logger.info(f"[{self.name}] Direct search failed for '{term}', trying search engines")
+        return self._search_engine_term(term)
 
     def _scan_http(self) -> list[Listing]:
-        """Try direct HTTP requests to Gumtree search.
-        Fail fast: if the first 2 terms return nothing (likely CF blocked),
-        skip the rest and let the caller try the next fallback.
-        """
         all_listings = []
         consecutive_failures = 0
 
@@ -59,13 +65,12 @@ class GumtreeScanner(BaseScanner):
                 else:
                     consecutive_failures += 1
                     if consecutive_failures >= 2 and not all_listings:
-                        logger.info(f"[{self.name}] HTTP blocked after {consecutive_failures} failures, skipping")
+                        logger.info(f"[{self.name}] HTTP blocked after {consecutive_failures} failures")
                         return []
             except Exception as e:
                 logger.debug(f"[{self.name}] HTTP search error for '{term}': {e}")
                 consecutive_failures += 1
                 if consecutive_failures >= 2 and not all_listings:
-                    logger.info(f"[{self.name}] HTTP blocked, skipping remaining terms")
                     return []
 
         if all_listings:
@@ -73,7 +78,6 @@ class GumtreeScanner(BaseScanner):
         return all_listings
 
     def _search_http(self, term: str) -> list[Listing]:
-        """Search Gumtree via direct HTTP."""
         encoded = quote_plus(term)
         url = f"{self.base_url}/s-{encoded}/k0"
 
@@ -83,19 +87,16 @@ class GumtreeScanner(BaseScanner):
 
         html = resp.text
 
-        # Check for CloudFlare block
         if "Just a moment" in html or "Access Denied" in html:
             logger.debug(f"[{self.name}] CF blocked for '{term}'")
             return []
 
-        # Try JSON first, then HTML
         results = self._parse_json(html, term)
         if results:
             return results
         return self._parse_html(html, term)
 
     def _scan_playwright(self) -> list[Listing]:
-        """Use Playwright to bypass CloudFlare if needed."""
         from playwright.sync_api import sync_playwright
 
         listings = []
@@ -106,7 +107,7 @@ class GumtreeScanner(BaseScanner):
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                         "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/124.0.0.0 Safari/537.36"
+                        "Chrome/131.0.0.0 Safari/537.36"
                     ),
                     locale="en-AU",
                     timezone_id="Australia/Sydney",
@@ -119,7 +120,6 @@ class GumtreeScanner(BaseScanner):
                     delete navigator.__proto__.webdriver;
                 """)
 
-                # Warm up for CF cookies
                 logger.info(f"[{self.name}] Warming up browser...")
                 page.goto(self.base_url, wait_until="domcontentloaded", timeout=30000)
                 page.wait_for_timeout(5000)
@@ -156,11 +156,9 @@ class GumtreeScanner(BaseScanner):
         return listings
 
     def _parse_json(self, html: str, term: str) -> list[Listing]:
-        """Extract listings from embedded JSON data."""
         soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
-        # Next.js data
         script = soup.select_one("script#__NEXT_DATA__")
         if script and script.string:
             try:
@@ -182,7 +180,6 @@ class GumtreeScanner(BaseScanner):
             except (json.JSONDecodeError, KeyError) as e:
                 logger.debug(f"[{self.name}] JSON parse error: {e}")
 
-        # JSON-LD
         for script in soup.select('script[type="application/ld+json"]'):
             try:
                 data = json.loads(script.string)
@@ -219,7 +216,6 @@ class GumtreeScanner(BaseScanner):
         return results
 
     def _extract_ads(self, data: dict) -> list[dict]:
-        """Navigate __NEXT_DATA__ to find ads."""
         ads = []
         try:
             props = data.get("props", {}).get("pageProps", {})
@@ -259,7 +255,6 @@ class GumtreeScanner(BaseScanner):
         return ads
 
     def _parse_html(self, html: str, term: str) -> list[Listing]:
-        """Fall back to HTML parsing."""
         soup = BeautifulSoup(html, HTML_PARSER)
         results = []
 
@@ -326,75 +321,65 @@ class GumtreeScanner(BaseScanner):
             logger.info(f"[{self.name}] Found {len(results)} for '{term}' via HTML")
         return results
 
-    # ------------------------------------------------------------------
-    # Google fallback (when direct HTTP and Playwright both fail)
-    # ------------------------------------------------------------------
-    def _scan_google_fallback(self) -> list[Listing]:
-        """Fall back to batched Google dorking."""
+    def _scan_search_engine_fallback(self) -> list[Listing]:
+        """Use multi-engine search as last resort."""
         all_results = []
-
         for i in range(0, len(self.search_terms), 6):
             chunk = self.search_terms[i:i + 6]
             or_query = " OR ".join(f'"{t}"' for t in chunk)
-            query = f'site:gumtree.com.au ({or_query})'
-
-            resp = self._get(
-                "https://www.google.com.au/search",
-                params={"q": query, "num": 30, "gl": "au"},
-                retries=1, delay=5.0,
-            )
-            if not resp:
-                continue
-
-            soup = BeautifulSoup(resp.text, HTML_PARSER)
-
-            for result in soup.select("div.g, div.tF2Cxc"):
-                try:
-                    link_el = result.select_one("a")
-                    title_el = result.select_one("h3")
-                    snippet_el = result.select_one("span.aCOpRe, div.VwiC3b, span.st")
-
-                    href = link_el.get("href", "") if link_el else ""
-                    title = self._safe_text(title_el, "No title")
-                    description = self._safe_text(snippet_el)
-
-                    if "gumtree.com.au" not in href:
-                        continue
-                    if any(skip in href for skip in ("/post-ad", "/my-gumtree", "/help")):
-                        continue
-
-                    # Try to extract thumbnail from Google result
-                    image_url = ""
-                    img_el = result.select_one("img")
-                    if img_el:
-                        src = img_el.get("src", "") or img_el.get("data-src", "")
-                        if src and src.startswith("http"):
-                            image_url = src
-
-                    price = "See listing"
-                    price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
-                    if price_match:
-                        price = price_match.group(0)
-
-                    location = "Australia"
-                    loc_match = re.search(r'(Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra)',
-                                          f"{title} {description}", re.IGNORECASE)
-                    if loc_match:
-                        location = loc_match.group(1).title()
-
-                    if title and href:
-                        all_results.append(Listing(
-                            title=title,
-                            price=price,
-                            url=href,
-                            location=location,
-                            marketplace=self.name,
-                            description=description,
-                            image_url=image_url,
-                        ))
-                except Exception as e:
-                    logger.debug(f"[{self.name}] Google parse error: {e}")
+            results = site_search("gumtree.com.au", or_query)
+            for r in results:
+                if any(skip in r.url for skip in ("/post-ad", "/my-gumtree", "/help")):
                     continue
+                price = "See listing"
+                price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                if price_match:
+                    price = price_match.group(0)
+                location = "Australia"
+                loc_match = re.search(
+                    r'(Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra)',
+                    f"{r.title} {r.snippet}", re.IGNORECASE
+                )
+                if loc_match:
+                    location = loc_match.group(1).title()
+                all_results.append(Listing(
+                    title=r.title,
+                    price=price,
+                    url=r.url,
+                    location=location,
+                    marketplace=self.name,
+                    description=r.snippet,
+                    image_url=r.image_url,
+                ))
 
-        logger.info(f"[{self.name}] Google found {len(all_results)} total results")
+        logger.info(f"[{self.name}] Search engines found {len(all_results)} total results")
         return all_results
+
+    def _search_engine_term(self, term: str) -> list[Listing]:
+        """Search engine fallback for a single term."""
+        results = site_search("gumtree.com.au", term)
+        listings = []
+        for r in results:
+            if any(skip in r.url for skip in ("/post-ad", "/my-gumtree", "/help")):
+                continue
+            price = "See listing"
+            price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+            if price_match:
+                price = price_match.group(0)
+            location = "Australia"
+            loc_match = re.search(
+                r'(Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra)',
+                f"{r.title} {r.snippet}", re.IGNORECASE
+            )
+            if loc_match:
+                location = loc_match.group(1).title()
+            listings.append(Listing(
+                title=r.title,
+                price=price,
+                url=r.url,
+                location=location,
+                marketplace=self.name,
+                description=r.snippet,
+                image_url=r.image_url,
+            ))
+        return listings

@@ -1,29 +1,25 @@
 """Other Australian marketplaces scanner.
 
 Covers Carousell, Locanto, and other smaller AU classifieds via
-batched Google dorking to avoid rate limiting.
+multi-engine search (Google, Bing, DuckDuckGo) with automatic fallback.
 """
 
 import logging
 import re
 
-from bs4 import BeautifulSoup
-
-from .base import BaseScanner, Listing, HTML_PARSER
+from .base import BaseScanner, Listing
+from .search_engines import search_multi, SearchResult
 
 logger = logging.getLogger(__name__)
 
 
 class MercariScanner(BaseScanner):
-    """Scans multiple smaller Australian marketplaces via Google indexing."""
+    """Scans multiple smaller Australian marketplaces via search engines."""
     scanner_id = "other"
-
     name = "Other Marketplaces"
-    # Google dorking — be very conservative to avoid captchas
     min_request_delay = 5.0
     max_request_delay = 10.0
 
-    # Sites to search via Google
     SITES = [
         "carousell.com.au",
         "marketplace.com.au",
@@ -34,10 +30,9 @@ class MercariScanner(BaseScanner):
     ]
 
     def scan(self) -> list[Listing]:
-        """Scan with batched Google queries to minimise request count."""
+        """Scan with batched multi-engine queries."""
         listings = []
 
-        # Batch search terms into groups of 6
         batches = []
         for i in range(0, len(self.search_terms), 6):
             chunk = self.search_terms[i:i + 6]
@@ -48,12 +43,12 @@ class MercariScanner(BaseScanner):
 
         for batch_query in batches:
             try:
-                found = self._google_search(sites_query, batch_query)
+                found = self._search_engines(sites_query, batch_query)
                 listings.extend(found)
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching batch: {e}")
 
-        # Deduplicate by URL
+        # Deduplicate
         seen_urls = set()
         unique = []
         for listing in listings:
@@ -64,59 +59,61 @@ class MercariScanner(BaseScanner):
         logger.info(f"[{self.name}] Total: {len(unique)} unique listings")
         return unique
 
-    def _google_search(self, sites_query: str, terms_query: str) -> list[Listing]:
-        """Search Google for listings across multiple marketplace sites."""
-        results = []
+    def search_open(self, query: str) -> list[Listing]:
+        """Manual search across all smaller marketplaces."""
+        sites_query = " OR ".join(f"site:{s}" for s in self.SITES)
+        results = self._search_engines(sites_query, query)
+
+        seen_urls = set()
+        unique = []
+        for listing in results:
+            if listing.url not in seen_urls:
+                seen_urls.add(listing.url)
+                unique.append(listing)
+
+        logger.info(f"[{self.name}] Manual search: {len(unique)} unique results")
+        return unique
+
+    def _search_engines(self, sites_query: str, terms_query: str) -> list[Listing]:
+        """Search across multiple engines for listings on smaller sites."""
         query = f'({sites_query}) ({terms_query})'
+        results = search_multi(query)
 
-        url = "https://www.google.com.au/search"
-        params = {"q": query, "num": 50, "gl": "au"}
+        listings = []
+        for r in results:
+            marketplace = self.name
+            for site in self.SITES:
+                if site in r.url:
+                    marketplace = site.split(".")[0].title()
+                    break
 
-        # Single attempt, no retry on 429
-        resp = self._get(url, params=params, retries=1, delay=5.0)
-        if not resp:
-            logger.warning(f"[{self.name}] Google query failed, skipping batch")
-            return []
+            # Skip results not from our target sites
+            if marketplace == self.name:
+                is_relevant = any(site in r.url for site in self.SITES)
+                if not is_relevant:
+                    continue
 
-        soup = BeautifulSoup(resp.text, HTML_PARSER)
+            price = "See listing"
+            price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+            if price_match:
+                price = price_match.group(0)
 
-        for result in soup.select("div.g, div.tF2Cxc"):
-            try:
-                link_el = result.select_one("a")
-                title_el = result.select_one("h3")
-                snippet_el = result.select_one(
-                    "span.aCOpRe, div.VwiC3b, span.st, "
-                    "div[data-sncf], div.kb0PBd"
-                )
+            location = "Australia"
+            loc_match = re.search(
+                r'(Sydney|Melbourne|Brisbane|Perth|Adelaide|Hobart|Darwin|Canberra)',
+                f"{r.title} {r.snippet}", re.IGNORECASE
+            )
+            if loc_match:
+                location = loc_match.group(1).title()
 
-                href = link_el.get("href", "") if link_el else ""
-                title = self._safe_text(title_el, "No title")
-                description = self._safe_text(snippet_el)
+            listings.append(Listing(
+                title=r.title,
+                price=price,
+                url=r.url,
+                location=location,
+                marketplace=marketplace,
+                description=r.snippet,
+            ))
 
-                # Identify which marketplace
-                marketplace = self.name
-                for site in self.SITES:
-                    if site in href:
-                        marketplace = site.split(".")[0].title()
-                        break
-
-                price = "See listing"
-                price_match = re.search(r'\$[\d,.]+', f"{title} {description}")
-                if price_match:
-                    price = price_match.group(0)
-
-                if title and href:
-                    results.append(Listing(
-                        title=title,
-                        price=price,
-                        url=href,
-                        location="Australia",
-                        marketplace=marketplace,
-                        description=description,
-                    ))
-            except Exception as e:
-                logger.debug(f"[{self.name}] Parse error: {e}")
-                continue
-
-        logger.info(f"[{self.name}] Google found {len(results)} results for batch")
-        return results
+        logger.info(f"[{self.name}] Search engines found {len(listings)} results")
+        return listings
