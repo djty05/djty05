@@ -43,16 +43,21 @@ class FacebookMarketplaceScanner(BaseScanner):
     min_request_delay = 5.0
     max_request_delay = 10.0
 
-    def scan(self) -> list[Listing]:
-        """Scan via Google-indexed FB Marketplace queries across multiple cities."""
+    # Fewer cities for manual single-term searches (faster)
+    QUICK_CITIES = ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide"]
+
+    def scan(self, quick: bool = False) -> list[Listing]:
+        """Scan via Google-indexed FB Marketplace queries across multiple cities.
+
+        If quick=True, only search 5 major cities (for manual search speed).
+        """
         # Group search terms into batches of ~6 using OR operator
         batches = self._batch_terms(self.search_terms, batch_size=6)
         listings = []
 
         for batch_query in batches:
             try:
-                # National search: query Google with city-specific terms
-                found = self._google_search_national(batch_query)
+                found = self._google_search_national(batch_query, quick=quick)
                 listings.extend(found)
             except Exception as e:
                 logger.error(f"[{self.name}] Error searching batch: {e}")
@@ -77,9 +82,11 @@ class FacebookMarketplaceScanner(BaseScanner):
             batches.append(or_query)
         return batches
 
-    def _google_search_national(self, terms_query: str) -> list[Listing]:
-        """Search Google for FB Marketplace listings across multiple AU cities.
+    def _google_search_national(self, terms_query: str, quick: bool = False) -> list[Listing]:
+        """Search Google for FB Marketplace listings across AU cities.
         Stops early if Google starts blocking requests.
+
+        quick=True: only 5 major cities (for manual search speed).
         """
         all_results = []
         consecutive_failures = 0
@@ -92,9 +99,12 @@ class FacebookMarketplaceScanner(BaseScanner):
         else:
             consecutive_failures += 1
 
-        # City-specific searches for national coverage
-        for city in AU_SEARCH_CITIES:
-            if consecutive_failures >= 3:
+        # City-specific searches
+        cities = self.QUICK_CITIES if quick else AU_SEARCH_CITIES
+        max_failures = 2 if quick else 3
+
+        for city in cities:
+            if consecutive_failures >= max_failures:
                 logger.info(f"[{self.name}] Google rate-limiting, stopping city searches")
                 break
             results = self._google_search(terms_query, location_hint=city)

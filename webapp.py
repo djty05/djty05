@@ -355,6 +355,8 @@ def api_manual_search():
             scanner = scanner_cls(search_terms=[query])
             if hasattr(scanner, 'search_open'):
                 listings = scanner.search_open(query)
+            elif hasattr(scanner, 'scan') and 'quick' in scanner.scan.__code__.co_varnames:
+                listings = scanner.scan(quick=True)
             else:
                 listings = scanner.scan()
             if location:
@@ -364,11 +366,14 @@ def api_manual_search():
         except Exception as e:
             return scanner_cls.scanner_id, scanner_cls.name, e
 
+    # Longer timeout for single-marketplace (e.g. Facebook does multiple Google searches)
+    timeout = 120 if len(scanners_to_use) == 1 else 60
+
     results = []
     errors = []
     with ThreadPoolExecutor(max_workers=min(len(scanners_to_use), 6)) as pool:
         futures = {pool.submit(search_one, cls): cls for cls in scanners_to_use}
-        for future in as_completed(futures, timeout=45):
+        for future in as_completed(futures, timeout=timeout):
             try:
                 scanner_id, name, result = future.result(timeout=5)
                 if isinstance(result, Exception):
@@ -424,9 +429,10 @@ def stream_search():
             scanner = scanner_cls(search_terms=[query])
             if hasattr(scanner, 'search_open'):
                 listings = scanner.search_open(query)
+            elif hasattr(scanner, 'scan') and 'quick' in scanner.scan.__code__.co_varnames:
+                listings = scanner.scan(quick=True)
             else:
                 listings = scanner.scan()
-            # Filter by location if specified
             if location:
                 loc_lower = location.lower()
                 listings = [l for l in listings
@@ -434,6 +440,9 @@ def stream_search():
             return scanner_cls.scanner_id, scanner_cls.name, listings
         except Exception as e:
             return scanner_cls.scanner_id, scanner_cls.name, e
+
+    # Longer timeout for single-marketplace searches
+    search_timeout = 120 if len(scanners_to_use) == 1 else 60
 
     def generate():
         num = len(scanners_to_use)
@@ -444,7 +453,7 @@ def stream_search():
             futures = {pool.submit(search_one, cls): cls for cls in scanners_to_use}
             done_count = 0
             try:
-                for future in as_completed(futures, timeout=45):
+                for future in as_completed(futures, timeout=search_timeout):
                     done_count += 1
                     try:
                         scanner_id, name, result = future.result(timeout=5)
