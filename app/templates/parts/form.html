@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New Part' if is_new else 'Edit ' + part.internal_part_number }} - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('parts.list_parts') }}">Parts</a></li>
+        {% if not is_new %}
+        <li class="breadcrumb-item"><a href="{{ url_for('parts.detail', part_id=part.id) }}">{{ part.internal_part_number }}</a></li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ 'New Part' if is_new else 'Edit' }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">{{ 'Add New Part' if is_new else 'Edit Part' }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('parts.create_part') if is_new else url_for('parts.edit_part', part_id=part.id) }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Internal Part Number *</label>
+                            <input type="text" class="form-control" name="internal_part_number"
+                                   value="{{ part.internal_part_number if part else '' }}"
+                                   {% if not is_new %}readonly{% endif %} required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Category</label>
+                            <select name="category_id" class="form-select">
+                                <option value="">-- None --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if part and part.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Description *</label>
+                            <input type="text" class="form-control" name="description"
+                                   value="{{ part.description if part else '' }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Sell Price</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" class="form-control" name="sell_price"
+                                       value="{{ part.current_sell_price if part and part.current_sell_price else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Unit of Measure</label>
+                            <select name="unit_of_measure" class="form-select">
+                                {% set uom = part.unit_of_measure if part else 'each' %}
+                                {% for u in ['each', 'metre', 'box', 'roll', 'pack', 'length', 'pair', 'set', 'kit'] %}
+                                <option value="{{ u }}" {% if uom == u %}selected{% endif %}>{{ u }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2">{{ part.notes if part and part.notes else '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- Supplier Part Numbers -->
+                    <hr class="my-4">
+                    <h6>Supplier Part Numbers</h6>
+                    <div id="supplier-parts">
+                        {% if part and not is_new %}
+                            {% for sp in part.supplier_parts %}
+                            <div class="row g-2 mb-2 supplier-part-row">
+                                <input type="hidden" name="sp_id_{{ loop.index0 }}" value="{{ sp.id }}">
+                                <div class="col-md-3">
+                                    <select name="sp_supplier_id_{{ loop.index0 }}" class="form-select form-select-sm">
+                                        <option value="">-- Supplier --</option>
+                                        {% for s in suppliers %}
+                                        <option value="{{ s.id }}" {% if sp.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control form-control-sm" name="sp_number_{{ loop.index0 }}" value="{{ sp.supplier_part_number }}" placeholder="Supplier Part #">
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control" name="sp_price_{{ loop.index0 }}" value="{{ sp.supplier_price or '' }}" placeholder="Cost">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="form-check mt-1">
+                                        <input class="form-check-input" type="checkbox" name="sp_preferred_{{ loop.index0 }}" {% if sp.is_preferred %}checked{% endif %}>
+                                        <label class="form-check-label small">Preferred</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.supplier-part-row').remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="add-supplier-part">
+                        <i class="bi bi-plus"></i> Add Supplier Part Number
+                    </button>
+
+                    <hr class="my-4">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Create Part' if is_new else 'Save Changes' }}
+                        </button>
+                        <a href="{{ url_for('parts.list_parts') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let spIndex = {{ part.supplier_parts.count() if part and not is_new else 0 }};
+const suppliers = [
+    {% for s in suppliers %}
+    {id: {{ s.id }}, name: "{{ s.name }}"},
+    {% endfor %}
+];
+
+document.getElementById('add-supplier-part').addEventListener('click', function() {
+    const div = document.createElement('div');
+    div.className = 'row g-2 mb-2 supplier-part-row';
+    let opts = '<option value="">-- Supplier --</option>';
+    suppliers.forEach(s => opts += `<option value="${s.id}">${s.name}</option>`);
+    div.innerHTML = `
+        <div class="col-md-3"><select name="sp_supplier_id_${spIndex}" class="form-select form-select-sm">${opts}</select></div>
+        <div class="col-md-3"><input type="text" class="form-control form-control-sm" name="sp_number_${spIndex}" placeholder="Supplier Part #"></div>
+        <div class="col-md-2"><div class="input-group input-group-sm"><span class="input-group-text">$</span><input type="number" step="0.01" class="form-control" name="sp_price_${spIndex}" placeholder="Cost"></div></div>
+        <div class="col-md-2"><div class="form-check mt-1"><input class="form-check-input" type="checkbox" name="sp_preferred_${spIndex}"><label class="form-check-label small">Preferred</label></div></div>
+        <div class="col-md-2"><button type="button" class="btn btn-outline-danger btn-sm" onclick="this.closest('.supplier-part-row').remove()"><i class="bi bi-trash"></i></button></div>
+    `;
+    document.getElementById('supplier-parts').appendChild(div);
+    spIndex++;
+});
+</script>
+{% endblock %}

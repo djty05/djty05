@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Import CSV - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-upload"></i> Import CSV File</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('imports.upload') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Import Type</label>
+                        <select name="import_type" class="form-select" id="importType">
+                            <option value="catalogue">Internal Catalogue (parts with sell prices)</option>
+                            <option value="supplier_pricelist">Supplier Price List (supplier parts with cost prices)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="supplierSelect" style="display:none;">
+                        <label class="form-label fw-bold">Supplier</label>
+                        <select name="supplier_id" class="form-select">
+                            <option value="">-- Select Supplier --</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.id }}">{{ s.name }}{% if s.code %} ({{ s.code }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Required for supplier price list imports.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">CSV File</label>
+                        <input type="file" class="form-control" name="csv_file" accept=".csv,.txt" required>
+                        <small class="form-text text-muted">
+                            Supports CSV files with comma, semicolon, or tab delimiters. Max 16MB.
+                        </small>
+                    </div>
+
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>How it works:</strong>
+                        <ol class="mb-0 mt-1">
+                            <li>Upload your CSV file</li>
+                            <li>Map your CSV columns to the right fields</li>
+                            <li>Review changes, duplicates, and price updates before committing</li>
+                            <li>All changes are logged in the audit trail for accuracy</li>
+                        </ol>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-upload"></i> Upload & Map Columns
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('importType').addEventListener('change', function() {
+    document.getElementById('supplierSelect').style.display =
+        this.value === 'supplier_pricelist' ? 'block' : 'none';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Map Columns - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Map CSV Columns</h5>
+                <small class="text-muted">{{ total_rows }} rows found. Map your columns below, then preview.</small>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('imports.review') }}">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Part Number *</label>
+                            <select name="col_part_number" class="form-select form-select-sm" required>
+                                <option value="">-- Select Column --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'part' in f.lower() and ('num' in f.lower() or '#' in f or 'no' in f.lower() or 'code' in f.lower()) %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Description *</label>
+                            <select name="col_description" class="form-select form-select-sm" required>
+                                <option value="">-- Select Column --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'desc' in f.lower() %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Price</label>
+                            <select name="col_price" class="form-select form-select-sm">
+                                <option value="">-- Not mapped --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'price' in f.lower() or 'cost' in f.lower() %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Supplier Part Number</label>
+                            <select name="col_supplier_part_number" class="form-select form-select-sm">
+                                <option value="">-- Not mapped --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'supplier' in f.lower() and ('part' in f.lower() or 'num' in f.lower()) %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Category</label>
+                            <select name="col_category" class="form-select form-select-sm">
+                                <option value="">-- Not mapped --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'cat' in f.lower() or 'group' in f.lower() %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Unit of Measure</label>
+                            <select name="col_uom" class="form-select form-select-sm">
+                                <option value="">-- Not mapped --</option>
+                                {% for f in fieldnames %}
+                                <option value="{{ f }}" {% if 'unit' in f.lower() or 'uom' in f.lower() %}selected{% endif %}>{{ f }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Sample Data Preview -->
+                    <h6>Sample Data (first 5 rows)</h6>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-bordered table-sm small">
+                            <thead class="table-light">
+                                <tr>
+                                    {% for f in fieldnames %}
+                                    <th>{{ f }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in sample_rows %}
+                                <tr>
+                                    {% for f in fieldnames %}
+                                    <td>{{ row.get(f, '') }}</td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-eye"></i> Preview Import
+                    </button>
+                    <a href="{{ url_for('imports.upload_form') }}" class="btn btn-outline-secondary">Start Over</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

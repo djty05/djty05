@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h4 class="mb-3">Dashboard</h4>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary rounded-3 p-3 me-3">
+                        <i class="bi bi-box-seam fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Active Parts</div>
+                        <div class="fs-3 fw-bold">{{ total_parts }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success rounded-3 p-3 me-3">
+                        <i class="bi bi-building fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Suppliers</div>
+                        <div class="fs-3 fw-bold">{{ total_suppliers }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning rounded-3 p-3 me-3">
+                        <i class="bi bi-graph-up-arrow fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Price Changes (30d)</div>
+                        <div class="fs-3 fw-bold">{{ price_stats.total_changes }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-danger bg-opacity-10 text-danger rounded-3 p-3 me-3">
+                        <i class="bi bi-exclamation-triangle fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted small">Max Increase</div>
+                        <div class="fs-3 fw-bold">{{ price_stats.max_increase_pct }}%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Biggest Price Movers -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-arrow-up-right text-danger"></i> Biggest Price Increases (30 days)</h6>
+                <a href="{{ url_for('prices.report') }}" class="btn btn-sm btn-outline-primary">Full Report</a>
+            </div>
+            <div class="card-body p-0">
+                {% if biggest_movers %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Part</th>
+                                <th>Supplier</th>
+                                <th class="text-end">Old Price</th>
+                                <th class="text-end">New Price</th>
+                                <th class="text-end">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ph in biggest_movers %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('parts.detail', part_id=ph.supplier_part.part.id) }}">
+                                        {{ ph.supplier_part.part.internal_part_number }}
+                                    </a>
+                                    <br><small class="text-muted">{{ ph.supplier_part.part.description[:40] }}</small>
+                                </td>
+                                <td>{{ ph.supplier_part.supplier.name }}</td>
+                                <td class="text-end">${{ "%.2f"|format(ph.old_price or 0) }}</td>
+                                <td class="text-end fw-bold">${{ "%.2f"|format(ph.new_price) }}</td>
+                                <td class="text-end">
+                                    <span class="badge bg-danger">
+                                        +{{ "%.1f"|format(ph.change_percent) }}%
+                                    </span>
+                                    <br><small class="text-danger">+${{ "%.2f"|format(ph.change_amount or 0) }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-check-circle fs-1"></i>
+                    <p class="mt-2">No price changes in the last 30 days.</p>
+                    <a href="{{ url_for('imports.upload_form') }}" class="btn btn-primary btn-sm">Import a Price List</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-clock-history"></i> Recent Activity</h6>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_activity %}
+                <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    {% for entry in recent_activity %}
+                    <div class="list-group-item list-group-item-action py-2 px-3">
+                        <div class="d-flex justify-content-between">
+                            <small>
+                                {% if entry.action == 'create' %}
+                                <span class="badge bg-success">New</span>
+                                {% elif entry.action == 'update' %}
+                                <span class="badge bg-info">Updated</span>
+                                {% elif entry.action == 'price_update' %}
+                                <span class="badge bg-warning text-dark">Price</span>
+                                {% elif entry.action == 'delete' %}
+                                <span class="badge bg-danger">Deleted</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ entry.action }}</span>
+                                {% endif %}
+                                {{ entry.entity_type }} #{{ entry.entity_id }}
+                                <span class="text-muted">({{ entry.source }})</span>
+                            </small>
+                            <small class="text-muted">{{ entry.created_at.strftime('%d/%m %H:%M') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <p>No activity yet. Start by adding parts or importing a catalogue.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-lightning"></i> Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('parts.create_part') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Add New Part
+                    </a>
+                    <a href="{{ url_for('suppliers.create_supplier') }}" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-building-add"></i> Add Supplier
+                    </a>
+                    <a href="{{ url_for('imports.upload_form') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="bi bi-upload"></i> Import CSV
+                    </a>
+                    <a href="{{ url_for('imports.export') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-download"></i> Export Catalogue
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

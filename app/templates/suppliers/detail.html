@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('suppliers.list_suppliers') }}">Suppliers</a></li>
+        <li class="breadcrumb-item active">{{ supplier.name }}</li>
+    </ol>
+</nav>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ supplier.name }} {% if supplier.code %}<span class="badge bg-secondary">{{ supplier.code }}</span>{% endif %}</h5>
+        <div>
+            <a href="{{ url_for('suppliers.edit_supplier', supplier_id=supplier.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+            <form method="post" action="{{ url_for('suppliers.delete_supplier', supplier_id=supplier.id) }}" class="d-inline" onsubmit="return confirm('Deactivate this supplier?')">
+                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+            </form>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm">
+                    {% if supplier.contact_email %}<tr><th>Email</th><td>{{ supplier.contact_email }}</td></tr>{% endif %}
+                    {% if supplier.contact_phone %}<tr><th>Phone</th><td>{{ supplier.contact_phone }}</td></tr>{% endif %}
+                    {% if supplier.website %}<tr><th>Website</th><td>{{ supplier.website }}</td></tr>{% endif %}
+                    {% if supplier.notes %}<tr><th>Notes</th><td>{{ supplier.notes }}</td></tr>{% endif %}
+                    <tr><th>Total Parts</th><td>{{ supplier.part_count }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Parts from this supplier -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white">
+        <h6 class="mb-0">Parts from {{ supplier.name }}</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Supplier Part #</th>
+                    <th>Internal Part #</th>
+                    <th>Description</th>
+                    <th class="text-end">Supplier Price</th>
+                    <th>Last Check</th>
+                    <th>Preferred</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sp in parts.items %}
+                <tr>
+                    <td class="fw-bold">{{ sp.supplier_part_number }}</td>
+                    <td><a href="{{ url_for('parts.detail', part_id=sp.part.id) }}">{{ sp.part.internal_part_number }}</a></td>
+                    <td>{{ sp.part.description[:50] }}</td>
+                    <td class="text-end">{% if sp.supplier_price %}${{ "%.2f"|format(sp.supplier_price) }}{% else %}-{% endif %}</td>
+                    <td><small>{{ sp.last_price_check.strftime('%d/%m/%Y') if sp.last_price_check else '-' }}</small></td>
+                    <td>{% if sp.is_preferred %}<i class="bi bi-star-fill text-warning"></i>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-3 text-muted">No parts linked to this supplier yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if parts.pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center">
+        {% for p in range(1, parts.pages + 1) %}
+        <li class="page-item {% if p == parts.page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

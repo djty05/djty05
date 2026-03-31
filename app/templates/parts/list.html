@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Parts - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Parts Catalogue <small class="text-muted">({{ total }} parts)</small></h4>
+    <a href="{{ url_for('parts.create_part') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Add Part
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Search part number, description, supplier number...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="category" class="form-select form-select-sm">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="supplier" class="form-select form-select-sm">
+                    <option value="">All Suppliers</option>
+                    {% for sup in suppliers %}
+                    <option value="{{ sup.id }}" {% if supplier_id == sup.id %}selected{% endif %}>{{ sup.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Parts Table -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Part Number</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th class="text-end">Sell Price</th>
+                    <th class="text-end">Best Cost</th>
+                    <th>Suppliers</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for part in parts %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('parts.detail', part_id=part.id) }}" class="fw-bold text-decoration-none">
+                            {{ part.internal_part_number }}
+                        </a>
+                    </td>
+                    <td>{{ part.description[:60] }}{% if part.description|length > 60 %}...{% endif %}</td>
+                    <td><small>{{ part.category.name if part.category else '-' }}</small></td>
+                    <td class="text-end">
+                        {% if part.current_sell_price %}${{ "%.2f"|format(part.current_sell_price) }}{% else %}-{% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if part.best_cost_price %}${{ "%.2f"|format(part.best_cost_price) }}{% else %}-{% endif %}
+                    </td>
+                    <td>
+                        {% for sp in part.supplier_parts[:3] %}
+                        <span class="badge bg-secondary">{{ sp.supplier.code or sp.supplier.name[:8] }}</span>
+                        {% endfor %}
+                        {% if part.supplier_parts.count() > 3 %}
+                        <span class="badge bg-light text-dark">+{{ part.supplier_parts.count() - 3 }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        <a href="{{ url_for('parts.edit_part', part_id=part.id) }}" class="btn btn-outline-primary btn-sm py-0 px-1" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        {% if q %}
+                        No parts found matching "{{ q }}".
+                        {% else %}
+                        No parts yet. <a href="{{ url_for('parts.create_part') }}">Add one</a> or <a href="{{ url_for('imports.upload_form') }}">import a CSV</a>.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<nav class="mt-3">
+    <ul class="pagination pagination-sm justify-content-center">
+        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page - 1 }}&q={{ q }}&category={{ category_id or '' }}&supplier={{ supplier_id or '' }}">Prev</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        {% if p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="?page={{ p }}&q={{ q }}&category={{ category_id or '' }}&supplier={{ supplier_id or '' }}">{{ p }}</a>
+        </li>
+        {% elif p == 4 or p == total_pages - 3 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+        {% endfor %}
+        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ page + 1 }}&q={{ q }}&category={{ category_id or '' }}&supplier={{ supplier_id or '' }}">Next</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

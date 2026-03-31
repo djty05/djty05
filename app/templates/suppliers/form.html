@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New Supplier' if is_new else 'Edit ' + supplier.name }} - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('suppliers.list_suppliers') }}">Suppliers</a></li>
+        <li class="breadcrumb-item active">{{ 'New Supplier' if is_new else 'Edit' }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0">{{ 'Add New Supplier' if is_new else 'Edit Supplier' }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('suppliers.create_supplier') if is_new else url_for('suppliers.edit_supplier', supplier_id=supplier.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Supplier Name *</label>
+                        <input type="text" class="form-control" name="name" value="{{ supplier.name if supplier else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Short Code</label>
+                        <input type="text" class="form-control" name="code" value="{{ supplier.code if supplier else '' }}" maxlength="20" placeholder="e.g. CLIP, MM, LAPP">
+                        <small class="form-text text-muted">Unique short identifier for the supplier.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" class="form-control" name="contact_email" value="{{ supplier.contact_email if supplier else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Phone</label>
+                        <input type="tel" class="form-control" name="contact_phone" value="{{ supplier.contact_phone if supplier else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Website</label>
+                        <input type="text" class="form-control" name="website" value="{{ supplier.website if supplier else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Notes</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ supplier.notes if supplier and supplier.notes else '' }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-lg"></i> {{ 'Create Supplier' if is_new else 'Save Changes' }}
+                        </button>
+                        <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

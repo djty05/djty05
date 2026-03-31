@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Review Import - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Review Import</h5>
+            </div>
+            <div class="card-body">
+                <!-- Summary -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <div class="alert alert-success mb-0 text-center py-2">
+                            <div class="fw-bold fs-5">{{ result.new_parts|length }}</div>
+                            <small>New Parts</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info mb-0 text-center py-2">
+                            <div class="fw-bold fs-5">{{ result.updated_parts|length }}</div>
+                            <small>Updates</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-warning mb-0 text-center py-2">
+                            <div class="fw-bold fs-5">{{ result.price_changes|length }}</div>
+                            <small>Price Changes</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-danger mb-0 text-center py-2">
+                            <div class="fw-bold fs-5">{{ result.errors|length }}</div>
+                            <small>Errors</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Errors -->
+                {% if result.errors %}
+                <div class="alert alert-danger">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Validation Errors</h6>
+                    <ul class="mb-0 small">
+                        {% for err in result.errors[:20] %}
+                        <li>{{ err }}</li>
+                        {% endfor %}
+                        {% if result.errors|length > 20 %}
+                        <li>...and {{ result.errors|length - 20 }} more</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Price Changes -->
+                {% if result.price_changes %}
+                <h6 class="mt-4"><i class="bi bi-graph-up-arrow text-warning"></i> Price Changes Detected</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-bordered small">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Part #</th>
+                                <th>Description</th>
+                                <th class="text-end">Old Price</th>
+                                <th class="text-end">New Price</th>
+                                <th class="text-end">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in result.price_changes %}
+                            <tr>
+                                <td>{{ entry.part_number }}</td>
+                                <td>{{ entry.description[:40] }}</td>
+                                <td class="text-end">${{ "%.2f"|format(entry.old_price) }}</td>
+                                <td class="text-end fw-bold">${{ "%.2f"|format(entry.new_price) }}</td>
+                                <td class="text-end">
+                                    <span class="badge {{ 'bg-danger' if entry.change_percent > 0 else 'bg-success' }}">
+                                        {{ "%.1f"|format(entry.change_percent) }}%
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                <!-- Potential Duplicates -->
+                {% if result.duplicates %}
+                <h6 class="mt-4"><i class="bi bi-files text-danger"></i> Potential Duplicates</h6>
+                <div class="alert alert-warning small">
+                    <p>The following new parts may already exist. Review carefully before importing.</p>
+                    {% for entry in result.duplicates %}
+                    <div class="mb-2 p-2 bg-white rounded">
+                        <strong>Row {{ entry.row }}: {{ entry.part_number }}</strong> - {{ entry.description }}
+                        <br>Possible matches:
+                        <ul class="mb-0">
+                            {% for d in entry.duplicates[:3] %}
+                            <li>{{ d.part.internal_part_number }} - {{ d.part.description }} ({{ d.score }}% match)</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Commit Form -->
+                <form method="post" action="{{ url_for('imports.commit') }}">
+                    {% for entry in result.new_parts %}
+                    <input type="hidden" name="selected_rows" value="{{ entry.row }}">
+                    {% endfor %}
+                    {% for entry in result.updated_parts %}
+                    <input type="hidden" name="selected_rows" value="{{ entry.row }}">
+                    {% endfor %}
+
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('Commit {{ result.new_parts|length }} new and {{ result.updated_parts|length }} updated parts?')">
+                            <i class="bi bi-check-circle"></i> Commit Import
+                        </button>
+                        <a href="{{ url_for('imports.upload_form') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
