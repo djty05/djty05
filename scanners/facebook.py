@@ -77,66 +77,70 @@ class FacebookMarketplaceScanner(BaseScanner):
         return self._deduplicate(listings)
 
     def search_open(self, query: str) -> list[Listing]:
-        """Manual search — tries Playwright first, generates direct links as fallback."""
+        """Manual search — always includes direct links + tries Playwright."""
         logger.info(f"[{self.name}] Manual search for '{query}'")
         listings = []
 
-        # Try Playwright
-        try:
-            from playwright.sync_api import sync_playwright
-            listings = self._playwright_search(query, self.QUICK_CITIES)
-            if listings:
-                logger.info(f"[{self.name}] Playwright found {len(listings)} results")
-                return self._deduplicate(listings)
-        except ImportError:
-            logger.info(f"[{self.name}] Playwright not installed")
-        except Exception as e:
-            logger.warning(f"[{self.name}] Playwright error: {e}")
-
-        # Fallback: generate direct links user can open + search engine results
-        logger.info(f"[{self.name}] Generating direct links + searching engines")
-
-        # Create clickable direct links as listings
+        # Always generate direct clickable links (user can open in their browser)
+        from urllib.parse import quote_plus
+        encoded = quote_plus(query)
         for city_name, city_slug in list(AU_CITIES_FB.items())[:5]:
-            fb_url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={query}"
+            fb_url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={encoded}"
             listings.append(Listing(
-                title=f"Facebook Marketplace: '{query}' in {city_name}",
-                price="Click to search",
+                title=f"Search FB Marketplace: '{query}' in {city_name}",
+                price="Click to open",
                 url=fb_url,
                 location=city_name,
                 marketplace=self.name,
-                description=f"Open Facebook Marketplace directly to search for '{query}' in {city_name}. Login may be required.",
+                description=f"Opens Facebook Marketplace search for '{query}' in {city_name}. You may need to log in.",
                 image_url="",
             ))
+
+        # Try Playwright for actual scraped results
+        try:
+            from playwright.sync_api import sync_playwright
+            pw_results = self._playwright_search(query, self.QUICK_CITIES)
+            if pw_results:
+                logger.info(f"[{self.name}] Playwright found {len(pw_results)} actual results")
+                listings.extend(pw_results)
+        except ImportError:
+            logger.info(f"[{self.name}] Install Playwright for auto FB scanning: pip install playwright && playwright install chromium")
+        except Exception as e:
+            logger.warning(f"[{self.name}] Playwright error: {e}")
 
         # Also try search engines for any cached/referenced listings
         for engine_query in [
             f'facebook marketplace {query} australia',
             f'facebook.com marketplace {query}',
         ]:
-            results = search_multi(engine_query)
-            for r in results:
-                if "facebook.com" in r.url:
-                    price = "See listing"
-                    price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
-                    if price_match:
-                        price = price_match.group(0)
-                    location = "Australia"
-                    for city in AU_CITIES_FB:
-                        if city.lower() in f"{r.title} {r.snippet}".lower():
-                            location = city
-                            break
-                    listings.append(Listing(
-                        title=r.title,
-                        price=price,
-                        url=r.url,
-                        location=location,
-                        marketplace=self.name,
-                        description=r.snippet,
-                        image_url=r.image_url,
-                    ))
+            try:
+                results = search_multi(engine_query)
+                for r in results:
+                    if "facebook.com" in r.url:
+                        price = "See listing"
+                        price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
+                        if price_match:
+                            price = price_match.group(0)
+                        location = "Australia"
+                        for city in AU_CITIES_FB:
+                            if city.lower() in f"{r.title} {r.snippet}".lower():
+                                location = city
+                                break
+                        listings.append(Listing(
+                            title=r.title,
+                            price=price,
+                            url=r.url,
+                            location=location,
+                            marketplace=self.name,
+                            description=r.snippet,
+                            image_url=r.image_url,
+                        ))
+            except Exception:
+                continue
 
-        return self._deduplicate(listings)
+        unique = self._deduplicate(listings)
+        logger.info(f"[{self.name}] Manual search total: {len(unique)} listings")
+        return unique
 
     def _scan_playwright(self, cities: list[str]) -> list[Listing]:
         """Use Playwright to browse FB Marketplace directly."""

@@ -71,7 +71,7 @@ class CashConvertersScanner(BaseScanner):
                 logger.info(f"[{self.name}] Category page: {len(matched or found)} results")
 
         # Also search via search engines for this specific term
-        se_results = site_search("cashconverters.com.au", f"fluke {term}")
+        se_results = site_search("cashconverters.com.au", term)
         for r in se_results:
             if any(skip in r.url for skip in ("/store-locator", "/about", "/sell", "/contact", "/help")):
                 continue
