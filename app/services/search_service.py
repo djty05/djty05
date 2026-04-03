@@ -1,5 +1,5 @@
 import re
-from rapidfuzz import fuzz
+from thefuzz import fuzz
 from app.models.part import Part
 from app.models.supplier import SupplierPart
 
