@@ -10,7 +10,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>MarketScan</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=13">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="/static/css/style.css?v=14">
 </head>
 <body>
 
@@ -122,6 +123,8 @@
 
             <div class="sidebar-section">
                 <h3 class="sidebar-title">My Location</h3>
+                <div id="location-map" class="sidebar-map"></div>
+                <div class="map-location-label" id="map-location-label">Click map to set location</div>
                 <select id="f-my-location" class="sidebar-select">
                     <option value="">All Australia</option>
                     <option value="Sydney">Sydney, NSW</option>
@@ -211,7 +214,13 @@
     <div id="scanner-status-panel" class="scanner-panel">
         <div class="scanner-panel-header">
             <h3>Scanner Status</h3>
-            <button id="btn-test-scanners" class="btn-test">Test All Scanners</button>
+            <div class="scanner-panel-actions">
+                <button id="btn-fb-login" class="btn-fb-login" title="Login to Facebook for Marketplace scanning">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    <span id="fb-login-text">Login to Facebook</span>
+                </button>
+                <button id="btn-test-scanners" class="btn-test">Test All Scanners</button>
+            </div>
         </div>
         <div id="scanner-status-grid" class="scanner-grid">
             <div class="scanner-card" data-scanner="ebay"><span class="scanner-dot"></span><span class="scanner-name">eBay AU</span><span class="scanner-result">--</span></div>
@@ -280,6 +289,7 @@
     </button>
 </nav>
 
-<script src="/static/js/app.js?v=13"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="/static/js/app.js?v=14"></script>
 </body>
 </html>

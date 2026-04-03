@@ -551,6 +551,31 @@ def test_scanners():
     return jsonify({"results": results, "query": test_query})
 
 
+@app.route("/api/fb-login", methods=["POST"])
+def fb_login():
+    """Start Facebook login flow — opens a browser for manual login."""
+    from scanners.facebook import do_fb_login, has_fb_cookies
+    _log("[Facebook] Starting login flow...")
+
+    try:
+        success = do_fb_login()
+        if success:
+            _log("[Facebook] Login successful — cookies saved!")
+            return jsonify({"ok": True, "message": "Logged in! Facebook scanner will now work."})
+        else:
+            return jsonify({"ok": False, "message": "Login failed or timed out. Try again."})
+    except Exception as e:
+        _log(f"[Facebook] Login error: {e}")
+        return jsonify({"ok": False, "message": f"Error: {e}. Make sure Playwright is installed: pip install playwright && playwright install chromium"})
+
+
+@app.route("/api/fb-status")
+def fb_status():
+    """Check if Facebook cookies are saved."""
+    from scanners.facebook import has_fb_cookies
+    return jsonify({"logged_in": has_fb_cookies()})
+
+
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------

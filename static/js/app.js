@@ -405,9 +405,151 @@ function updateScannerCard(scannerName, status, count) {
     }
 }
 
+// ---- Interactive Map Location Picker ----
+const AU_CITIES = {
+    'Sydney': [-33.8688, 151.2093],
+    'Melbourne': [-37.8136, 144.9631],
+    'Brisbane': [-27.4698, 153.0251],
+    'Perth': [-31.9505, 115.8605],
+    'Adelaide': [-34.9285, 138.6007],
+    'Hobart': [-42.8821, 147.3272],
+    'Darwin': [-12.4634, 130.8456],
+    'Canberra': [-35.2809, 149.1300],
+    'Gold Coast': [-28.0167, 153.4000],
+    'Newcastle': [-32.9283, 151.7817],
+    'Cairns': [-16.9186, 145.7781],
+    'Townsville': [-19.2590, 146.8169],
+    'Geelong': [-38.1499, 144.3617],
+    'Wollongong': [-34.4278, 150.8931],
+};
+
+let locationMap = null;
+let locationMarker = null;
+
+function initMap() {
+    const mapEl = document.getElementById('location-map');
+    if (!mapEl || !window.L) return;
+
+    locationMap = L.map('location-map', {
+        zoomControl: false,
+        attributionControl: false,
+    }).setView([-25.2744, 133.7751], 4); // Center of Australia
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+    }).addTo(locationMap);
+
+    L.control.zoom({ position: 'topright' }).addTo(locationMap);
+
+    // Add city markers
+    for (const [city, [lat, lng]] of Object.entries(AU_CITIES)) {
+        const marker = L.circleMarker([lat, lng], {
+            radius: 5, fillColor: '#1a73e8', color: '#fff',
+            weight: 1, fillOpacity: 0.8,
+        }).addTo(locationMap);
+        marker.bindTooltip(city, { direction: 'top', offset: [0, -8] });
+        marker.on('click', () => selectMapCity(city, lat, lng));
+    }
+
+    // Click on map to find nearest city
+    locationMap.on('click', (e) => {
+        let nearest = null, minDist = Infinity;
+        for (const [city, [lat, lng]] of Object.entries(AU_CITIES)) {
+            const dist = Math.sqrt(Math.pow(e.latlng.lat - lat, 2) + Math.pow(e.latlng.lng - lng, 2));
+            if (dist < minDist) { minDist = dist; nearest = city; }
+        }
+        if (nearest) {
+            const [lat, lng] = AU_CITIES[nearest];
+            selectMapCity(nearest, lat, lng);
+        }
+    });
+}
+
+function selectMapCity(city, lat, lng) {
+    if (locationMarker) locationMap.removeLayer(locationMarker);
+    locationMarker = L.marker([lat, lng]).addTo(locationMap);
+    locationMap.setView([lat, lng], 8);
+
+    // Update the dropdown
+    const sel = document.getElementById('f-my-location');
+    if (sel) { sel.value = city; }
+
+    // Update label
+    const label = document.getElementById('map-location-label');
+    if (label) {
+        label.textContent = city;
+        label.className = 'map-location-label active';
+    }
+
+    // Also update search location
+    const sSel = document.getElementById('s-location');
+    if (sSel) { sSel.value = city; }
+
+    applyFeedFilters();
+}
+
+// Sync dropdown to map
+document.getElementById('f-my-location')?.addEventListener('change', function() {
+    const city = this.value;
+    if (city && AU_CITIES[city] && locationMap) {
+        const [lat, lng] = AU_CITIES[city];
+        selectMapCity(city, lat, lng);
+    } else if (!city && locationMap) {
+        if (locationMarker) locationMap.removeLayer(locationMarker);
+        locationMap.setView([-25.2744, 133.7751], 4);
+        const label = document.getElementById('map-location-label');
+        if (label) { label.textContent = 'Click map to set location'; label.className = 'map-location-label'; }
+    }
+});
+
+// ---- Facebook Login ----
+async function checkFbStatus() {
+    try {
+        const r = await fetch(API + '/api/fb-status');
+        const d = await r.json();
+        const btn = document.getElementById('btn-fb-login');
+        const txt = document.getElementById('fb-login-text');
+        if (d.logged_in) {
+            btn.classList.add('logged-in');
+            txt.textContent = 'FB Connected';
+        }
+    } catch(e) {}
+}
+
+document.getElementById('btn-fb-login')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-fb-login');
+    const txt = document.getElementById('fb-login-text');
+
+    btn.classList.add('logging-in');
+    txt.textContent = 'Opening browser...';
+
+    try {
+        const r = await fetch(API + '/api/fb-login', { method: 'POST' });
+        const d = await r.json();
+
+        if (d.ok) {
+            btn.classList.remove('logging-in');
+            btn.classList.add('logged-in');
+            txt.textContent = 'FB Connected';
+            alert('Facebook login successful! The scanner will now find Marketplace listings automatically.');
+        } else {
+            btn.classList.remove('logging-in');
+            txt.textContent = 'Login to Facebook';
+            alert('Login failed: ' + d.message);
+        }
+    } catch(e) {
+        btn.classList.remove('logging-in');
+        txt.textContent = 'Login to Facebook';
+        alert('Error: ' + e.message + '. Make sure Playwright is installed.');
+    }
+});
+
 // ---- Init ----
 loadListings();
 poll();
 setInterval(poll, 2000);
 setInterval(() => { if (document.getElementById('tab-log')?.classList.contains('active')) loadLog(); }, 3000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+// Init map after page loads
+setTimeout(() => { initMap(); checkFbStatus(); }, 500);
