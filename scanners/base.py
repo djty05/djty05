@@ -90,31 +90,25 @@ class BaseScanner:
             "fluke clamp meter",
         ]
         self.session = requests.Session()
+        # Rotate user agents to avoid fingerprinting
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
+        ]
         try:
             ua = UserAgent() if UserAgent else None
             user_agent = ua.random if ua else None
             if not user_agent:
                 raise ValueError("no UA")
         except Exception:
-            user_agent = (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            )
+            user_agent = random.choice(user_agents)
         self.session.headers.update({
             "User-Agent": user_agent,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-AU,en-GB;q=0.9,en-US;q=0.8,en;q=0.7",
             "Accept-Encoding": "gzip, deflate, br",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
-            "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": '"Windows"',
-            "Sec-Fetch-Dest": "document",
-            "Sec-Fetch-Mode": "navigate",
-            "Sec-Fetch-Site": "none",
-            "Sec-Fetch-User": "?1",
             "Upgrade-Insecure-Requests": "1",
         })
 
@@ -151,7 +145,7 @@ class BaseScanner:
                     extra_headers["Referer"] = "https://www.ebay.com.au/"
 
                 resp = self.session.get(
-                    url, params=params, timeout=10, headers=extra_headers,
+                    url, params=params, timeout=20, headers=extra_headers,
                     allow_redirects=True,
                 )
                 if resp.status_code == 200:
