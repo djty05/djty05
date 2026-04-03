@@ -3,7 +3,7 @@ services:
     name: simpro-catalogue-manager
     runtime: python
     buildCommand: bash build.sh
-    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT
+    startCommand: python -m gunicorn run:app --bind 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         generateValue: true
