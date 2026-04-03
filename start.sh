@@ -1,18 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Find whichever python is available
-if command -v python &> /dev/null; then
-    PY=python
-elif command -v python3 &> /dev/null; then
-    PY=python3
-else
-    # Try the venv python directly
-    PY=/opt/render/project/src/.venv/bin/python
+# Activate the Render venv where pip installed our packages
+if [ -f /opt/render/project/src/.venv/bin/activate ]; then
+    source /opt/render/project/src/.venv/bin/activate
 fi
 
-echo "Using Python: $PY"
-echo "Python location: $(which $PY 2>/dev/null || echo $PY)"
-$PY --version
+echo "Using Python: $(which python)"
+python --version
+python -c "import flask; print(f'Flask {flask.__version__} loaded')"
 
-exec $PY run.py
+exec python run.py
