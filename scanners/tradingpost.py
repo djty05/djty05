@@ -35,7 +35,11 @@ class TradingPostScanner(BaseScanner):
             logger.info(f"[{self.name}] Playwright not available")
 
         logger.info(f"[{self.name}] Falling back to search engines")
-        return self._scan_search_engine_fallback()
+        listings = self._scan_search_engine_fallback()
+        if listings:
+            return listings
+
+        return self._generate_direct_links()
 
     def search_open(self, term: str) -> list[Listing]:
         """Manual search — try direct HTTP, then search engines."""
@@ -274,6 +278,23 @@ class TradingPostScanner(BaseScanner):
                 ))
         logger.info(f"[{self.name}] Search engines found {len(all_results)} results")
         return all_results
+
+    def _generate_direct_links(self) -> list[Listing]:
+        """Generate direct Trading Post search links."""
+        links = []
+        for term in self.search_terms[:3]:
+            encoded = quote_plus(term)
+            url = f"{self.base_url}/Search/?search={encoded}"
+            links.append(Listing(
+                title=f"Trading Post: {term}",
+                price="Open Trading Post",
+                url=url,
+                location="Australia",
+                marketplace=self.name,
+                description=f"Click to search Trading Post for '{term}'",
+                image_url="",
+            ))
+        return links
 
     def _search_engine_term(self, term: str) -> list[Listing]:
         results = site_search("tradingpost.com.au", term)

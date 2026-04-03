@@ -103,23 +103,21 @@ def _login_http(email: str, password: str) -> dict:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/131.0.0.0 Safari/537.36"
         ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-AU,en-US;q=0.9,en;q=0.8",
         "Accept-Encoding": "gzip, deflate, br",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
         "Upgrade-Insecure-Requests": "1",
     })
+    # Force English locale via cookies
+    session.cookies.set("locale", "en_GB", domain=".facebook.com")
+    session.cookies.set("datr", "", domain=".facebook.com")
 
-    # Try multiple login endpoints — Facebook blocks some from cloud IPs
+    # Try multiple login endpoints — mbasic is most likely to work from cloud
     login_urls = [
-        "https://m.facebook.com/login/",
         "https://mbasic.facebook.com/login/",
-        "https://www.facebook.com/login.php",
-        "https://m.facebook.com/",
         "https://mbasic.facebook.com/",
+        "https://m.facebook.com/login/",
+        "https://www.facebook.com/login.php",
     ]
 
     try:
@@ -150,9 +148,14 @@ def _login_http(email: str, password: str) -> dict:
         soup = BeautifulSoup(resp.text, HTML_PARSER)
 
         # Find the login form and extract hidden fields
-        form = soup.select_one('form[action*="login"]')
+        form = (
+            soup.select_one('form[action*="login"]') or
+            soup.select_one('form[method="post"]') or
+            soup.select_one('form')
+        )
         if not form:
-            return {"ok": False, "message": "Could not find login form on page"}
+            logger.error(f"[Facebook] No form found. Page HTML: {resp.text[:500]}")
+            return {"ok": False, "message": "Could not find login form. Try again or use cookie import."}
 
         action = form.get("action", "")
         if not action.startswith("http"):

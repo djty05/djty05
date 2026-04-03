@@ -39,9 +39,14 @@ class GumtreeScanner(BaseScanner):
         except ImportError:
             logger.info(f"[{self.name}] Playwright not available")
 
-        # Last resort: multi-engine search
+        # Try search engines
         logger.info(f"[{self.name}] Falling back to search engines")
-        return self._scan_search_engine_fallback()
+        listings = self._scan_search_engine_fallback()
+        if listings:
+            return listings
+
+        # Last resort: generate direct links
+        return self._generate_direct_links()
 
     def search_open(self, term: str) -> list[Listing]:
         """Manual search — try direct HTTP, then search engines."""
@@ -354,6 +359,23 @@ class GumtreeScanner(BaseScanner):
 
         logger.info(f"[{self.name}] Search engines found {len(all_results)} total results")
         return all_results
+
+    def _generate_direct_links(self) -> list[Listing]:
+        """Generate direct Gumtree search links when scraping is blocked."""
+        links = []
+        for term in self.search_terms[:4]:
+            encoded = quote_plus(term)
+            url = f"{self.base_url}/s-{encoded}/k0"
+            links.append(Listing(
+                title=f"Gumtree: {term}",
+                price="Open Gumtree",
+                url=url,
+                location="Australia",
+                marketplace=self.name,
+                description=f"Click to search Gumtree for '{term}'",
+                image_url="",
+            ))
+        return links
 
     def _search_engine_term(self, term: str) -> list[Listing]:
         """Search engine fallback for a single term."""

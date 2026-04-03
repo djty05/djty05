@@ -38,7 +38,13 @@ class EbayAUScanner(BaseScanner):
 
         # Fallback: search engines
         logger.info(f"[{self.name}] Direct scraping failed, trying search engines")
-        return self._scan_search_engine_fallback()
+        listings = self._scan_search_engine_fallback()
+        if listings:
+            return listings
+
+        # Last resort: generate direct search links
+        logger.info(f"[{self.name}] All methods failed, generating direct links")
+        return self._generate_direct_links()
 
     def search_open(self, term: str) -> list[Listing]:
         """Open search without category/relevance filters (for manual search)."""
@@ -151,6 +157,23 @@ class EbayAUScanner(BaseScanner):
                 image_url=r.image_url,
             ))
         return listings
+
+    def _generate_direct_links(self) -> list[Listing]:
+        """Generate direct eBay search links when scraping is blocked."""
+        links = []
+        for term in self.search_terms[:4]:
+            encoded = quote_plus(term)
+            url = f"{self.base_url}/sch/i.html?_nkw={encoded}&LH_PrefLoc=1&_sop=10"
+            links.append(Listing(
+                title=f"eBay: {term}",
+                price="Open eBay",
+                url=url,
+                location="Australia",
+                marketplace=self.name,
+                description=f"Click to search eBay AU for '{term}'",
+                image_url="",
+            ))
+        return links
 
     def _is_relevant(self, title: str) -> bool:
         title_lower = title.lower()
