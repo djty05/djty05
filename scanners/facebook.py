@@ -79,13 +79,117 @@ def _cookies_to_jar(cookie_list: list[dict]) -> requests.cookies.RequestsCookieJ
     return jar
 
 
-def do_fb_login() -> bool:
-    """Open a visible browser for user to log into Facebook manually."""
+def do_fb_login(email: str = "", password: str = "") -> dict:
+    """Log into Facebook and save cookies.
+
+    If email/password provided: log in via mbasic.facebook.com (HTTP, no browser).
+    If not provided and Playwright available: open visible browser for manual login.
+
+    Returns dict with 'ok' bool and 'message' string.
+    """
+    if email and password:
+        return _login_http(email, password)
+
+    # Fall back to Playwright browser login (local desktop only)
+    return _login_playwright()
+
+
+def _login_http(email: str, password: str) -> dict:
+    """Log into Facebook via mbasic.facebook.com using plain HTTP."""
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": (
+            "Mozilla/5.0 (Linux; Android 13; SM-G991B) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Mobile Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-AU,en;q=0.9",
+    })
+
+    try:
+        # Step 1: Load the login page to get form tokens
+        logger.info("[Facebook] Loading login page...")
+        resp = session.get("https://mbasic.facebook.com/login/", timeout=15)
+        if resp.status_code != 200:
+            return {"ok": False, "message": f"Could not load login page (HTTP {resp.status_code})"}
+
+        soup = BeautifulSoup(resp.text, HTML_PARSER)
+
+        # Find the login form and extract hidden fields
+        form = soup.select_one('form[action*="login"]')
+        if not form:
+            return {"ok": False, "message": "Could not find login form on page"}
+
+        action = form.get("action", "")
+        if not action.startswith("http"):
+            action = f"https://mbasic.facebook.com{action}"
+
+        # Collect all hidden input fields (CSRF tokens, etc.)
+        form_data = {}
+        for inp in form.select("input[type='hidden']"):
+            name = inp.get("name", "")
+            value = inp.get("value", "")
+            if name:
+                form_data[name] = value
+
+        # Add credentials
+        form_data["email"] = email
+        form_data["pass"] = password
+
+        # Step 2: Submit the login form
+        logger.info("[Facebook] Submitting login...")
+        resp = session.post(
+            action,
+            data=form_data,
+            timeout=15,
+            allow_redirects=True,
+        )
+
+        # Step 3: Check if login was successful
+        # Look for c_user cookie (Facebook sets this on successful login)
+        c_user = session.cookies.get("c_user", domain=".facebook.com")
+        if not c_user:
+            # Also check without domain filter
+            c_user = next((c.value for c in session.cookies if c.name == "c_user"), None)
+
+        if c_user:
+            # Success! Save cookies
+            cookie_list = []
+            for cookie in session.cookies:
+                cookie_list.append({
+                    "name": cookie.name,
+                    "value": cookie.value,
+                    "domain": cookie.domain or ".facebook.com",
+                    "path": cookie.path or "/",
+                })
+            save_fb_cookies(cookie_list)
+            logger.info(f"[Facebook] Login successful! Saved {len(cookie_list)} cookies.")
+            return {"ok": True, "message": f"Logged in successfully! Saved {len(cookie_list)} cookies."}
+
+        # Check for checkpoint/2FA
+        page_text = resp.text.lower()
+        if "checkpoint" in resp.url or "checkpoint" in page_text:
+            return {"ok": False, "message": "Facebook requires verification (2FA or checkpoint). Try disabling 2FA temporarily, or use cookie import."}
+        if "login_attempt" in page_text or "incorrect" in page_text or "wrong" in page_text:
+            return {"ok": False, "message": "Wrong email or password. Please check and try again."}
+
+        return {"ok": False, "message": "Login failed — Facebook may require verification. Try cookie import as backup."}
+
+    except requests.RequestException as e:
+        logger.error(f"[Facebook] HTTP login error: {e}")
+        return {"ok": False, "message": f"Network error: {e}"}
+    except Exception as e:
+        logger.error(f"[Facebook] Login error: {e}")
+        return {"ok": False, "message": f"Error: {e}"}
+
+
+def _login_playwright() -> dict:
+    """Open a visible browser for manual Facebook login (local desktop only)."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        logger.error("[Facebook] Playwright not available — use cookie import instead")
-        return False
+        return {"ok": False, "message": "Browser login not available on cloud. Use email/password login instead."}
 
     try:
         with sync_playwright() as p:
@@ -108,20 +212,19 @@ def do_fb_login() -> bool:
                     cookies = context.cookies()
                     save_fb_cookies(cookies)
                     browser.close()
-                    return True
+                    return {"ok": True, "message": f"Logged in! Saved {len(cookies)} cookies."}
                 browser.close()
-                return False
+                return {"ok": False, "message": "Login did not complete."}
             except Exception as e:
                 cookies = context.cookies()
                 if any(c.get("name") == "c_user" for c in cookies):
                     save_fb_cookies(cookies)
                     browser.close()
-                    return True
+                    return {"ok": True, "message": "Logged in (saved cookies)."}
                 browser.close()
-                return False
+                return {"ok": False, "message": f"Login timed out: {e}"}
     except Exception as e:
-        logger.error(f"[Facebook] Login error: {e}")
-        return False
+        return {"ok": False, "message": f"Browser error: {e}"}
 
 
 class FacebookMarketplaceScanner(BaseScanner):

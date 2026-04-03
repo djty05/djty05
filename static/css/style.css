@@ -607,6 +607,14 @@ html, body {
     font-size: 13px; color: var(--text-secondary); line-height: 1.6;
 }
 .modal-steps-list a { color: #1877f2; }
+.modal-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.modal-input {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 15px; box-sizing: border-box;
+}
+.modal-input:focus { outline: none; border-color: #1877f2; box-shadow: 0 0 0 2px rgba(24,119,242,0.15); }
+.modal-advanced { margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+.modal-advanced summary { cursor: pointer; }
 .modal-textarea {
     width: 100%; padding: 10px 12px; border: 1px solid var(--border);
     border-radius: 8px; font-size: 13px; font-family: monospace;

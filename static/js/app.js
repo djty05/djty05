@@ -515,8 +515,8 @@ async function checkFbStatus() {
         if (d.logged_in) {
             btn.classList.add('logged-in');
             txt.textContent = 'FB Connected';
-        } else if (isCloudEnv) {
-            txt.textContent = 'Import FB Cookies';
+        } else {
+            txt.textContent = 'Login to Facebook';
         }
     } catch(e) {}
 }
@@ -538,6 +538,50 @@ document.getElementById('fb-cookie-modal')?.addEventListener('click', (e) => {
     if (e.target.id === 'fb-cookie-modal') hideFbModal();
 });
 
+// FB Login with email/password
+document.getElementById('fb-login-submit')?.addEventListener('click', async () => {
+    const email = document.getElementById('fb-email')?.value.trim();
+    const password = document.getElementById('fb-password')?.value.trim();
+    const status = document.getElementById('fb-cookie-status');
+
+    if (!email || !password) {
+        status.textContent = 'Please enter both email and password.';
+        status.className = 'modal-status err';
+        return;
+    }
+
+    status.textContent = 'Logging in...'; status.className = 'modal-status';
+    document.getElementById('fb-login-submit').disabled = true;
+
+    try {
+        const r = await fetch(API + '/api/fb-login', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ email, password }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+            status.textContent = d.message; status.className = 'modal-status ok';
+            const btn = document.getElementById('btn-fb-login');
+            const txt = document.getElementById('fb-login-text');
+            if (btn) btn.classList.add('logged-in');
+            if (txt) txt.textContent = 'FB Connected';
+            setTimeout(hideFbModal, 1500);
+        } else {
+            status.textContent = d.message; status.className = 'modal-status err';
+        }
+    } catch(e) {
+        status.textContent = 'Error: ' + e.message; status.className = 'modal-status err';
+    }
+    document.getElementById('fb-login-submit').disabled = false;
+});
+
+// Enter key in password field triggers login
+document.getElementById('fb-password')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('fb-login-submit')?.click();
+});
+
+// FB Cookie import (advanced fallback)
 document.getElementById('fb-cookie-submit')?.addEventListener('click', async () => {
     const input = document.getElementById('fb-cookie-input');
     const status = document.getElementById('fb-cookie-status');
@@ -546,9 +590,8 @@ document.getElementById('fb-cookie-submit')?.addEventListener('click', async () 
 
     status.textContent = 'Importing...'; status.className = 'modal-status';
 
-    // Try to parse as JSON first, otherwise send as string
     let cookies = raw;
-    try { cookies = JSON.parse(raw); } catch(e) { /* send as string, server will parse */ }
+    try { cookies = JSON.parse(raw); } catch(e) { /* send as string */ }
 
     try {
         const r = await fetch(API + '/api/fb-cookies', {

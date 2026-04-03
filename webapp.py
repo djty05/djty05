@@ -553,30 +553,34 @@ def test_scanners():
 
 @app.route("/api/fb-login", methods=["POST"])
 def fb_login():
-    """Start Facebook login flow — opens a browser for manual login.
-    Only works on desktop (local) — not on cloud deployments.
-    """
-    # Detect cloud environment
-    if os.environ.get("RENDER") or os.environ.get("DYNO") or os.environ.get("RAILWAY_ENVIRONMENT"):
-        return jsonify({
-            "ok": False,
-            "cloud": True,
-            "message": "Browser login not available on cloud. Use the cookie import instead."
-        })
-
+    """Facebook login — accepts email/password, logs in via HTTP."""
     from scanners.facebook import do_fb_login, has_fb_cookies
-    _log("[Facebook] Starting login flow...")
 
-    try:
-        success = do_fb_login()
-        if success:
+    data = request.get_json(force=True) if request.is_json else {}
+    email = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+
+    if email and password:
+        _log(f"[Facebook] Logging in as {email[:3]}***...")
+        result = do_fb_login(email=email, password=password)
+        if result.get("ok"):
             _log("[Facebook] Login successful — cookies saved!")
-            return jsonify({"ok": True, "message": "Logged in! Facebook scanner will now work."})
         else:
-            return jsonify({"ok": False, "message": "Login failed or timed out. Try again."})
+            _log(f"[Facebook] Login failed: {result.get('message', 'unknown')}")
+        return jsonify(result)
+
+    # No credentials — try Playwright browser login (local only)
+    is_cloud = bool(os.environ.get("RENDER") or os.environ.get("DYNO") or os.environ.get("RAILWAY_ENVIRONMENT"))
+    if is_cloud:
+        return jsonify({"ok": False, "message": "Please enter your Facebook email and password."})
+
+    _log("[Facebook] Starting browser login flow...")
+    try:
+        result = do_fb_login()
+        return jsonify(result)
     except Exception as e:
         _log(f"[Facebook] Login error: {e}")
-        return jsonify({"ok": False, "message": f"Browser not available. Use cookie import instead."})
+        return jsonify({"ok": False, "message": f"Error: {e}"})
 
 
 @app.route("/api/fb-cookies", methods=["POST"])
