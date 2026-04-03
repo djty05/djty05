@@ -569,6 +569,51 @@ def fb_login():
         return jsonify({"ok": False, "message": f"Error: {e}. Make sure Playwright is installed: pip install playwright && playwright install chromium"})
 
 
+@app.route("/api/fb-cookies", methods=["POST"])
+def fb_import_cookies():
+    """Import Facebook cookies manually (for cloud deployment).
+
+    Accepts JSON body with 'cookies' key containing cookie string or array.
+    You can get cookies from your browser using a cookie export extension.
+    """
+    from scanners.facebook import save_fb_cookies, has_fb_cookies
+    import json as json_mod
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"ok": False, "message": "No JSON body provided"})
+
+    cookies = data.get("cookies")
+    if not cookies:
+        return jsonify({"ok": False, "message": "No 'cookies' field in JSON"})
+
+    try:
+        # Accept either a list of cookie dicts or a raw cookie string
+        if isinstance(cookies, str):
+            # Parse "name=value; name2=value2" format
+            cookie_list = []
+            for pair in cookies.split(";"):
+                pair = pair.strip()
+                if "=" in pair:
+                    name, value = pair.split("=", 1)
+                    cookie_list.append({
+                        "name": name.strip(),
+                        "value": value.strip(),
+                        "domain": ".facebook.com",
+                        "path": "/",
+                    })
+            cookies = cookie_list
+
+        if isinstance(cookies, list) and len(cookies) > 0:
+            save_fb_cookies(cookies)
+            _log(f"[Facebook] Imported {len(cookies)} cookies manually")
+            return jsonify({"ok": True, "message": f"Imported {len(cookies)} cookies. Facebook scanner should work now."})
+        else:
+            return jsonify({"ok": False, "message": "Invalid cookies format"})
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Error: {e}"})
+
+
 @app.route("/api/fb-status")
 def fb_status():
     """Check if Facebook cookies are saved."""

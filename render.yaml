@@ -1,15 +1,12 @@
 services:
   - type: web
     name: marketplace-scanner
-    runtime: python
-    buildCommand: pip install -r requirements-cloud.txt
-    startCommand: gunicorn webapp:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --preload
+    runtime: docker
     plan: free
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
-      # Add your notification keys here (optional):
+      # Optional: Add notification keys
       # - key: PUSHBULLET_API_KEY
       #   value: your-key-here
-      # - key: DISCORD_WEBHOOK_URL
-      #   value: your-webhook-url
