@@ -3,7 +3,7 @@ services:
     name: simpro-catalogue-manager
     runtime: python
     buildCommand: bash build.sh
-    startCommand: python run.py
+    startCommand: bash start.sh
     envVars:
       - key: SECRET_KEY
         generateValue: true
