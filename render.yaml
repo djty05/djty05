@@ -1,9 +1,10 @@
 services:
   - type: web
     name: marketplace-scanner
-    runtime: docker
+    runtime: python
     plan: free
-    dockerfilePath: ./Dockerfile
+    buildCommand: pip install -r requirements-cloud.txt
+    startCommand: gunicorn webapp:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300 --preload
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"

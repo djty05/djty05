@@ -624,6 +624,12 @@ def fb_status():
 # ---------------------------------------------------------------------------
 # Page routes
 # ---------------------------------------------------------------------------
+@app.route("/healthz")
+def healthz():
+    """Health check endpoint for Render."""
+    return "ok", 200
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -651,18 +657,24 @@ def service_worker():
 # Start background scanner (works with both `python webapp.py` and gunicorn)
 # ---------------------------------------------------------------------------
 _scanner_started = False
+_scanner_lock = threading.Lock()
+
 
 def _start_scanner_once():
     global _scanner_started
-    if _scanner_started:
-        return
-    _scanner_started = True
+    with _scanner_lock:
+        if _scanner_started:
+            return
+        _scanner_started = True
     scanner_thread = threading.Thread(target=scanner_loop, daemon=True)
     scanner_thread.start()
     logger.info("Background scanner thread started")
 
-# Auto-start when imported by gunicorn
-_start_scanner_once()
+
+@app.before_request
+def _ensure_scanner():
+    """Start background scanner on first request (safe with gunicorn --preload)."""
+    _start_scanner_once()
 
 
 if __name__ == "__main__":
