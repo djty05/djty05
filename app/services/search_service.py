@@ -1,5 +1,5 @@
 import re
-from thefuzz import fuzz
+from difflib import SequenceMatcher
 from app.models.part import Part
 from app.models.supplier import SupplierPart
 
@@ -9,6 +9,30 @@ def normalize_part_number(pn):
     if not pn:
         return ""
     return re.sub(r"[\s\-_/.]", "", pn.strip().upper())
+
+
+def _ratio(a, b):
+    """Similarity ratio between two strings (0-100), using Python's built-in SequenceMatcher."""
+    if not a or not b:
+        return 0
+    return int(SequenceMatcher(None, a, b).ratio() * 100)
+
+
+def _partial_ratio(a, b):
+    """Best partial match ratio - slides shorter string across longer one."""
+    if not a or not b:
+        return 0
+    short, long = (a, b) if len(a) <= len(b) else (b, a)
+    if len(short) == 0:
+        return 0
+    best = 0
+    for i in range(len(long) - len(short) + 1):
+        score = _ratio(short, long[i:i + len(short)])
+        if score > best:
+            best = score
+            if best == 100:
+                break
+    return best
 
 
 def search_parts(query, limit=50):
@@ -48,10 +72,10 @@ def search_parts(query, limit=50):
     # Score and rank by fuzzy relevance
     scored = []
     for part in part_matches:
-        best_score = fuzz.partial_ratio(normalized, normalize_part_number(part.internal_part_number))
+        best_score = _partial_ratio(normalized, normalize_part_number(part.internal_part_number))
         # Also check supplier part numbers
         for sp in part.supplier_parts:
-            score = fuzz.partial_ratio(normalized, normalize_part_number(sp.supplier_part_number))
+            score = _partial_ratio(normalized, normalize_part_number(sp.supplier_part_number))
             best_score = max(best_score, score)
         scored.append((part, best_score))
 
@@ -84,8 +108,8 @@ def find_duplicates(part_number, description="", threshold=80):
 
     duplicates = []
     for part in candidates:
-        pn_score = fuzz.ratio(normalized, normalize_part_number(part.internal_part_number))
-        desc_score = fuzz.partial_ratio(description.upper(), (part.description or "").upper()) if description else 0
+        pn_score = _ratio(normalized, normalize_part_number(part.internal_part_number))
+        desc_score = _partial_ratio(description.upper(), (part.description or "").upper()) if description else 0
         combined = max(pn_score, (pn_score * 0.6 + desc_score * 0.4))
 
         if combined >= threshold:
