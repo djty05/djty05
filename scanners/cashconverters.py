@@ -33,8 +33,8 @@ class CashConvertersScanner(BaseScanner):
     scanner_id = "cashconverters"
     name = "Cash Converters AU"
     base_url = "https://www.cashconverters.com.au"
-    min_request_delay = 3.0
-    max_request_delay = 6.0
+    min_request_delay = 1.5
+    max_request_delay = 3.5
 
     def scan(self) -> list[Listing]:
         # Try category pages directly first

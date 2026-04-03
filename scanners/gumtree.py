@@ -21,8 +21,8 @@ class GumtreeScanner(BaseScanner):
     scanner_id = "gumtree"
     name = "Gumtree AU"
     base_url = "https://www.gumtree.com.au"
-    min_request_delay = 3.0
-    max_request_delay = 6.0
+    min_request_delay = 1.5
+    max_request_delay = 3.5
 
     def scan(self) -> list[Listing]:
         # Try direct HTTP first

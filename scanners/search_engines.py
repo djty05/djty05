@@ -34,9 +34,9 @@ _last_request_time = {
 }
 # Minimum seconds between requests to each engine
 _min_delay = {
-    "google": 8.0,
-    "duckduckgo": 3.0,
-    "bing": 4.0,
+    "google": 5.0,
+    "duckduckgo": 2.0,
+    "bing": 3.0,
 }
 
 

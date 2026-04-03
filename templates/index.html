@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <title>MarketScan</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-    <link rel="stylesheet" href="/static/css/style.css?v=14">
+    <link rel="stylesheet" href="/static/css/style.css?v=15">
 </head>
 <body>
 
@@ -215,9 +215,9 @@
         <div class="scanner-panel-header">
             <h3>Scanner Status</h3>
             <div class="scanner-panel-actions">
-                <button id="btn-fb-login" class="btn-fb-login" title="Login to Facebook for Marketplace scanning">
+                <button id="btn-fb-login" class="btn-fb-login" title="Connect Facebook for Marketplace scanning">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                    <span id="fb-login-text">Login to Facebook</span>
+                    <span id="fb-login-text">Connect Facebook</span>
                 </button>
                 <button id="btn-test-scanners" class="btn-test">Test All Scanners</button>
             </div>
@@ -289,7 +289,33 @@
     </button>
 </nav>
 
+<!-- Facebook Cookie Import Modal -->
+<div id="fb-cookie-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3>Connect Facebook</h3>
+            <button class="modal-close" id="fb-modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-info">To scan Facebook Marketplace, paste your Facebook cookies below.</p>
+            <p class="modal-steps"><strong>How to get cookies:</strong></p>
+            <ol class="modal-steps-list">
+                <li>Open <a href="https://www.facebook.com" target="_blank">facebook.com</a> on your PC and log in</li>
+                <li>Install a cookie exporter extension (e.g. "EditThisCookie" or "Cookie-Editor")</li>
+                <li>Export cookies as JSON and paste below</li>
+                <li>Or paste the raw cookie string from browser DevTools (F12 &rarr; Application &rarr; Cookies)</li>
+            </ol>
+            <textarea id="fb-cookie-input" class="modal-textarea" rows="6" placeholder='Paste cookies here — JSON array or "name=value; name2=value2" format'></textarea>
+            <div id="fb-cookie-status" class="modal-status"></div>
+        </div>
+        <div class="modal-footer">
+            <button id="fb-cookie-submit" class="btn-primary">Import Cookies</button>
+            <button id="fb-modal-cancel" class="btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script src="/static/js/app.js?v=14"></script>
+<script src="/static/js/app.js?v=15"></script>
 </body>
 </html>

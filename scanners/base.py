@@ -64,8 +64,8 @@ class BaseScanner:
 
     # Per-scanner rate limiting defaults (seconds between requests).
     # Subclasses can override these to be more or less aggressive.
-    min_request_delay: float = 2.0   # minimum pause between requests
-    max_request_delay: float = 5.0   # maximum pause (jittered)
+    min_request_delay: float = 1.5   # minimum pause between requests
+    max_request_delay: float = 3.5   # maximum pause (jittered)
     max_retries: int = 3             # retry count on failure / 429
     backoff_ceiling: float = 120.0   # never wait longer than this on backoff
 
@@ -82,29 +82,12 @@ class BaseScanner:
 
     def __init__(self, search_terms: list[str] | None = None):
         self.search_terms = search_terms or [
+            "fluke 1674",
+            "fluke multifunction tester",
+            "fluke insulation tester",
             "fluke tester",
             "fluke multimeter",
-            "fluke meter",
-            "fluke 117",
-            "fluke 115",
-            "fluke 116",
-            "fluke 175",
-            "fluke 177",
-            "fluke 179",
-            "fluke 87",
-            "fluke 87V",
-            "fluke 289",
-            "fluke 287",
-            "fluke 376",
-            "fluke 381",
-            "fluke t5",
-            "fluke t6",
-            "fluke 1587",
-            "fluke 1577",
-            "fluke insulation tester",
             "fluke clamp meter",
-            "fluke network tester",
-            "fluke cable tester",
         ]
         self.session = requests.Session()
         try:

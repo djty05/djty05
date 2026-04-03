@@ -22,8 +22,8 @@ class MercariScanner(BaseScanner):
     """Scans multiple smaller Australian marketplaces via search engines."""
     scanner_id = "other"
     name = "Other Marketplaces"
-    min_request_delay = 5.0
-    max_request_delay = 10.0
+    min_request_delay = 2.0
+    max_request_delay = 4.0
 
     # Corrected site domains (2026)
     SITES = [
@@ -46,31 +46,25 @@ class MercariScanner(BaseScanner):
         """Scan with batched multi-engine queries."""
         listings = []
 
-        batches = []
-        for i in range(0, len(self.search_terms), 6):
-            chunk = self.search_terms[i:i + 6]
-            or_query = " OR ".join(f'"{t}"' for t in chunk)
-            batches.append(or_query)
-
+        # Single batched query with all terms
+        all_terms = " OR ".join(f'"{t}"' for t in self.search_terms[:4])
         sites_query = " OR ".join(f"site:{s}" for s in self.SITES)
 
-        for batch_query in batches:
-            try:
-                found = self._search_engines(sites_query, batch_query)
-                listings.extend(found)
-            except Exception as e:
-                logger.error(f"[{self.name}] Error searching batch: {e}")
+        try:
+            found = self._search_engines(sites_query, all_terms)
+            listings.extend(found)
+        except Exception as e:
+            logger.error(f"[{self.name}] Error searching batch: {e}")
 
-        # Also try individual site searches for better coverage
-        for site in self.SITES[:3]:  # Top 3 sites only
-            for term in self.search_terms[:3]:  # Top 3 terms only
-                try:
-                    results = search_multi(f"site:{site} {term}")
-                    for r in results:
-                        if site in r.url:
-                            listings.append(self._result_to_listing(r, site))
-                except Exception:
-                    continue
+        # One individual search per top site
+        for site in self.SITES[:2]:
+            try:
+                results = search_multi(f"site:{site} fluke tester multimeter")
+                for r in results:
+                    if site in r.url:
+                        listings.append(self._result_to_listing(r, site))
+            except Exception:
+                continue
 
         return self._deduplicate(listings)
 

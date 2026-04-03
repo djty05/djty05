@@ -148,7 +148,7 @@ def _scanner_loop_inner():
                 break
 
             if idx > 0:
-                stagger = random.uniform(3, 8)
+                stagger = random.uniform(1, 3)
                 _log(f"  Waiting {stagger:.0f}s before {scanner_cls.name}...")
                 time.sleep(stagger)
 
@@ -553,7 +553,17 @@ def test_scanners():
 
 @app.route("/api/fb-login", methods=["POST"])
 def fb_login():
-    """Start Facebook login flow — opens a browser for manual login."""
+    """Start Facebook login flow — opens a browser for manual login.
+    Only works on desktop (local) — not on cloud deployments.
+    """
+    # Detect cloud environment
+    if os.environ.get("RENDER") or os.environ.get("DYNO") or os.environ.get("RAILWAY_ENVIRONMENT"):
+        return jsonify({
+            "ok": False,
+            "cloud": True,
+            "message": "Browser login not available on cloud. Use the cookie import instead."
+        })
+
     from scanners.facebook import do_fb_login, has_fb_cookies
     _log("[Facebook] Starting login flow...")
 
@@ -566,7 +576,7 @@ def fb_login():
             return jsonify({"ok": False, "message": "Login failed or timed out. Try again."})
     except Exception as e:
         _log(f"[Facebook] Login error: {e}")
-        return jsonify({"ok": False, "message": f"Error: {e}. Make sure Playwright is installed: pip install playwright && playwright install chromium"})
+        return jsonify({"ok": False, "message": f"Browser not available. Use cookie import instead."})
 
 
 @app.route("/api/fb-cookies", methods=["POST"])
@@ -618,7 +628,11 @@ def fb_import_cookies():
 def fb_status():
     """Check if Facebook cookies are saved."""
     from scanners.facebook import has_fb_cookies
-    return jsonify({"logged_in": has_fb_cookies()})
+    is_cloud = bool(os.environ.get("RENDER") or os.environ.get("DYNO") or os.environ.get("RAILWAY_ENVIRONMENT"))
+    return jsonify({
+        "logged_in": has_fb_cookies(),
+        "cloud": is_cloud,
+    })
 
 
 # ---------------------------------------------------------------------------

@@ -502,24 +502,87 @@ document.getElementById('f-my-location')?.addEventListener('change', function() 
     }
 });
 
-// ---- Facebook Login ----
+// ---- Facebook Connect ----
+let isCloudEnv = false;
+
 async function checkFbStatus() {
     try {
         const r = await fetch(API + '/api/fb-status');
         const d = await r.json();
+        isCloudEnv = d.cloud || false;
         const btn = document.getElementById('btn-fb-login');
         const txt = document.getElementById('fb-login-text');
         if (d.logged_in) {
             btn.classList.add('logged-in');
             txt.textContent = 'FB Connected';
+        } else if (isCloudEnv) {
+            txt.textContent = 'Import FB Cookies';
         }
     } catch(e) {}
 }
+
+function showFbModal() {
+    const modal = document.getElementById('fb-cookie-modal');
+    if (modal) modal.style.display = 'flex';
+}
+function hideFbModal() {
+    const modal = document.getElementById('fb-cookie-modal');
+    if (modal) modal.style.display = 'none';
+    const status = document.getElementById('fb-cookie-status');
+    if (status) { status.textContent = ''; status.className = 'modal-status'; }
+}
+
+document.getElementById('fb-modal-close')?.addEventListener('click', hideFbModal);
+document.getElementById('fb-modal-cancel')?.addEventListener('click', hideFbModal);
+document.getElementById('fb-cookie-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'fb-cookie-modal') hideFbModal();
+});
+
+document.getElementById('fb-cookie-submit')?.addEventListener('click', async () => {
+    const input = document.getElementById('fb-cookie-input');
+    const status = document.getElementById('fb-cookie-status');
+    const raw = input?.value.trim();
+    if (!raw) { status.textContent = 'Please paste your cookies first.'; status.className = 'modal-status err'; return; }
+
+    status.textContent = 'Importing...'; status.className = 'modal-status';
+
+    // Try to parse as JSON first, otherwise send as string
+    let cookies = raw;
+    try { cookies = JSON.parse(raw); } catch(e) { /* send as string, server will parse */ }
+
+    try {
+        const r = await fetch(API + '/api/fb-cookies', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ cookies: cookies }),
+        });
+        const d = await r.json();
+        if (d.ok) {
+            status.textContent = d.message; status.className = 'modal-status ok';
+            const btn = document.getElementById('btn-fb-login');
+            const txt = document.getElementById('fb-login-text');
+            if (btn) btn.classList.add('logged-in');
+            if (txt) txt.textContent = 'FB Connected';
+            setTimeout(hideFbModal, 1500);
+        } else {
+            status.textContent = d.message; status.className = 'modal-status err';
+        }
+    } catch(e) {
+        status.textContent = 'Error: ' + e.message; status.className = 'modal-status err';
+    }
+});
 
 document.getElementById('btn-fb-login')?.addEventListener('click', async () => {
     const btn = document.getElementById('btn-fb-login');
     const txt = document.getElementById('fb-login-text');
 
+    // On cloud or if Playwright unavailable, always show cookie modal
+    if (isCloudEnv) {
+        showFbModal();
+        return;
+    }
+
+    // On local, try browser login first
     btn.classList.add('logging-in');
     txt.textContent = 'Opening browser...';
 
@@ -531,16 +594,22 @@ document.getElementById('btn-fb-login')?.addEventListener('click', async () => {
             btn.classList.remove('logging-in');
             btn.classList.add('logged-in');
             txt.textContent = 'FB Connected';
-            alert('Facebook login successful! The scanner will now find Marketplace listings automatically.');
+        } else if (d.cloud) {
+            // Server says it's cloud, show modal
+            btn.classList.remove('logging-in');
+            txt.textContent = 'Import FB Cookies';
+            isCloudEnv = true;
+            showFbModal();
         } else {
             btn.classList.remove('logging-in');
-            txt.textContent = 'Login to Facebook';
-            alert('Login failed: ' + d.message);
+            txt.textContent = 'Connect Facebook';
+            // Playwright failed — fall back to cookie import
+            showFbModal();
         }
     } catch(e) {
         btn.classList.remove('logging-in');
-        txt.textContent = 'Login to Facebook';
-        alert('Error: ' + e.message + '. Make sure Playwright is installed.');
+        txt.textContent = 'Connect Facebook';
+        showFbModal();
     }
 });
 

@@ -8,6 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: RENDER
+        value: "true"
       # Optional: Add notification keys
       # - key: PUSHBULLET_API_KEY
       #   value: your-key-here

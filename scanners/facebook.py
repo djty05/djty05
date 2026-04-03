@@ -140,8 +140,8 @@ class FacebookMarketplaceScanner(BaseScanner):
     scanner_id = "facebook"
     name = "Facebook Marketplace"
     base_url = "https://www.facebook.com/marketplace"
-    min_request_delay = 3.0
-    max_request_delay = 6.0
+    min_request_delay = 1.5
+    max_request_delay = 3.0
 
     QUICK_CITIES = ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide"]
 
@@ -157,30 +157,25 @@ class FacebookMarketplaceScanner(BaseScanner):
                 if listings:
                     return self._deduplicate(listings)
             except ImportError:
-                logger.info(f"[{self.name}] Playwright not available")
+                logger.info(f"[{self.name}] Playwright not available — generating direct links")
             except Exception as e:
                 logger.warning(f"[{self.name}] Cookie-based scan error: {e}")
-        else:
-            logger.info(f"[{self.name}] No saved cookies — use 'Login to Facebook' button to set up")
 
-        # Fallback: search engines
-        logger.info(f"[{self.name}] Trying search engines (limited results)")
-        for term in self.search_terms[:6]:
-            try:
-                results = search_multi(f'facebook marketplace australia {term}')
-                for r in results:
-                    if "facebook.com" in r.url:
-                        price = "See listing"
-                        price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
-                        if price_match:
-                            price = price_match.group(0)
-                        listings.append(Listing(
-                            title=r.title, price=price, url=r.url,
-                            location="Australia", marketplace=self.name,
-                            description=r.snippet, image_url=r.image_url,
-                        ))
-            except Exception:
-                continue
+        # Always generate direct clickable links for each search term
+        for term in self.search_terms[:4]:
+            encoded = quote_plus(term)
+            for city_name in cities[:5]:
+                city_slug = AU_CITIES_FB.get(city_name, city_name.lower())
+                fb_url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={encoded}"
+                listings.append(Listing(
+                    title=f"FB: '{term}' in {city_name}",
+                    price="Click to view",
+                    url=fb_url,
+                    location=city_name,
+                    marketplace=self.name,
+                    description=f"Open Facebook Marketplace to search for '{term}' in {city_name}",
+                    image_url="",
+                ))
 
         return self._deduplicate(listings)
 
@@ -191,15 +186,15 @@ class FacebookMarketplaceScanner(BaseScanner):
 
         # Always generate direct clickable links
         encoded = quote_plus(query)
-        for city_name, city_slug in list(AU_CITIES_FB.items())[:5]:
+        for city_name, city_slug in list(AU_CITIES_FB.items())[:8]:
             fb_url = f"https://www.facebook.com/marketplace/{city_slug}/search/?query={encoded}"
             listings.append(Listing(
-                title=f"Search FB Marketplace: '{query}' in {city_name}",
+                title=f"FB Marketplace: '{query}' in {city_name}",
                 price="Click to open",
                 url=fb_url,
                 location=city_name,
                 marketplace=self.name,
-                description=f"Opens Facebook Marketplace search for '{query}' in {city_name}.",
+                description=f"Opens Facebook Marketplace search for '{query}' in {city_name}. Log in to see results.",
                 image_url="",
             ))
 
@@ -212,34 +207,9 @@ class FacebookMarketplaceScanner(BaseScanner):
                     logger.info(f"[{self.name}] Found {len(pw_results)} actual results via cookies")
                     listings.extend(pw_results)
             except ImportError:
-                logger.info(f"[{self.name}] Playwright required: pip install playwright && playwright install chromium")
+                logger.info(f"[{self.name}] Playwright not available on cloud")
             except Exception as e:
                 logger.warning(f"[{self.name}] Playwright error: {e}")
-        else:
-            logger.info(f"[{self.name}] No FB cookies — click 'Login to Facebook' in the app to enable automatic scanning")
-
-        # Search engines for cached references
-        for engine_query in [f'facebook marketplace {query} australia']:
-            try:
-                results = search_multi(engine_query)
-                for r in results:
-                    if "facebook.com" in r.url:
-                        price = "See listing"
-                        price_match = re.search(r'\$[\d,.]+', f"{r.title} {r.snippet}")
-                        if price_match:
-                            price = price_match.group(0)
-                        location = "Australia"
-                        for city in AU_CITIES_FB:
-                            if city.lower() in f"{r.title} {r.snippet}".lower():
-                                location = city
-                                break
-                        listings.append(Listing(
-                            title=r.title, price=price, url=r.url,
-                            location=location, marketplace=self.name,
-                            description=r.snippet, image_url=r.image_url,
-                        ))
-            except Exception:
-                continue
 
         unique = self._deduplicate(listings)
         logger.info(f"[{self.name}] Manual search total: {len(unique)} listings")
