@@ -1,5 +1,8 @@
 import csv
 import io
+import json
+import os
+import uuid
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session, Response,
 )
@@ -7,6 +10,39 @@ from app.models.supplier import Supplier
 from app.services.import_service import parse_csv, preview_import, commit_import, export_catalogue
 
 imports_bp = Blueprint("imports", __name__)
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "instance", "uploads")
+
+
+def _save_import_data(rows, fieldnames):
+    """Save import data to a temp JSON file instead of the session."""
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    file_id = str(uuid.uuid4())
+    filepath = os.path.join(UPLOAD_DIR, f"{file_id}.json")
+    with open(filepath, "w") as f:
+        json.dump({"rows": rows, "fieldnames": fieldnames}, f)
+    return file_id
+
+
+def _load_import_data(file_id):
+    """Load import data from temp file."""
+    if not file_id:
+        return None, None
+    filepath = os.path.join(UPLOAD_DIR, f"{file_id}.json")
+    if not os.path.exists(filepath):
+        return None, None
+    with open(filepath) as f:
+        data = json.load(f)
+    return data.get("rows"), data.get("fieldnames")
+
+
+def _cleanup_import_data(file_id):
+    """Remove temp file after import is done."""
+    if not file_id:
+        return
+    filepath = os.path.join(UPLOAD_DIR, f"{file_id}.json")
+    if os.path.exists(filepath):
+        os.remove(filepath)
 
 
 @imports_bp.route("/", methods=["GET"])
@@ -32,9 +68,9 @@ def upload():
         flash("Could not parse CSV file. Check the format.", "danger")
         return redirect(url_for("imports.upload_form"))
 
-    # Store in session for the review step
-    session["import_rows"] = rows
-    session["import_fieldnames"] = fieldnames
+    # Store data in temp file (not session - sessions have a 4KB cookie limit)
+    file_id = _save_import_data(rows, fieldnames)
+    session["import_file_id"] = file_id
     session["import_type"] = import_type
     session["import_supplier_id"] = supplier_id
 
@@ -50,7 +86,8 @@ def upload():
 
 @imports_bp.route("/review", methods=["POST"])
 def review():
-    rows = session.get("import_rows")
+    file_id = session.get("import_file_id")
+    rows, fieldnames = _load_import_data(file_id)
     if not rows:
         flash("No import data found. Please upload again.", "danger")
         return redirect(url_for("imports.upload_form"))
@@ -82,7 +119,8 @@ def review():
 
 @imports_bp.route("/commit", methods=["POST"])
 def commit():
-    rows = session.get("import_rows")
+    file_id = session.get("import_file_id")
+    rows, _ = _load_import_data(file_id)
     column_map = session.get("import_column_map")
     import_type = session.get("import_type", "catalogue")
     supplier_id = session.get("import_supplier_id")
@@ -97,9 +135,9 @@ def commit():
 
     result = commit_import(rows, column_map, import_type, supplier_id, selected_rows)
 
-    # Clear session data
-    session.pop("import_rows", None)
-    session.pop("import_fieldnames", None)
+    # Clean up
+    _cleanup_import_data(file_id)
+    session.pop("import_file_id", None)
     session.pop("import_column_map", None)
     session.pop("import_type", None)
     session.pop("import_supplier_id", None)
