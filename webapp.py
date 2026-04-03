@@ -484,6 +484,40 @@ def api_reset_seen():
     return jsonify({"ok": True})
 
 
+@app.route("/api/debug-network")
+def debug_network():
+    """Test outbound HTTP connectivity to key sites."""
+    import requests as req
+    sites = {
+        "ebay.com.au": "https://www.ebay.com.au/sch/i.html?_nkw=fluke+multimeter&LH_PrefLoc=1",
+        "gumtree.com.au": "https://www.gumtree.com.au/s-fluke/k0",
+        "cashconverters.com.au": "https://www.cashconverters.com.au/shop/tools-motor-hardware/power-tools-industrial/multimeters-electrical-testers/multimeter",
+        "duckduckgo.com": "https://html.duckduckgo.com/html/?q=fluke+multimeter+australia",
+        "bing.com": "https://www.bing.com/search?q=fluke+multimeter+australia",
+        "google.com.au": "https://www.google.com.au/search?q=fluke+multimeter",
+        "m.facebook.com": "https://m.facebook.com/",
+        "mbasic.facebook.com": "https://mbasic.facebook.com/",
+    }
+    results = {}
+    for name, url in sites.items():
+        try:
+            r = req.get(url, timeout=10, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+                "Accept": "text/html",
+            }, allow_redirects=True)
+            blocked = any(x in r.text.lower() for x in ["captcha", "access denied", "just a moment", "blocked"])
+            results[name] = {
+                "status": r.status_code,
+                "size": len(r.text),
+                "blocked": blocked,
+                "redirect": r.url if r.url != url else None,
+                "snippet": r.text[:200].replace('\n', ' '),
+            }
+        except Exception as e:
+            results[name] = {"status": "error", "error": str(e)}
+    return jsonify(results)
+
+
 @app.route("/api/test-scanners")
 def test_scanners():
     """Diagnostic endpoint — tests each scanner with a quick search.

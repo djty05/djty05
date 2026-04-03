@@ -95,24 +95,57 @@ def do_fb_login(email: str = "", password: str = "") -> dict:
 
 
 def _login_http(email: str, password: str) -> dict:
-    """Log into Facebook via mbasic.facebook.com using plain HTTP."""
+    """Log into Facebook using plain HTTP requests."""
     session = requests.Session()
     session.headers.update({
         "User-Agent": (
-            "Mozilla/5.0 (Linux; Android 13; SM-G991B) "
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/131.0.0.0 Mobile Safari/537.36"
+            "Chrome/131.0.0.0 Safari/537.36"
         ),
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-AU,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
     })
+
+    # Try multiple login endpoints — Facebook blocks some from cloud IPs
+    login_urls = [
+        "https://m.facebook.com/login/",
+        "https://mbasic.facebook.com/login/",
+        "https://www.facebook.com/login.php",
+        "https://m.facebook.com/",
+        "https://mbasic.facebook.com/",
+    ]
 
     try:
         # Step 1: Load the login page to get form tokens
-        logger.info("[Facebook] Loading login page...")
-        resp = session.get("https://mbasic.facebook.com/login/", timeout=15)
-        if resp.status_code != 200:
-            return {"ok": False, "message": f"Could not load login page (HTTP {resp.status_code})"}
+        resp = None
+        used_base = ""
+        for login_url in login_urls:
+            logger.info(f"[Facebook] Trying {login_url}...")
+            try:
+                resp = session.get(login_url, timeout=15, allow_redirects=True)
+                if resp.status_code == 200 and ("email" in resp.text.lower() or "pass" in resp.text.lower()):
+                    # Extract base URL from the one that worked
+                    from urllib.parse import urlparse
+                    parsed = urlparse(login_url)
+                    used_base = f"{parsed.scheme}://{parsed.netloc}"
+                    logger.info(f"[Facebook] Login page loaded from {used_base}")
+                    break
+                else:
+                    logger.debug(f"[Facebook] {login_url} returned {resp.status_code}")
+                    resp = None
+            except Exception as e:
+                logger.debug(f"[Facebook] {login_url} failed: {e}")
+                continue
+
+        if not resp or resp.status_code != 200:
+            return {"ok": False, "message": "Could not load Facebook login page. Facebook may be blocking this server's IP."}
 
         soup = BeautifulSoup(resp.text, HTML_PARSER)
 
@@ -123,7 +156,7 @@ def _login_http(email: str, password: str) -> dict:
 
         action = form.get("action", "")
         if not action.startswith("http"):
-            action = f"https://mbasic.facebook.com{action}"
+            action = f"{used_base}{action}"
 
         # Collect all hidden input fields (CSRF tokens, etc.)
         form_data = {}
