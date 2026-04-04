@@ -38,7 +38,6 @@ body {
     font-weight: 500;
 }
 
-/* Price change highlighting */
 .price-increase {
     color: #dc3545;
     font-weight: 600;
@@ -49,32 +48,227 @@ body {
     font-weight: 600;
 }
 
-/* Breadcrumb styling */
 .breadcrumb {
     background: transparent;
     padding: 0;
     font-size: 0.85rem;
 }
 
-/* Alert tweaks */
 .alert {
     border: none;
     border-radius: 0.5rem;
 }
 
-/* Footer */
 footer {
     font-size: 0.75rem;
 }
 
-/* Pagination */
 .pagination .page-link {
     border-radius: 0.3rem;
     margin: 0 2px;
     font-size: 0.8rem;
 }
 
-/* Import review */
-.import-summary-card {
-    border-left: 4px solid;
+/* ==============================
+   MOBILE BOTTOM NAV
+   ============================== */
+
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    display: flex;
+    background: #212529;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px 6px;
+    color: #6c757d;
+    text-decoration: none;
+    font-size: 0.65rem;
+    transition: color 0.15s;
+}
+
+.mobile-nav-item i {
+    font-size: 1.25rem;
+    margin-bottom: 2px;
+}
+
+.mobile-nav-item.active {
+    color: #ffc107;
+}
+
+.mobile-nav-item:hover {
+    color: #ffc107;
+}
+
+/* Add bottom padding on mobile so content doesn't hide behind nav */
+.mb-mobile-nav {
+    padding-bottom: 0;
+}
+
+@media (max-width: 991.98px) {
+    .mb-mobile-nav {
+        padding-bottom: 70px;
+    }
+}
+
+/* ==============================
+   MOBILE RESPONSIVE
+   ============================== */
+
+@media (max-width: 767.98px) {
+    body {
+        font-size: 0.85rem;
+    }
+
+    .container-fluid {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    h4 {
+        font-size: 1.2rem;
+    }
+
+    h5 {
+        font-size: 1.05rem;
+    }
+
+    h6 {
+        font-size: 0.9rem;
+    }
+
+    /* Stack stat cards 2-wide on mobile */
+    .stat-icon {
+        min-width: 40px;
+        padding: 0.5rem !important;
+    }
+
+    .stat-icon i {
+        font-size: 1.2rem !important;
+    }
+
+    .fs-3 {
+        font-size: 1.3rem !important;
+    }
+
+    /* Make tables scrollable with better touch */
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .table th, .table td {
+        white-space: nowrap;
+        font-size: 0.78rem;
+        padding: 0.4rem 0.5rem;
+    }
+
+    /* Card tweaks */
+    .card-body {
+        padding: 0.75rem;
+    }
+
+    .card-header {
+        padding: 0.6rem 0.75rem;
+    }
+
+    /* Buttons */
+    .btn-sm {
+        font-size: 0.78rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    /* Supplier cards - full width on mobile */
+    .col-md-4.col-lg-3 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    /* Forms */
+    .form-control, .form-select {
+        font-size: 0.85rem;
+    }
+
+    /* Search bar in navbar */
+    .navbar .d-flex {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+
+    /* Hide footer on mobile (bottom nav replaces it) */
+    footer {
+        display: none !important;
+    }
+}
+
+/* Small phones */
+@media (max-width: 375px) {
+    .col-md-4.col-lg-3 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .mobile-nav-item {
+        font-size: 0.6rem;
+    }
+
+    .mobile-nav-item i {
+        font-size: 1.1rem;
+    }
+}
+
+/* ==============================
+   PWA STANDALONE MODE
+   ============================== */
+
+@media (display-mode: standalone) {
+    .navbar {
+        padding-top: env(safe-area-inset-top, 0);
+    }
+}
+
+/* ==============================
+   TOUCH FRIENDLY
+   ============================== */
+
+@media (pointer: coarse) {
+    /* Bigger touch targets */
+    .table td a {
+        padding: 4px 2px;
+    }
+
+    .btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+    }
+
+    .form-control, .form-select {
+        min-height: 44px;
+    }
+
+    .page-link {
+        min-width: 36px;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .nav-link {
+        padding: 0.75rem 1rem;
+    }
 }
