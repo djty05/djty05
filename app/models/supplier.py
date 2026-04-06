@@ -41,6 +41,7 @@ class SupplierPart(db.Model):
     supplier_price = db.Column(db.Float, nullable=True)
     last_price_check = db.Column(db.DateTime, nullable=True)
     is_preferred = db.Column(db.Boolean, default=False, nullable=False)
+    priority = db.Column(db.Integer, default=0, nullable=False)  # lower = higher priority; 0 = unranked
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     part = db.relationship("Part", back_populates="supplier_parts")

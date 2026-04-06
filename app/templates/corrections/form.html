@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if is_new else 'Edit' }} Correction Rule - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-wrench-adjustable"></i> {{ 'New' if is_new else 'Edit' }} Correction Rule</h5>
+                <small class="text-muted">Fix data once, auto-apply on every future import.</small>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <h6 class="text-muted text-uppercase small mb-2">When to match</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Match Field</label>
+                            <select name="match_field" class="form-select form-select-sm" required>
+                                <option value="supplier_part_number" {% if rule and rule.match_field == 'supplier_part_number' %}selected{% endif %}>Supplier Part Number</option>
+                                <option value="part_number" {% if rule and rule.match_field == 'part_number' %}selected{% endif %}>Part Number</option>
+                                <option value="description" {% if rule and rule.match_field == 'description' %}selected{% endif %}>Description</option>
+                                <option value="manufacturer" {% if rule and rule.match_field == 'manufacturer' %}selected{% endif %}>Manufacturer</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Equals</label>
+                            <input type="text" name="match_value" class="form-control form-control-sm" required
+                                   value="{{ rule.match_value if rule else '' }}" placeholder="e.g. 2025-WE">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Supplier <small class="text-muted">(optional)</small></label>
+                            <select name="supplier_id" class="form-select form-select-sm">
+                                <option value="">All suppliers</option>
+                                {% for s in suppliers %}
+                                <option value="{{ s.id }}" {% if rule and rule.supplier_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="text-muted text-uppercase small mb-2">What to do</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Action</label>
+                            <select name="action" class="form-select form-select-sm" required id="ruleAction">
+                                <option value="set" {% if rule and rule.action == 'set' %}selected{% endif %}>Set value</option>
+                                <option value="multiply" {% if rule and rule.action == 'multiply' %}selected{% endif %}>Multiply</option>
+                                <option value="skip" {% if rule and rule.action == 'skip' %}selected{% endif %}>Skip row</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4" id="targetFieldGroup">
+                            <label class="form-label">Target Field</label>
+                            <select name="target_field" class="form-select form-select-sm">
+                                <option value="description" {% if rule and rule.target_field == 'description' %}selected{% endif %}>Description</option>
+                                <option value="sell_price" {% if rule and rule.target_field == 'sell_price' %}selected{% endif %}>Sell Price</option>
+                                <option value="cost_price" {% if rule and rule.target_field == 'cost_price' %}selected{% endif %}>Cost Price</option>
+                                <option value="uom" {% if rule and rule.target_field == 'uom' %}selected{% endif %}>Unit of Measure</option>
+                                <option value="manufacturer" {% if rule and rule.target_field == 'manufacturer' %}selected{% endif %}>Manufacturer</option>
+                                <option value="group" {% if rule and rule.target_field == 'group' %}selected{% endif %}>Group</option>
+                                <option value="sub_group" {% if rule and rule.target_field == 'sub_group' %}selected{% endif %}>Sub Group</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5" id="targetValueGroup">
+                            <label class="form-label">New Value</label>
+                            <input type="text" name="target_value" class="form-control form-control-sm"
+                                   value="{{ rule.target_value if rule else '' }}" placeholder="Corrected value or multiplier">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Reason <small class="text-muted">(optional)</small></label>
+                        <input type="text" name="reason" class="form-control form-control-sm"
+                               value="{{ rule.reason if rule else '' }}" placeholder="e.g. Pack size changed from 10 to 5">
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Create Rule' if is_new else 'Save Changes' }}
+                        </button>
+                        <a href="{{ url_for('corrections.list_rules') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('ruleAction').addEventListener('change', function() {
+    const isSkip = this.value === 'skip';
+    document.getElementById('targetFieldGroup').style.display = isSkip ? 'none' : '';
+    document.getElementById('targetValueGroup').style.display = isSkip ? 'none' : '';
+});
+document.getElementById('ruleAction').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

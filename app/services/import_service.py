@@ -17,8 +17,41 @@ class ImportResult:
         self.price_changes = []
         self.errors = []
         self.duplicates = []
+        self.corrections_applied = 0
         self.skipped = 0
         self.total_rows = 0
+
+
+def _apply_correction_rules(rows, column_map, supplier_id=None):
+    """Apply all active correction rules to import rows. Returns count of applications."""
+    from app.models.correction import CorrectionRule
+
+    rules = CorrectionRule.query.filter_by(is_active=True)
+    if supplier_id:
+        rules = rules.filter(
+            (CorrectionRule.supplier_id == supplier_id) | (CorrectionRule.supplier_id.is_(None))
+        )
+    else:
+        rules = rules.filter(CorrectionRule.supplier_id.is_(None))
+    rules = rules.all()
+
+    if not rules:
+        return 0, set()
+
+    applied_count = 0
+    skip_rows = set()  # row indices to skip
+
+    for i, row in enumerate(rows):
+        for rule in rules:
+            if rule.applies_to(row, column_map):
+                if rule.action == "skip":
+                    skip_rows.add(i)
+                    applied_count += 1
+                else:
+                    if rule.apply(row, column_map):
+                        applied_count += 1
+
+    return applied_count, skip_rows
 
 
 def parse_excel(file_content):
@@ -158,7 +191,15 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
     result = ImportResult()
     result.total_rows = len(rows)
 
+    # Apply correction rules before processing
+    corrections_count, skip_rows = _apply_correction_rules(rows, column_map, supplier_id)
+    result.corrections_applied = corrections_count
+
     for i, row in enumerate(rows, start=1):
+        if i - 1 in skip_rows:
+            result.skipped += 1
+            continue
+
         errors, part_number, description, sell_price, cost_price = validate_row(row, column_map, i)
 
         if errors:
@@ -240,7 +281,14 @@ def commit_import(rows, column_map, import_type="catalogue", supplier_id=None, s
     result = ImportResult()
     result.total_rows = len(rows)
 
+    # Apply correction rules before processing
+    corrections_count, skip_rows = _apply_correction_rules(rows, column_map, supplier_id)
+    result.corrections_applied = corrections_count
+
     for i, row in enumerate(rows, start=1):
+        if i - 1 in skip_rows:
+            result.skipped += 1
+            continue
         if selected_rows is not None and i not in selected_rows:
             result.skipped += 1
             continue

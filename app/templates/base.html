@@ -47,12 +47,26 @@
                         </a>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle {% if request.endpoint and request.endpoint.startswith('imports.') %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('imports.') or request.endpoint.startswith('corrections.')) %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="bi bi-cloud-upload"></i> Import
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('imports.upload_form') }}"><i class="bi bi-upload"></i> Import CSV</a></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('imports.export') }}"><i class="bi bi-download"></i> Export Catalogue</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('imports.export_simpro') }}"><i class="bi bi-lightning-charge text-warning"></i> Export Simpro Format</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('imports.export_simpro_prices') }}"><i class="bi bi-currency-dollar"></i> Export Simpro Prices</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('corrections.list_rules') }}"><i class="bi bi-wrench-adjustable"></i> Correction Rules</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if request.endpoint and (request.endpoint.startswith('curated.') or request.endpoint.startswith('equivalences.')) %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-bookmark-star"></i> Manage
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('curated.list_curated') }}"><i class="bi bi-bookmark-star"></i> Curated Lists</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('equivalences.list_equivalences') }}"><i class="bi bi-arrow-left-right"></i> Part Equivalences</a></li>
                         </ul>
                     </li>
                 </ul>

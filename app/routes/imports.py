@@ -9,6 +9,8 @@ from flask import (
 from app.models.supplier import Supplier
 from app.services.import_service import parse_csv, parse_excel, preview_import, commit_import, export_catalogue
 from app.services.ai_mapper import auto_map_columns
+from app.services.simpro_export import export_simpro_format, export_simpro_price_update
+from app.models.part import Part
 
 imports_bp = Blueprint("imports", __name__)
 
@@ -158,9 +160,13 @@ def commit():
     session.pop("import_type", None)
     session.pop("import_supplier_id", None)
 
+    corrections_msg = ""
+    if result.corrections_applied:
+        corrections_msg = f", {result.corrections_applied} corrections auto-applied"
+
     flash(
         f"Import complete: {len(result.new_parts)} new, {len(result.updated_parts)} updated, "
-        f"{len(result.errors)} errors, {result.skipped} skipped.",
+        f"{len(result.errors)} errors, {result.skipped} skipped{corrections_msg}.",
         "success" if not result.errors else "warning",
     )
     return redirect(url_for("main.dashboard"))
@@ -183,4 +189,44 @@ def export():
         output.getvalue(),
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=catalogue_export.csv"},
+    )
+
+
+@imports_bp.route("/export/simpro")
+def export_simpro():
+    parts = Part.query.filter_by(is_active=True).order_by(Part.internal_part_number).all()
+    rows = export_simpro_format(parts)
+    if not rows:
+        flash("No parts to export.", "warning")
+        return redirect(url_for("parts.list_parts"))
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=simpro_catalogue_import.csv"},
+    )
+
+
+@imports_bp.route("/export/simpro-prices")
+def export_simpro_prices():
+    parts = Part.query.filter_by(is_active=True).order_by(Part.internal_part_number).all()
+    rows = export_simpro_price_update(parts)
+    if not rows:
+        flash("No price data to export.", "warning")
+        return redirect(url_for("parts.list_parts"))
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=list(rows[0].keys()))
+    writer.writeheader()
+    writer.writerows(rows)
+
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=simpro_price_update.csv"},
     )

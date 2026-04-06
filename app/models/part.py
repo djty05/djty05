@@ -46,13 +46,31 @@ class Part(db.Model):
 
     @property
     def best_cost_price(self):
-        """Lowest current supplier price."""
+        """Best supplier price using priority ranking, then lowest price."""
+        ranked = self.ranked_supplier_parts
+        if ranked:
+            return ranked[0].supplier_price
         prices = [sp.supplier_price for sp in self.supplier_parts if sp.supplier_price]
         return min(prices) if prices else None
 
     @property
+    def ranked_supplier_parts(self):
+        """Supplier parts ordered by priority (1 first), then price. Excludes unpriced."""
+        sps = [sp for sp in self.supplier_parts if sp.supplier_price is not None]
+        # Priority > 0 first (ranked), sorted by priority asc, then by price asc
+        ranked = sorted(sps, key=lambda sp: (
+            0 if sp.priority and sp.priority > 0 else 1,  # ranked suppliers first
+            sp.priority if sp.priority and sp.priority > 0 else 9999,
+            sp.supplier_price,
+        ))
+        return ranked
+
+    @property
     def preferred_supplier_part(self):
-        """The preferred supplier mapping, or first available."""
+        """The highest-priority supplier, or preferred flag, or first available."""
+        ranked = self.ranked_supplier_parts
+        if ranked:
+            return ranked[0]
         preferred = self.supplier_parts.filter_by(is_preferred=True).first()
         if preferred:
             return preferred

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}{{ cl.name }} - Curated List{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h5 class="mb-0">
+            <i class="bi bi-bookmark-star"></i> {{ cl.name }}
+            {% if cl.is_default %}<span class="badge bg-success">Default</span>{% endif %}
+        </h5>
+        {% if cl.description %}<small class="text-muted">{{ cl.description }}</small>{% endif %}
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('curated.export_list', list_id=cl.id, format='csv') }}" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+        <a href="{{ url_for('curated.export_list', list_id=cl.id, format='simpro') }}" class="btn btn-warning btn-sm">
+            <i class="bi bi-lightning-charge"></i> Export Simpro
+        </a>
+        <a href="{{ url_for('curated.edit_list', list_id=cl.id) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+    </div>
+</div>
+
+<!-- Add Part -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <form method="post" action="{{ url_for('curated.add_part', list_id=cl.id) }}" class="row g-2 align-items-end">
+            <div class="col">
+                <label class="form-label small mb-0">Add Part by Number</label>
+                <input type="text" id="partSearch" class="form-control form-control-sm" placeholder="Search part number or description..." autocomplete="off">
+                <input type="hidden" name="part_id" id="partIdField">
+                <div id="partResults" class="position-relative"></div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Search within list -->
+<form method="get" class="mb-3">
+    <div class="input-group input-group-sm">
+        <input type="text" name="q" class="form-control" placeholder="Search within list..." value="{{ q }}">
+        <button class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+        {% if q %}<a href="{{ url_for('curated.detail', list_id=cl.id) }}" class="btn btn-outline-danger">Clear</a>{% endif %}
+    </div>
+</form>
+
+<!-- Parts List -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+        {% if items.items %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Part #</th>
+                        <th>Description</th>
+                        <th>Manufacturer</th>
+                        <th class="text-end">Trade Price</th>
+                        <th class="text-end">Cost Price</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items.items %}
+                    <tr>
+                        <td><a href="{{ url_for('parts.detail', part_id=item.part.id) }}">{{ item.part.internal_part_number }}</a></td>
+                        <td class="small">{{ item.part.description[:60] }}</td>
+                        <td class="small text-muted">{{ item.part.manufacturer or '' }}</td>
+                        <td class="text-end">${{ "%.2f"|format(item.part.current_sell_price) if item.part.current_sell_price else '-' }}</td>
+                        <td class="text-end">${{ "%.2f"|format(item.part.best_cost_price) if item.part.best_cost_price else '-' }}</td>
+                        <td class="text-end">
+                            <form method="post" action="{{ url_for('curated.remove_part', list_id=cl.id, item_id=item.id) }}" class="d-inline">
+                                <button class="btn btn-outline-danger btn-sm py-0 px-1"><i class="bi bi-x"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if items.pages > 1 %}
+        <nav class="p-2">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% for p in range(1, items.pages + 1) %}
+                <li class="page-item {% if p == items.page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}&q={{ q }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <p>No parts in this list{% if q %} matching "{{ q }}"{% endif %}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="mt-2 text-muted small">{{ items.total }} parts in list</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Simple part search autocomplete
+const searchInput = document.getElementById('partSearch');
+const partIdField = document.getElementById('partIdField');
+const resultsDiv = document.getElementById('partResults');
+let debounceTimer;
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    const q = this.value.trim();
+    if (q.length < 2) { resultsDiv.innerHTML = ''; return; }
+
+    debounceTimer = setTimeout(() => {
+        fetch('{{ url_for("parts.list_parts") }}?q=' + encodeURIComponent(q))
+            .then(r => r.text())
+            .then(html => {
+                // Parse the response to extract part data from the table
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const rows = doc.querySelectorAll('table tbody tr');
+                let dropdown = '<div class="list-group position-absolute w-100 shadow-sm" style="z-index:1000;max-height:200px;overflow-y:auto">';
+                let count = 0;
+                rows.forEach(row => {
+                    if (count >= 8) return;
+                    const link = row.querySelector('a');
+                    if (!link) return;
+                    const href = link.getAttribute('href');
+                    const idMatch = href.match(/\/parts\/(\d+)/);
+                    if (!idMatch) return;
+                    const partId = idMatch[1];
+                    const partNum = link.textContent.trim();
+                    const descCell = row.querySelectorAll('td')[1];
+                    const desc = descCell ? descCell.textContent.trim() : '';
+                    dropdown += '<a href="#" class="list-group-item list-group-item-action small py-1" data-id="' + partId + '"><strong>' + partNum + '</strong> ' + desc.substring(0, 50) + '</a>';
+                    count++;
+                });
+                dropdown += '</div>';
+                resultsDiv.innerHTML = count > 0 ? dropdown : '';
+
+                resultsDiv.querySelectorAll('a').forEach(a => {
+                    a.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        partIdField.value = this.dataset.id;
+                        searchInput.value = this.querySelector('strong').textContent + ' ' + this.textContent.replace(this.querySelector('strong').textContent, '').trim();
+                        resultsDiv.innerHTML = '';
+                    });
+                });
+            });
+    }, 300);
+});
+
+document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !resultsDiv.contains(e.target)) {
+        resultsDiv.innerHTML = '';
+    }
+});
+</script>
+{% endblock %}

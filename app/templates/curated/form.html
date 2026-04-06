@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if is_new else 'Edit' }} Curated List - Simpro Catalogue Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-bookmark-star"></i> {{ 'New' if is_new else 'Edit' }} Curated List</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Name *</label>
+                        <input type="text" name="name" class="form-control" required
+                               value="{{ cl.name if cl else '' }}" placeholder="e.g. Active Job Parts, Main Catalogue">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2">{{ cl.description if cl else '' }}</textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="is_default" class="form-check-input" id="isDefault"
+                               {% if cl and cl.is_default %}checked{% endif %}>
+                        <label class="form-check-label" for="isDefault">Default list (new parts added here automatically)</label>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg"></i> {{ 'Create List' if is_new else 'Save' }}
+                        </button>
+                        <a href="{{ url_for('curated.list_curated') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
