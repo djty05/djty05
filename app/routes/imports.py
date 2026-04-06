@@ -8,6 +8,7 @@ from flask import (
 )
 from app.models.supplier import Supplier
 from app.services.import_service import parse_csv, parse_excel, preview_import, commit_import, export_catalogue
+from app.services.ai_mapper import auto_map_columns
 
 imports_bp = Blueprint("imports", __name__)
 
@@ -79,6 +80,9 @@ def upload():
     session["import_type"] = import_type
     session["import_supplier_id"] = supplier_id
 
+    # AI auto-mapping: analyse headers + sample data
+    ai_mapping = auto_map_columns(fieldnames, rows[:5])
+
     return render_template(
         "imports/mapping.html",
         fieldnames=fieldnames,
@@ -86,6 +90,7 @@ def upload():
         import_type=import_type,
         supplier_id=supplier_id,
         total_rows=len(rows),
+        ai_mapping=ai_mapping,
     )
 
 
