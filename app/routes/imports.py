@@ -7,7 +7,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session, Response,
 )
 from app.models.supplier import Supplier
-from app.services.import_service import parse_csv, preview_import, commit_import, export_catalogue
+from app.services.import_service import parse_csv, parse_excel, preview_import, commit_import, export_catalogue
 
 imports_bp = Blueprint("imports", __name__)
 
@@ -62,10 +62,15 @@ def upload():
     supplier_id = request.form.get("supplier_id", type=int)
 
     content = file.read()
-    rows, fieldnames = parse_csv(content)
+    filename = file.filename.lower()
+
+    if filename.endswith(('.xlsx', '.xls')):
+        rows, fieldnames = parse_excel(content)
+    else:
+        rows, fieldnames = parse_csv(content)
 
     if not rows:
-        flash("Could not parse CSV file. Check the format.", "danger")
+        flash("Could not parse file. Ensure it is a valid CSV or Excel file.", "danger")
         return redirect(url_for("imports.upload_form"))
 
     # Store data in temp file (not session - sessions have a 4KB cookie limit)

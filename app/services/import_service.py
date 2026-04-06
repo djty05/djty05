@@ -1,6 +1,7 @@
 import csv
 import io
 from datetime import datetime, timezone
+import openpyxl
 from app.extensions import db
 from app.models.part import Part, PartCategory
 from app.models.supplier import Supplier, SupplierPart
@@ -18,6 +19,39 @@ class ImportResult:
         self.duplicates = []
         self.skipped = 0
         self.total_rows = 0
+
+
+def parse_excel(file_content):
+    """Parse Excel (.xlsx/.xls) content and return rows as list of dicts."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_content), read_only=True, data_only=True)
+        ws = wb.active
+
+        rows_iter = iter(ws.rows)
+        header_row = next(rows_iter, None)
+        if not header_row:
+            return [], []
+
+        fieldnames = [str(cell.value).strip() if cell.value is not None else f"Column{i+1}"
+                      for i, cell in enumerate(header_row)]
+
+        rows = []
+        for row in rows_iter:
+            row_dict = {}
+            all_empty = True
+            for i, cell in enumerate(row):
+                if i < len(fieldnames):
+                    val = cell.value
+                    if val is not None:
+                        all_empty = False
+                    row_dict[fieldnames[i]] = str(val).strip() if val is not None else ""
+            if not all_empty:
+                rows.append(row_dict)
+
+        wb.close()
+        return rows, fieldnames
+    except Exception as e:
+        return [], []
 
 
 def parse_csv(file_content, encoding="utf-8"):
@@ -43,7 +77,7 @@ def parse_csv(file_content, encoding="utf-8"):
         rows = list(reader)
         return rows, list(reader.fieldnames or [])
     except Exception as e:
-        return [], [], str(e)
+        return [], []
 
 
 def validate_row(row, column_map, row_num):
