@@ -104,10 +104,16 @@ def review():
     column_map = {
         "part_number": request.form.get("col_part_number", ""),
         "description": request.form.get("col_description", ""),
-        "price": request.form.get("col_price", ""),
+        "sell_price": request.form.get("col_sell_price", ""),
+        "cost_price": request.form.get("col_cost_price", ""),
+        "price": request.form.get("col_price", ""),  # legacy fallback
         "supplier_part_number": request.form.get("col_supplier_part_number", ""),
+        "group": request.form.get("col_group", ""),
+        "sub_group": request.form.get("col_sub_group", ""),
         "category": request.form.get("col_category", ""),
         "uom": request.form.get("col_uom", ""),
+        "manufacturer": request.form.get("col_manufacturer", ""),
+        "search_terms": request.form.get("col_search_terms", ""),
     }
 
     session["import_column_map"] = column_map

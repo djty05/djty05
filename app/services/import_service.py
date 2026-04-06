@@ -80,6 +80,23 @@ def parse_csv(file_content, encoding="utf-8"):
         return [], []
 
 
+def _parse_price(price_str, label, row_num, errors):
+    """Parse a price string and return float or None."""
+    if not price_str:
+        return None
+    cleaned = price_str.replace("$", "").replace(",", "").strip()
+    if not cleaned:
+        return None
+    try:
+        val = float(cleaned)
+        if val < 0:
+            errors.append(f"Row {row_num}: Negative {label} ({val})")
+        return val
+    except ValueError:
+        errors.append(f"Row {row_num}: Invalid {label} format '{cleaned}'")
+        return None
+
+
 def validate_row(row, column_map, row_num):
     """Validate a single row based on the column mapping."""
     errors = []
@@ -91,19 +108,49 @@ def validate_row(row, column_map, row_num):
     if not description:
         errors.append(f"Row {row_num}: Missing description")
 
-    price_str = row.get(column_map.get("price", ""), "").strip()
-    price = None
-    if price_str:
-        # Remove currency symbols and whitespace
-        price_str = price_str.replace("$", "").replace(",", "").strip()
-        try:
-            price = float(price_str)
-            if price < 0:
-                errors.append(f"Row {row_num}: Negative price ({price})")
-        except ValueError:
-            errors.append(f"Row {row_num}: Invalid price format '{price_str}'")
+    sell_price = _parse_price(
+        row.get(column_map.get("sell_price", ""), "").strip(), "sell price", row_num, errors
+    )
+    cost_price = _parse_price(
+        row.get(column_map.get("cost_price", ""), "").strip(), "cost price", row_num, errors
+    )
 
-    return errors, part_number, description, price
+    # Legacy: if only "price" mapped, treat as sell price
+    if sell_price is None and column_map.get("price"):
+        sell_price = _parse_price(
+            row.get(column_map.get("price", ""), "").strip(), "price", row_num, errors
+        )
+
+    return errors, part_number, description, sell_price, cost_price
+
+
+def _resolve_category(group_name, sub_group_name):
+    """Return the category to use, creating parent/child as needed."""
+    if not group_name and not sub_group_name:
+        return None
+
+    if group_name and sub_group_name:
+        # Ensure parent exists
+        parent = PartCategory.query.filter_by(name=group_name, parent_id=None).first()
+        if not parent:
+            parent = PartCategory(name=group_name)
+            db.session.add(parent)
+            db.session.flush()
+        # Ensure child exists under parent
+        child = PartCategory.query.filter_by(name=sub_group_name, parent_id=parent.id).first()
+        if not child:
+            child = PartCategory(name=sub_group_name, parent_id=parent.id)
+            db.session.add(child)
+            db.session.flush()
+        return child
+
+    name = sub_group_name or group_name
+    cat = PartCategory.query.filter_by(name=name).first()
+    if not cat:
+        cat = PartCategory(name=name)
+        db.session.add(cat)
+        db.session.flush()
+    return cat
 
 
 def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
@@ -112,7 +159,7 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
     result.total_rows = len(rows)
 
     for i, row in enumerate(rows, start=1):
-        errors, part_number, description, price = validate_row(row, column_map, i)
+        errors, part_number, description, sell_price, cost_price = validate_row(row, column_map, i)
 
         if errors:
             result.errors.extend(errors)
@@ -123,8 +170,15 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
             continue
 
         supplier_part_number = row.get(column_map.get("supplier_part_number", ""), "").strip()
-        category_name = row.get(column_map.get("category", ""), "").strip()
+        group_name = row.get(column_map.get("group", ""), "").strip()
+        sub_group_name = row.get(column_map.get("sub_group", ""), "").strip()
+        # Legacy single-category support
+        category_name = sub_group_name or group_name or row.get(column_map.get("category", ""), "").strip()
         uom = row.get(column_map.get("uom", ""), "").strip()
+        manufacturer = row.get(column_map.get("manufacturer", ""), "").strip()
+
+        # Use sell_price for display (legacy "price" field)
+        price = sell_price
 
         # Check if part exists
         existing = Part.query.filter_by(internal_part_number=part_number).first()
@@ -135,9 +189,11 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
                 "part_number": part_number,
                 "description": description,
                 "price": price,
+                "cost_price": cost_price,
                 "supplier_part_number": supplier_part_number,
                 "category": category_name,
                 "uom": uom,
+                "manufacturer": manufacturer,
                 "existing_part": existing,
                 "action": "update",
             }
@@ -147,11 +203,11 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
                     supplier_id=supplier_id,
                     supplier_part_number=supplier_part_number,
                 ).first()
-                if sp and price is not None and sp.supplier_price is not None:
-                    if abs(sp.supplier_price - price) > 0.001:
+                if sp and cost_price is not None and sp.supplier_price is not None:
+                    if abs(sp.supplier_price - cost_price) > 0.001:
                         entry["old_price"] = sp.supplier_price
-                        entry["new_price"] = price
-                        change_pct = ((price - sp.supplier_price) / sp.supplier_price) * 100
+                        entry["new_price"] = cost_price
+                        change_pct = ((cost_price - sp.supplier_price) / sp.supplier_price) * 100
                         entry["change_percent"] = round(change_pct, 2)
                         result.price_changes.append(entry)
 
@@ -164,9 +220,11 @@ def preview_import(rows, column_map, import_type="catalogue", supplier_id=None):
                 "part_number": part_number,
                 "description": description,
                 "price": price,
+                "cost_price": cost_price,
                 "supplier_part_number": supplier_part_number,
                 "category": category_name,
                 "uom": uom,
+                "manufacturer": manufacturer,
                 "action": "create",
                 "duplicates": dupes,
             }
@@ -187,49 +245,67 @@ def commit_import(rows, column_map, import_type="catalogue", supplier_id=None, s
             result.skipped += 1
             continue
 
-        errors, part_number, description, price = validate_row(row, column_map, i)
+        errors, part_number, description, sell_price, cost_price = validate_row(row, column_map, i)
         if errors or not part_number:
             result.errors.extend(errors)
             result.skipped += 1
             continue
 
         supplier_part_number = row.get(column_map.get("supplier_part_number", ""), "").strip()
-        category_name = row.get(column_map.get("category", ""), "").strip()
+        group_name = row.get(column_map.get("group", ""), "").strip()
+        sub_group_name = row.get(column_map.get("sub_group", ""), "").strip()
         uom = row.get(column_map.get("uom", ""), "each").strip() or "each"
+        manufacturer = row.get(column_map.get("manufacturer", ""), "").strip()
+        search_terms = row.get(column_map.get("search_terms", ""), "").strip()
 
         try:
-            # Get or create category
-            category = None
-            if category_name:
-                category = PartCategory.query.filter_by(name=category_name).first()
-                if not category:
-                    category = PartCategory(name=category_name)
-                    db.session.add(category)
-                    db.session.flush()
+            # Resolve category (handles Group/Sub Group hierarchy)
+            category = _resolve_category(group_name, sub_group_name)
+            if category is None and column_map.get("category"):
+                cat_name = row.get(column_map.get("category", ""), "").strip()
+                if cat_name:
+                    category = PartCategory.query.filter_by(name=cat_name).first()
+                    if not category:
+                        category = PartCategory(name=cat_name)
+                        db.session.add(category)
+                        db.session.flush()
 
             # Get or create part
             part = Part.query.filter_by(internal_part_number=part_number).first()
             if part:
-                old_values = {"description": part.description, "price": part.current_sell_price}
+                old_values = {
+                    "description": part.description,
+                    "sell_price": part.current_sell_price,
+                    "cost_price": part.cost_price,
+                }
                 part.description = description
-                if price is not None and import_type == "catalogue":
-                    part.current_sell_price = price
+                if sell_price is not None and import_type == "catalogue":
+                    part.current_sell_price = sell_price
+                if cost_price is not None:
+                    part.cost_price = cost_price
                 if category:
                     part.category = category
                 if uom:
                     part.unit_of_measure = uom
+                if manufacturer:
+                    part.manufacturer = manufacturer
+                if search_terms:
+                    part.search_terms = search_terms
 
                 log_change("part", part.id, "update", old_values, {
-                    "description": description, "price": price
+                    "description": description, "sell_price": sell_price, "cost_price": cost_price
                 }, source="csv_import")
                 result.updated_parts.append({"part_number": part_number, "action": "update"})
             else:
                 part = Part(
                     internal_part_number=part_number,
                     description=description,
-                    current_sell_price=price if import_type == "catalogue" else None,
+                    current_sell_price=sell_price if import_type == "catalogue" else None,
+                    cost_price=cost_price,
                     category=category,
                     unit_of_measure=uom,
+                    manufacturer=manufacturer or None,
+                    search_terms=search_terms or None,
                 )
                 db.session.add(part)
                 db.session.flush()
@@ -237,7 +313,8 @@ def commit_import(rows, column_map, import_type="catalogue", supplier_id=None, s
                 log_change("part", part.id, "create", source="csv_import")
                 result.new_parts.append({"part_number": part_number, "action": "create"})
 
-            # Handle supplier part mapping
+            # Handle supplier part mapping (use cost_price for supplier price)
+            supplier_price = cost_price if cost_price is not None else sell_price
             if supplier_id and supplier_part_number:
                 supplier = db.session.get(Supplier, supplier_id)
                 if supplier:
@@ -249,27 +326,26 @@ def commit_import(rows, column_map, import_type="catalogue", supplier_id=None, s
                     if sp:
                         sp.part_id = part.id
                         sp.supplier_description = description
-                        if price is not None:
-                            record_price_change(sp.id, price, source="csv_import")
+                        if supplier_price is not None:
+                            record_price_change(sp.id, supplier_price, source="csv_import")
                     else:
                         sp = SupplierPart(
                             part_id=part.id,
                             supplier_id=supplier_id,
                             supplier_part_number=supplier_part_number,
                             supplier_description=description,
-                            supplier_price=price,
+                            supplier_price=supplier_price,
                             last_price_check=datetime.now(timezone.utc),
                         )
                         db.session.add(sp)
                         db.session.flush()
 
-                        if price is not None:
-                            # Record initial price
+                        if supplier_price is not None:
                             from app.models.price import PriceHistory
                             ph = PriceHistory(
                                 supplier_part_id=sp.id,
                                 old_price=None,
-                                new_price=price,
+                                new_price=supplier_price,
                                 source="csv_import",
                             )
                             db.session.add(ph)
@@ -297,13 +373,27 @@ def export_catalogue():
 
     rows = []
     for part in parts:
+        cat = part.category
+        group = ""
+        sub_group = ""
+        if cat:
+            if cat.parent_id:
+                sub_group = cat.name
+                group = cat.parent.name if cat.parent else ""
+            else:
+                group = cat.name
+
         row = {
             "Part Number": part.internal_part_number,
             "Description": part.description,
-            "Category": part.category.name if part.category else "",
+            "Manufacturer": part.manufacturer or "",
+            "Group": group,
+            "Sub Group": sub_group,
             "Unit": part.unit_of_measure or "",
-            "Sell Price": part.current_sell_price or "",
+            "Trade Price": part.current_sell_price or "",
+            "Cost Price": part.cost_price or "",
             "Best Cost": part.best_cost_price or "",
+            "Search Terms": part.search_terms or "",
         }
         # Add consistent supplier columns
         sp_map = {sp.supplier.name: sp for sp in part.supplier_parts}
