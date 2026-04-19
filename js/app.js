@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
     openModal('modal-titleblock');
   });
 
+  document.getElementById('btn-auto-cable')?.addEventListener('click', () => {
+    showConnectionSuggestions();
+  });
+
   // Page tabs
   document.querySelectorAll('.page-tab').forEach(tab => {
     tab.addEventListener('click', e => {
