@@ -157,16 +157,16 @@ IR-996001PCB&K,Integriti ISC,Controllers,8,2450"></textarea>
 
     <!-- TAB BUTTONS -->
     <div class="page-tabs">
-      <button class="page-tab active" data-page="schematic">Schematic</button>
+      <button class="page-tab active" data-page="layout">Layout</button>
+      <button class="page-tab" data-page="schematic">Schematic</button>
       <button class="page-tab" data-page="bom">BOM</button>
       <button class="page-tab" data-page="cable">Cables</button>
-      <button class="page-tab" data-page="layout">Layout</button>
     </div>
 
     <!-- CANVAS PAGES -->
     <div class="canvas-wrap">
-      <!-- SCHEMATIC PAGE -->
-      <div class="page-panel active" id="page-schematic">
+      <!-- LAYOUT PAGE (INTERACTIVE) -->
+      <div class="page-panel active" id="page-layout">
         <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1800" preserveAspectRatio="xMidYMid meet">
           <defs id="svg-defs"></defs>
           <g id="layer-grid"></g>
@@ -175,6 +175,14 @@ IR-996001PCB&K,Integriti ISC,Controllers,8,2450"></textarea>
           <g id="layer-wires"></g>
           <g id="layer-labels"></g>
         </svg>
+      </div>
+
+      <!-- SCHEMATIC PAGE (WIRING DIAGRAM) -->
+      <div class="page-panel" id="page-schematic">
+        <div class="doc-page">
+          <h3>Schematic Diagram</h3>
+          <div id="schematic-preview" class="layout-preview"></div>
+        </div>
       </div>
 
       <!-- BOM PAGE -->
@@ -207,14 +215,6 @@ IR-996001PCB&K,Integriti ISC,Controllers,8,2450"></textarea>
             </thead>
             <tbody></tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- LAYOUT PAGE -->
-      <div class="page-panel" id="page-layout">
-        <div class="doc-page">
-          <h3>Enclosure Layout</h3>
-          <div id="layout-preview" class="layout-preview"></div>
         </div>
       </div>
     </div>

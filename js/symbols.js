@@ -19,7 +19,7 @@ function createComponentSymbol(partId, refDes) {
   return createGenericComponentSymbol(refDes, part);
 }
 
-// ===== ISC CONTROLLER (IR-996001PCB&K) =====
+// ===== ISC CONTROLLER (IR-996001PCB&K) - 4 modules wide =====
 function createISCSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -27,7 +27,7 @@ function createISCSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 200, h = 240;
+  const w = 280, h = 200;
 
   // PCB board
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -76,7 +76,7 @@ function createISCSymbol(refDes, part) {
   return g;
 }
 
-// ===== IAC CONTROLLER =====
+// ===== IAC CONTROLLER - 4 modules wide =====
 function createIACSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -84,7 +84,7 @@ function createIACSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 190, h = 220;
+  const w = 280, h = 200;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -133,7 +133,7 @@ function createIACSymbol(refDes, part) {
   return g;
 }
 
-// ===== EXPRESS CONTROLLER =====
+// ===== EXPRESS CONTROLLER - 4 modules wide =====
 function createExpressSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -141,7 +141,7 @@ function createExpressSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 160, h = 180;
+  const w = 280, h = 180;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -189,7 +189,7 @@ function createExpressSymbol(refDes, part) {
   return g;
 }
 
-// ===== ILAM MODULE =====
+// ===== ILAM MODULE - 2 modules wide =====
 function createILAMSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -197,7 +197,7 @@ function createILAMSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 180, h = 220;
+  const w = 140, h = 200;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -237,7 +237,7 @@ function createILAMSymbol(refDes, part) {
   return g;
 }
 
-// ===== LAN ACCESS MODULE =====
+// ===== LAN ACCESS MODULE - 2 modules wide =====
 function createLANAccSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -245,7 +245,7 @@ function createLANAccSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 170, h = 200;
+  const w = 140, h = 200;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -284,7 +284,7 @@ function createLANAccSymbol(refDes, part) {
   return g;
 }
 
-// ===== I/O EXPANDER =====
+// ===== I/O EXPANDER - 2 modules wide =====
 function createIOExpSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -292,7 +292,7 @@ function createIOExpSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 160, h = 200;
+  const w = 140, h = 200;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -331,7 +331,7 @@ function createIOExpSymbol(refDes, part) {
   return g;
 }
 
-// ===== POWER SUPPLY =====
+// ===== POWER SUPPLY - 1 module wide =====
 function createPSUSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -339,7 +339,7 @@ function createPSUSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 150, h = 180;
+  const w = 70, h = 180;
 
   const board = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   board.setAttribute('x', 0);
@@ -376,7 +376,7 @@ function createPSUSymbol(refDes, part) {
   return g;
 }
 
-// ===== SIFER READER =====
+// ===== SIFER READER - 1 module wide =====
 function createSIFERSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -384,7 +384,7 @@ function createSIFERSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 130, h = 160;
+  const w = 70, h = 160;
 
   const reader = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   reader.setAttribute('x', 0);
@@ -428,7 +428,7 @@ function createSIFERSymbol(refDes, part) {
   return g;
 }
 
-// ===== SIFER KEYPAD READER =====
+// ===== SIFER KEYPAD READER - 1 module wide =====
 function createSIFERKeypadSymbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -436,7 +436,7 @@ function createSIFERKeypadSymbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 130, h = 180;
+  const w = 70, h = 180;
 
   const keypad = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   keypad.setAttribute('x', 0);
@@ -482,7 +482,7 @@ function createSIFERKeypadSymbol(refDes, part) {
   return g;
 }
 
-// ===== T4000 READER =====
+// ===== T4000 READER - 1 module wide =====
 function createT4000Symbol(refDes, part) {
   const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
   g.setAttribute('class', 'component');
@@ -490,7 +490,7 @@ function createT4000Symbol(refDes, part) {
   g.setAttribute('data-ref', refDes);
   g.setAttribute('data-terminals', JSON.stringify(part.terminals));
 
-  const w = 140, h = 170;
+  const w = 70, h = 170;
 
   const reader = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   reader.setAttribute('x', 0);

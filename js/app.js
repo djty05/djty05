@@ -111,9 +111,9 @@ function switchPage(page) {
   document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
+  if (page === 'schematic') renderSchematicDiagram();
   if (page === 'bom') renderBOM();
   if (page === 'cable') renderCableSchedule();
-  if (page === 'layout') updateLayoutPreview();
 }
 
 function newProject() {
@@ -271,4 +271,50 @@ function importCSV() {
   closeModal('modal-csv');
   document.getElementById('csv-input').value = '';
   toast(`Imported ${imported} parts`);
+}
+
+function renderSchematicDiagram() {
+  const container = document.getElementById('schematic-preview');
+  if (!container) return;
+
+  let html = '<h4 style="text-align:center">Electrical Schematic</h4>';
+  html += '<div style="padding:20px; border:1px solid #e5e7eb; border-radius:4px">';
+
+  if (canvasState.components.length === 0) {
+    html += '<p style="color:#9ca3af; text-align:center">No components placed yet.</p>';
+  } else {
+    html += '<div style="font-size:12px; line-height:1.8">';
+
+    canvasState.components.forEach(comp => {
+      const part = getPartById(comp.partId);
+      if (!part) return;
+      html += `<div style="padding:8px; background:#f3f4f6; margin:4px 0; border-radius:3px">
+        <strong>${comp.id}</strong>: ${part.code} - ${part.description}
+      </div>`;
+    });
+
+    html += '</div>';
+
+    if (canvasState.wires.length > 0) {
+      html += '<hr style="margin:15px 0" />';
+      html += '<h5 style="margin:10px 0">Connections</h5>';
+      html += '<div style="font-size:11px; line-height:1.6">';
+
+      canvasState.wires.forEach((wire, idx) => {
+        const fromComp = canvasState.components.find(c => c.id === wire.fromComp);
+        const toComp = canvasState.components.find(c => c.id === wire.toComp);
+        if (fromComp && toComp) {
+          html += `<div style="padding:4px">
+            <strong>C${idx + 1}:</strong> ${fromComp.id}.${wire.fromTerm} → ${toComp.id}.${wire.toTerm}
+            <span style="color:#6b7280">(${wire.type || 'Cable'})</span>
+          </div>`;
+        }
+      });
+
+      html += '</div>';
+    }
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
 }
