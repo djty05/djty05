@@ -1,14 +1,27 @@
-// Main app initialization & orchestration
+// Main app initialization - Mobile-first
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize all systems
-  initCanvas();
-  initTitleBlock();
+  // Set today's date
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('tb-date').value = today;
+
+  // Init modals
+  showEnclosureSelector();
 
   // Populate parts palette
-  populatePalette();
+  populateParts();
 
-  // Wire up header buttons
+  // Header buttons
+  document.getElementById('btn-menu').addEventListener('click', () => {
+    openModal('modal-menu');
+  });
+
+  document.getElementById('btn-info').addEventListener('click', () => {
+    openModal('modal-power');
+    updatePowerInfo();
+  });
+
+  // Menu actions
   document.getElementById('btn-new').addEventListener('click', newProject);
   document.getElementById('btn-save').addEventListener('click', saveProject);
   document.getElementById('btn-load').addEventListener('click', () => {
@@ -18,213 +31,240 @@ document.addEventListener('DOMContentLoaded', () => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = evt => {
-      loadProject(evt.target.result);
-    };
+    reader.onload = evt => loadProject(evt.target.result);
     reader.readAsText(file);
   });
 
   document.getElementById('btn-export-json').addEventListener('click', saveProject);
+  document.getElementById('btn-import-csv').addEventListener('click', () => {
+    openModal('modal-csv');
+  });
+  document.getElementById('btn-import-csv-go').addEventListener('click', importCSV);
+
   document.getElementById('btn-print').addEventListener('click', () => {
-    document.body.classList.add('print-active');
-    setTimeout(() => window.print(), 100);
-    setTimeout(() => document.body.classList.remove('print-active'), 500);
+    window.print();
   });
 
-  // Tool buttons
-  document.getElementById('tool-select').addEventListener('click', e => {
-    switchTool('select', e.target);
-  });
-  document.getElementById('tool-wire').addEventListener('click', e => {
-    switchTool('wire', e.target);
-  });
-  document.getElementById('tool-text').addEventListener('click', e => {
-    switchTool('text', e.target);
-  });
-  document.getElementById('tool-pan').addEventListener('click', e => {
-    switchTool('pan', e.target);
-  });
-
-  // Zoom controls
-  document.getElementById('btn-zoom-in').addEventListener('click', () => {
-    canvasState.zoom = Math.min(3, canvasState.zoom * 1.2);
-    updateZoom();
-  });
-  document.getElementById('btn-zoom-out').addEventListener('click', () => {
-    canvasState.zoom = Math.max(0.5, canvasState.zoom / 1.2);
-    updateZoom();
-  });
-  document.getElementById('btn-zoom-fit').addEventListener('click', () => {
-    canvasState.zoom = 1;
-    canvasState.panX = 0;
-    canvasState.panY = 0;
-    updateZoom();
-    updatePan();
-  });
-
-  // Grid & snap
-  document.getElementById('toggle-grid').addEventListener('change', e => {
-    const grid = document.getElementById('layer-grid');
-    grid.style.display = e.target.checked ? 'block' : 'none';
-  });
-  document.getElementById('toggle-snap').addEventListener('change', e => {
-    canvasState.snapToGrid = e.target.checked;
-    toast(e.target.checked ? 'Snap enabled' : 'Snap disabled');
-  });
-
-  // Component actions
-  document.getElementById('btn-delete').addEventListener('click', () => {
-    if (canvasState.selectedComponent) deleteComponent(canvasState.selectedComponent);
-    if (canvasState.selectedWire) deleteWire(canvasState.selectedWire);
-  });
-  document.getElementById('btn-duplicate').addEventListener('click', () => {
-    if (canvasState.selectedComponent) duplicateComponent(canvasState.selectedComponent);
-  });
-  document.getElementById('btn-rotate').addEventListener('click', () => {
-    if (canvasState.selectedComponent) rotateComponent(canvasState.selectedComponent);
+  document.getElementById('btn-titleblock').addEventListener('click', () => {
+    openModal('modal-titleblock');
   });
 
   // Page tabs
-  document.querySelectorAll('.page-tab').forEach(btn => {
-    btn.addEventListener('click', e => {
-      const page = e.target.getAttribute('data-tab');
+  document.querySelectorAll('.page-tab').forEach(tab => {
+    tab.addEventListener('click', e => {
+      const page = e.target.getAttribute('data-page');
       switchPage(page);
     });
   });
 
-  // Parts palette search
-  document.getElementById('search-parts').addEventListener('input', e => {
-    const query = e.target.value;
-    populatePalette(query);
-  });
+  // Skip enclosure button
+  document.getElementById('btn-skip-enclosure')?.addEventListener('click', skipEnclosure);
 
-  // Palette tabs
-  document.querySelectorAll('.palette-tabs .tab').forEach(tab => {
-    tab.addEventListener('click', e => {
-      const tabName = e.target.getAttribute('data-tab');
-      switchPaletteTab(tabName);
-    });
-  });
-
-  // Load last project from localStorage
-  loadFromLocalStorage();
   updateZoom();
-
-  // Initial stats
   updateStats();
-
-  toast('Ready to design! Drag parts from the palette onto the schematic.');
+  toast('Ready! Select an enclosure to start.');
 });
 
-function populatePalette(query = '') {
+function populateParts() {
   const list = document.getElementById('parts-list');
-  list.innerHTML = '';
-
-  const categories = getCategories().sort();
-  const q = query.toLowerCase();
+  const categories = getCategories();
 
   categories.forEach(cat => {
-    const parts = getPartsByCategory(cat).filter(p => {
-      return !q || p.code.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q) ||
-        p.category.toLowerCase().includes(q);
-    });
+    const parts = getPartsByCategory(cat);
 
-    if (parts.length === 0) return;
-
+    // Category header
     const catDiv = document.createElement('div');
-    catDiv.className = 'parts-category';
-    catDiv.innerHTML = `
-      ${cat} <span class="count">${parts.length}</span>
-    `;
+    catDiv.style.fontSize = '11px';
+    catDiv.style.fontWeight = '700';
+    catDiv.style.padding = '8px 4px 2px';
+    catDiv.style.textTransform = 'uppercase';
+    catDiv.style.color = '#6b7280';
+    catDiv.style.borderBottom = '1px solid #e5e7eb';
+    catDiv.textContent = cat;
     list.appendChild(catDiv);
 
+    // Parts
     parts.forEach(part => {
-      const card = document.createElement('div');
-      card.className = 'part-card';
-      card.draggable = true;
-
-      const thumb = document.createElement('div');
-      thumb.className = 'part-thumb';
-
-      // Simple icon SVG
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 46 40');
-      const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('x', 4);
-      rect.setAttribute('y', 4);
-      rect.setAttribute('width', 38);
-      rect.setAttribute('height', 32);
-      rect.setAttribute('fill', getCategoryColor(cat));
-      rect.setAttribute('rx', 2);
-      svg.appendChild(rect);
-      thumb.appendChild(svg);
-
-      const info = document.createElement('div');
-      info.className = 'part-info';
-      info.innerHTML = `
-        <div class="name">${part.code}</div>
-        <div class="meta">${part.category}</div>
-        <div class="price">$${part.price.toFixed(0)}</div>
+      const item = document.createElement('button');
+      item.className = 'part-item';
+      item.innerHTML = `
+        <div class="code">${part.code}</div>
+        <div class="desc">${part.description.substring(0, 40)}</div>
+        <div class="desc">$${part.price.toFixed(0)}</div>
       `;
-
-      card.appendChild(thumb);
-      card.appendChild(info);
-
-      card.addEventListener('dragstart', e => {
-        e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('text/partid', part.id);
+      item.addEventListener('click', () => {
+        selectPartFromPalette(part.id);
       });
-
-      list.appendChild(card);
+      list.appendChild(item);
     });
   });
 }
 
-function switchTool(toolName, elem) {
-  canvasState.mode = toolName;
-  document.querySelectorAll('.tool').forEach(t => t.classList.remove('active'));
-  elem.classList.add('active');
-
-  if (toolName === 'wire' && !canvasState.wiringFrom) {
-    toast('Click first terminal to start wiring...');
-  }
-}
-
-function switchPage(pageName) {
+function switchPage(page) {
   document.querySelectorAll('.page-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${pageName}`).classList.add('active');
+  document.getElementById(`page-${page}`)?.classList.add('active');
 
   document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
-  if (pageName === 'bom') renderBOM();
-  if (pageName === 'cable') renderCableSchedule();
-  if (pageName === 'titleblock') renderTitleBlockPreview();
+  if (page === 'bom') renderBOM();
+  if (page === 'cable') renderCableSchedule();
+  if (page === 'layout') updateLayoutPreview();
 }
 
-function switchPaletteTab(tabName) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`tab-${tabName}`).classList.add('active');
+function newProject() {
+  if (canvasState.components.length > 0 && !confirm('Discard current project?')) return;
 
-  document.querySelectorAll('.palette-tabs .tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+  document.getElementById('layer-components').innerHTML = '';
+  document.getElementById('layer-wires').innerHTML = '';
+  canvasState.components = [];
+  canvasState.wires = [];
+  canvasState.selectedComponent = null;
+  canvasState.nextComponentId = 1;
+  canvasState.nextWireId = 1;
+
+  closeModal('modal-menu');
+  updateStats();
+  renderBOM();
+  toast('New project');
 }
 
-// Global handler for canvas changes
-window.addEventListener('canvasupdate', onCanvasChange);
+function saveProject() {
+  const project = {
+    enclosureId: currentEnclosure?.id,
+    components: canvasState.components,
+    wires: canvasState.wires,
+    titleBlock: {
+      project: document.getElementById('tb-project')?.value,
+      client: document.getElementById('tb-client')?.value,
+      site: document.getElementById('tb-site')?.value,
+      dwgNo: document.getElementById('tb-dwgno')?.value,
+      rev: document.getElementById('tb-rev')?.value,
+      sheet: document.getElementById('tb-sheet')?.value,
+      date: document.getElementById('tb-date')?.value,
+      scale: document.getElementById('tb-scale')?.value,
+      drawn: document.getElementById('tb-drawn')?.value,
+      company: document.getElementById('tb-company')?.value,
+      lic: document.getElementById('tb-lic')?.value,
+    },
+  };
 
-// Auto-save every 30 seconds
-setInterval(() => {
-  if (canvasState.components.length > 0) {
-    const project = {
-      name: titleBlockState.project || 'Untitled',
-      timestamp: new Date().toISOString(),
-      components: canvasState.components,
-      wires: canvasState.wires,
-      titleBlock: titleBlockState,
-      viewport: { zoom: canvasState.zoom, panX: canvasState.panX, panY: canvasState.panY },
-    };
-    localStorage.setItem('ir-last-project', JSON.stringify(project));
+  const json = JSON.stringify(project, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Integriti-${document.getElementById('tb-dwgno')?.value || 'DWG'}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  localStorage.setItem('ir-project', json);
+  closeModal('modal-menu');
+  toast('Project saved!');
+}
+
+function loadProject(jsonStr) {
+  try {
+    const project = JSON.parse(jsonStr);
+
+    // Restore enclosure
+    if (project.enclosureId) {
+      currentEnclosure = getPartById(project.enclosureId);
+    }
+
+    // Clear canvas
+    document.getElementById('layer-components').innerHTML = '';
+    document.getElementById('layer-wires').innerHTML = '';
+    canvasState.components = [];
+    canvasState.wires = [];
+
+    // Restore components
+    project.components?.forEach(comp => {
+      const g = createComponentSymbol(comp.partId, comp.id);
+      if (g) {
+        g.setAttribute('id', `comp-${comp.id}`);
+        g.setAttribute('transform', `translate(${comp.x}, ${comp.y})`);
+        document.getElementById('layer-components').appendChild(g);
+      }
+      canvasState.components.push(comp);
+      canvasState.nextComponentId = Math.max(canvasState.nextComponentId, parseInt(comp.id.match(/\d+/)?.[0] || 0) + 1);
+    });
+
+    // Restore wires
+    project.wires?.forEach(wire => {
+      const fromComp = canvasState.components.find(c => c.id === wire.fromComp);
+      const toComp = canvasState.components.find(c => c.id === wire.toComp);
+      if (fromComp && toComp) {
+        const path = createWirePath(fromComp.x + 60, fromComp.y + 60, toComp.x + 60, toComp.y + 60, wire.id);
+        document.getElementById('layer-wires').appendChild(path);
+      }
+      canvasState.wires.push(wire);
+    });
+
+    // Restore title block
+    if (project.titleBlock) {
+      document.getElementById('tb-project').value = project.titleBlock.project || '';
+      document.getElementById('tb-client').value = project.titleBlock.client || '';
+      document.getElementById('tb-site').value = project.titleBlock.site || '';
+      document.getElementById('tb-dwgno').value = project.titleBlock.dwgNo || 'DWG-001';
+      document.getElementById('tb-rev').value = project.titleBlock.rev || 'A';
+      document.getElementById('tb-sheet').value = project.titleBlock.sheet || '1 of 1';
+      document.getElementById('tb-date').value = project.titleBlock.date || '';
+      document.getElementById('tb-scale').value = project.titleBlock.scale || 'NTS';
+      document.getElementById('tb-drawn').value = project.titleBlock.drawn || '';
+      document.getElementById('tb-company').value = project.titleBlock.company || '';
+      document.getElementById('tb-lic').value = project.titleBlock.lic || '';
+    }
+
+    updatePowerInfo();
+    updateStats();
+    renderBOM();
+    toast('Project loaded!');
+  } catch (e) {
+    toast('Error: ' + e.message);
   }
-}, 30000);
+}
+
+function importCSV() {
+  const textarea = document.getElementById('csv-input');
+  const text = textarea.value.trim();
+  if (!text) {
+    toast('Paste CSV data first');
+    return;
+  }
+
+  // Simple CSV parsing
+  const lines = text.split('\n');
+  let imported = 0;
+
+  lines.slice(1).forEach(line => {
+    const parts = line.split(',').map(s => s.trim());
+    if (parts.length < 3) return;
+
+    const [code, desc, cat, watt, price] = parts;
+    const existingPart = PARTS_CATALOG.find(p => p.code === code);
+
+    if (!existingPart) {
+      PARTS_CATALOG.push({
+        id: `CUSTOM-${code}`,
+        category: cat || 'Custom',
+        code,
+        manufacturer: 'Custom',
+        description: desc,
+        price: parseFloat(price) || 0,
+        wattage: parseFloat(watt) || 0,
+        terminals: [],
+        width: 80,
+        height: 80,
+      });
+      imported++;
+    }
+  });
+
+  populateParts();
+  closeModal('modal-csv');
+  document.getElementById('csv-input').value = '';
+  toast(`Imported ${imported} parts`);
+}

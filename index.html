@@ -2,215 +2,246 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Inner Range Integriti / Inception Shop Drawing &amp; Schematic Designer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Integriti Schematic Designer</title>
 <link rel="stylesheet" href="css/styles.css" />
 <link rel="stylesheet" href="css/print.css" media="print" />
 </head>
 <body>
 
+<!-- HEADER -->
 <header class="app-header">
-  <div class="brand">
-    <div class="logo">IR</div>
-    <div>
-      <h1>Integriti / Inception Shop Drawing Designer</h1>
-      <p class="subtitle">Schematic &middot; A3 Title Block &middot; Bill of Materials &middot; Cable Schedule &middot; Parts from CSD.com.au</p>
-    </div>
-  </div>
+  <h1>Integriti Designer</h1>
   <div class="header-actions">
-    <button id="btn-new" title="New project">New</button>
-    <button id="btn-save" title="Save project JSON">Save</button>
-    <button id="btn-load" title="Load project JSON">Load</button>
-    <input type="file" id="file-load" accept=".json" hidden />
-    <button id="btn-export-json" title="Export JSON">Export JSON</button>
-    <button id="btn-print" class="primary" title="Print / Export PDF (A3)">Print / PDF (A3)</button>
+    <button id="btn-menu" title="Menu">☰</button>
+    <button id="btn-info" title="Power / Info">⚙</button>
   </div>
 </header>
 
+<!-- MODAL: Select Enclosure (REQUIRED FIRST) -->
+<div id="modal-enclosure" class="modal active">
+  <div class="modal-content">
+    <h2>Select Enclosure</h2>
+    <p class="muted">Choose an enclosure to begin. You can change it later.</p>
+    <div id="enclosure-list" class="button-grid"></div>
+    <button id="btn-skip-enclosure" class="secondary">Skip (No Enclosure)</button>
+  </div>
+</div>
+
+<!-- MODAL: Menu -->
+<div id="modal-menu" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>Menu</h3>
+      <button class="close" onclick="closeModal('modal-menu')">✕</button>
+    </div>
+    <div class="modal-body">
+      <button id="btn-new" class="full">⊕ New Project</button>
+      <button id="btn-save" class="full">💾 Save Project</button>
+      <button id="btn-load" class="full">📂 Load Project</button>
+      <button id="btn-import-csv" class="full">📥 Import CSV</button>
+      <button id="btn-export-json" class="full">📤 Export JSON</button>
+      <button id="btn-print" class="full primary">🖨️ Print / PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Power Info -->
+<div id="modal-power" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>System Info</h3>
+      <button class="close" onclick="closeModal('modal-power')">✕</button>
+    </div>
+    <div class="modal-body power-info">
+      <div class="stat-row">
+        <span>Enclosure</span>
+        <strong id="info-enclosure">None</strong>
+      </div>
+      <div class="stat-row">
+        <span>PSU Rating</span>
+        <strong id="info-psu">—</strong>
+      </div>
+      <div class="stat-row">
+        <span>Components Power</span>
+        <strong id="info-power-used">0W</strong>
+      </div>
+      <div class="stat-row" id="power-remaining-row">
+        <span>PSU Remaining</span>
+        <strong id="info-power-remaining" style="color:#10b981">—</strong>
+      </div>
+      <div id="power-warning" class="warning" style="display:none">
+        ⚠️ PSU OVERLOAD! Total power exceeds PSU capacity.
+      </div>
+      <hr />
+      <div class="stat-row">
+        <span>Components</span>
+        <strong id="info-components">0</strong>
+      </div>
+      <div class="stat-row">
+        <span>Cables</span>
+        <strong id="info-cables">0</strong>
+      </div>
+      <div class="stat-row">
+        <span>BOM Total</span>
+        <strong id="info-total">$0</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CSV Import -->
+<div id="modal-csv" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>Import CSV</h3>
+      <button class="close" onclick="closeModal('modal-csv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted">Paste CSV data (Code, Description, Category, Wattage, Price)</p>
+      <textarea id="csv-input" placeholder="Part Code,Description,Category,Wattage,Price
+IR-996001PCB&K,Integriti ISC,Controllers,8,2450"></textarea>
+      <button id="btn-import-csv-go" class="full primary">Import</button>
+      <p class="muted" style="font-size:11px; margin-top:10px">
+        Or upload file: <input type="file" id="csv-file" accept=".csv,.xlsx" style="font-size:11px"/>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Title Block -->
+<div id="modal-titleblock" class="modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <h3>Project Details</h3>
+      <button class="close" onclick="closeModal('modal-titleblock')">✕</button>
+    </div>
+    <div class="modal-body titleblock-form">
+      <label>Project Name <input id="tb-project" value="Integriti System" /></label>
+      <label>Client <input id="tb-client" placeholder="Client name" /></label>
+      <label>Site Address <input id="tb-site" placeholder="Site address" /></label>
+      <label>Drawing No. <input id="tb-dwgno" value="DWG-001" /></label>
+      <label>Revision <input id="tb-rev" value="A" /></label>
+      <label>Sheet <input id="tb-sheet" value="1 of 1" /></label>
+      <label>Date <input id="tb-date" type="date" /></label>
+      <label>Scale <input id="tb-scale" value="NTS" /></label>
+      <label>Drawn By <input id="tb-drawn" placeholder="Initials" /></label>
+      <label>Company <input id="tb-company" placeholder="Company" /></label>
+      <label>License # <input id="tb-lic" placeholder="License #" /></label>
+      <label style="grid-column: 1/-1">Notes
+        <textarea id="tb-notes" rows="2" placeholder="General notes..."></textarea>
+      </label>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-load" accept=".json" hidden />
+
+<!-- MAIN LAYOUT -->
 <main class="app-main">
 
-  <!-- LEFT PALETTE -->
-  <aside class="palette" id="palette">
-    <div class="palette-search">
-      <input id="search-parts" type="search" placeholder="Search parts (name / code / category)..." />
-    </div>
-    <div class="palette-tabs">
-      <button class="tab active" data-tab="parts">Parts Library</button>
-      <button class="tab" data-tab="properties">Properties</button>
-    </div>
-    <div id="tab-parts" class="tab-panel active">
-      <div id="parts-list" class="parts-list"></div>
-    </div>
-    <div id="tab-properties" class="tab-panel">
-      <div id="properties-panel" class="properties-panel">
-        <p class="muted">Select a component or cable to edit properties.</p>
-      </div>
-    </div>
-  </aside>
-
-  <!-- CENTER CANVAS -->
+  <!-- CANVAS -->
   <section class="canvas-area">
+    <!-- TOOLBAR -->
     <div class="canvas-toolbar">
-      <div class="tool-group">
-        <button id="tool-select" class="tool active" title="Select / Move">Select</button>
-        <button id="tool-wire" class="tool" title="Draw cable">Cable</button>
-        <button id="tool-text" class="tool" title="Add text label">Text</button>
-        <button id="tool-pan" class="tool" title="Pan canvas">Pan</button>
-      </div>
-      <div class="tool-group">
-        <button id="btn-zoom-in" title="Zoom in">+</button>
-        <button id="btn-zoom-out" title="Zoom out">&minus;</button>
-        <button id="btn-zoom-fit" title="Fit page">Fit</button>
-        <span id="zoom-display" class="zoom">100%</span>
-      </div>
-      <div class="tool-group">
-        <label class="chk"><input type="checkbox" id="toggle-grid" checked /> Grid</label>
-        <label class="chk"><input type="checkbox" id="toggle-snap" checked /> Snap</label>
-      </div>
-      <div class="tool-group right">
-        <button id="btn-delete" title="Delete selected (Del)">Delete</button>
-        <button id="btn-duplicate" title="Duplicate (Ctrl+D)">Duplicate</button>
-        <button id="btn-rotate" title="Rotate 90&deg;">Rotate</button>
-      </div>
+      <button id="tool-select" class="tool active" title="Select/Move">✋</button>
+      <button id="tool-wire" class="tool" title="Draw Cable">🔗</button>
+      <button id="tool-delete" title="Delete">🗑️</button>
+      <button id="btn-titleblock" title="Edit Title Block">📋</button>
+      <button id="btn-zoom-fit" title="Fit">⊡</button>
+      <span id="zoom-display">100%</span>
     </div>
 
-    <div class="page-views">
+    <!-- TAB BUTTONS -->
+    <div class="page-tabs">
       <button class="page-tab active" data-page="schematic">Schematic</button>
-      <button class="page-tab" data-page="bom">Bill of Materials</button>
-      <button class="page-tab" data-page="cable">Cable Schedule</button>
-      <button class="page-tab" data-page="titleblock">A3 Title Block Preview</button>
+      <button class="page-tab" data-page="bom">BOM</button>
+      <button class="page-tab" data-page="cable">Cables</button>
+      <button class="page-tab" data-page="layout">Layout</button>
     </div>
 
-    <div class="canvas-wrap" id="canvas-wrap">
-      <!-- Schematic SVG canvas (A3 landscape area) -->
+    <!-- CANVAS PAGES -->
+    <div class="canvas-wrap">
+      <!-- SCHEMATIC PAGE -->
       <div class="page-panel active" id="page-schematic">
-        <div class="a3-page" id="a3-page">
-          <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg"
-               viewBox="0 0 4200 2970" preserveAspectRatio="xMidYMid meet">
-            <defs id="svg-defs"></defs>
-            <g id="layer-grid"></g>
-            <g id="layer-frame"></g>
-            <g id="layer-components"></g>
-            <g id="layer-wires"></g>
-            <g id="layer-labels"></g>
-            <g id="layer-titleblock"></g>
-            <g id="layer-overlay"></g>
-          </svg>
-        </div>
+        <svg id="svg-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1800" preserveAspectRatio="xMidYMid meet">
+          <defs id="svg-defs"></defs>
+          <g id="layer-grid"></g>
+          <g id="layer-frame"></g>
+          <g id="layer-components"></g>
+          <g id="layer-wires"></g>
+          <g id="layer-labels"></g>
+        </svg>
       </div>
 
-      <!-- BOM page -->
+      <!-- BOM PAGE -->
       <div class="page-panel" id="page-bom">
-        <div class="a3-page doc-page">
-          <div class="doc-header">
-            <h2>Bill of Materials</h2>
-            <p class="muted">Parts are aggregated from all components on the schematic. Prices indicative only &mdash; refer to CSD for current pricing.</p>
-          </div>
+        <div class="doc-page">
+          <h3>Bill of Materials</h3>
           <table id="bom-table" class="doc-table">
             <thead>
               <tr>
-                <th>#</th><th>Qty</th><th>Part Code</th><th>Manufacturer</th>
-                <th>Description</th><th>Category</th><th>Supplier</th><th>Unit&nbsp;$</th><th>Total&nbsp;$</th>
+                <th>#</th><th>Qty</th><th>Code</th><th>Description</th><th>Unit $</th><th>Total</th>
               </tr>
             </thead>
             <tbody></tbody>
             <tfoot>
-              <tr><th colspan="8" style="text-align:right">Grand Total (ex GST)</th><th id="bom-total">$0.00</th></tr>
+              <tr><th colspan="5" style="text-align:right">Total</th><th id="bom-total">$0</th></tr>
             </tfoot>
           </table>
-          <div id="titleblock-bom" class="mini-titleblock"></div>
         </div>
       </div>
 
-      <!-- Cable schedule page -->
+      <!-- CABLE PAGE -->
       <div class="page-panel" id="page-cable">
-        <div class="a3-page doc-page">
-          <div class="doc-header">
-            <h2>Cable Schedule</h2>
-            <p class="muted">Cables listed with origin/destination terminal, cable type, length (m) and route reference.</p>
-          </div>
+        <div class="doc-page">
+          <h3>Cable Schedule</h3>
           <table id="cable-table" class="doc-table">
             <thead>
               <tr>
-                <th>Cable&nbsp;Ref</th><th>From Device</th><th>From&nbsp;Term</th>
-                <th>To Device</th><th>To&nbsp;Term</th>
-                <th>Cable Type</th><th>Cores</th><th>Length&nbsp;(m)</th><th>Notes</th>
+                <th>Ref</th><th>From</th><th>To</th><th>Type</th><th>Length(m)</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
-          <div id="titleblock-cable" class="mini-titleblock"></div>
         </div>
       </div>
 
-      <!-- Title block preview -->
-      <div class="page-panel" id="page-titleblock">
-        <div class="a3-page doc-page">
-          <div class="doc-header"><h2>A3 Title Block Details</h2></div>
-          <div class="titleblock-form">
-            <label>Project Name <input id="tb-project" value="Inner Range Integriti System" /></label>
-            <label>Client <input id="tb-client" value="" placeholder="Client name" /></label>
-            <label>Site Address <input id="tb-site" value="" placeholder="Site address" /></label>
-            <label>Drawing Title <input id="tb-drawing" value="Security System Schematic" /></label>
-            <label>Drawing No. <input id="tb-dwgno" value="DWG-001" /></label>
-            <label>Sheet <input id="tb-sheet" value="1 of 1" /></label>
-            <label>Revision <input id="tb-rev" value="A" /></label>
-            <label>Drawn By <input id="tb-drawn" value="" placeholder="Initials" /></label>
-            <label>Checked By <input id="tb-checked" value="" placeholder="Initials" /></label>
-            <label>Approved By <input id="tb-approved" value="" placeholder="Initials" /></label>
-            <label>Date <input id="tb-date" type="date" /></label>
-            <label>Scale <input id="tb-scale" value="NTS" /></label>
-            <label>Company <input id="tb-company" value="" placeholder="Installer / Company" /></label>
-            <label>Contractor ASIAL / Lic. <input id="tb-lic" value="" placeholder="Lic #" /></label>
-            <label class="wide">Notes
-              <textarea id="tb-notes" rows="3" placeholder="General notes, revisions, legend references..."></textarea>
-            </label>
-          </div>
-          <div id="titleblock-preview" class="titleblock-preview"></div>
+      <!-- LAYOUT PAGE -->
+      <div class="page-panel" id="page-layout">
+        <div class="doc-page">
+          <h3>Enclosure Layout</h3>
+          <div id="layout-preview" class="layout-preview"></div>
         </div>
       </div>
-
     </div>
   </section>
 
-  <!-- RIGHT STATUS SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
-    <div class="stat-card">
-      <h3>Project Summary</h3>
-      <div class="stat-row"><span>Components</span><strong id="stat-components">0</strong></div>
-      <div class="stat-row"><span>Cables</span><strong id="stat-cables">0</strong></div>
-      <div class="stat-row"><span>BOM Items</span><strong id="stat-bom">0</strong></div>
-      <div class="stat-row"><span>Est. Total</span><strong id="stat-total">$0.00</strong></div>
+  <!-- PARTS PALETTE (bottom sheet on mobile) -->
+  <aside id="palette" class="palette">
+    <div class="palette-header">
+      <input id="search-parts" type="search" placeholder="Search..." />
     </div>
-    <div class="stat-card">
-      <h3>Legend</h3>
-      <div class="legend-items" id="legend-items"></div>
-    </div>
-    <div class="stat-card">
-      <h3>Quick Tips</h3>
-      <ul class="tips">
-        <li>Drag parts from the left palette onto the canvas.</li>
-        <li>Click the <em>Cable</em> tool, then click two terminals to connect.</li>
-        <li>Double&#8209;click a component to edit its reference.</li>
-        <li>Select + <em>Delete</em> key to remove items.</li>
-        <li>Scroll wheel = zoom, middle/space&#8209;drag = pan.</li>
-        <li>Use Print / PDF for A3 title-block output.</li>
-      </ul>
-    </div>
+    <div id="parts-list" class="parts-list"></div>
+    <p class="muted" style="padding: 10px; text-align:center; font-size:11px">
+      Tap a part to select, then tap on the schematic to place.
+    </p>
   </aside>
 
 </main>
 
-<!-- Toast -->
+<!-- TOAST -->
 <div id="toast" class="toast"></div>
 
-<!-- Scripts -->
+<!-- SCRIPTS -->
 <script src="js/parts-catalog.js"></script>
 <script src="js/symbols.js"></script>
 <script src="js/canvas.js"></script>
 <script src="js/bom.js"></script>
 <script src="js/cable-schedule.js"></script>
-<script src="js/title-block.js"></script>
+<script src="js/enclosure.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/app.js"></script>
 
