@@ -19,11 +19,27 @@ const PARTS_CATALOG = [
     mountingPoints: 8,
     isEnclosure: true,
     layout: {
-      psuPosition: { x: 50, y: 50, w: 120, h: 60 },
-      batteryPosition: { x: 50, y: 120, w: 120, h: 80 },
+      // DIN Rail mounting (top left)
+      dinRail: { x: 20, y: 20, w: 120, h: 15 },
+      psuPosition: { x: 20, y: 40, w: 110, h: 75, label: 'PSU (3A)', color: '#4a4a4a' },
+      batteryPosition: { x: 20, y: 125, w: 110, h: 100, label: 'Battery 7Ah', color: '#dc2626' },
+
+      // PCB Mounting area (right side)
+      pcbMountingArea: { x: 145, y: 20, w: 270, h: 285, label: 'PCB Mounting Area' },
       pcbSlots: [
-        { label: 'PCB1', x: 200, y: 50, w: 180, h: 150 },
-        { label: 'PCB2', x: 200, y: 210, w: 180, h: 150 },
+        { label: 'ISC/IAC', x: 155, y: 35, w: 90, h: 85, color: '#1a5c2a' },
+        { label: 'ILAM/Module 1', x: 255, y: 35, w: 75, h: 85, color: '#2d5a3d' },
+        { label: 'Expansion', x: 155, y: 130, w: 90, h: 85, color: '#2d5a3d' },
+        { label: 'I/O Expander', x: 255, y: 130, w: 75, h: 85, color: '#2d5a3d' },
+      ],
+
+      // Cable entry points
+      topCableEntry: { x: 50, y: 5, w: 80, h: 8, label: 'Cable Entry Top' },
+      bottomCableEntry: { x: 50, y: 305, w: 80, h: 8, label: 'Cable Entry Bottom' },
+
+      // Clearance zones
+      clearanceZones: [
+        { x: 20, y: 235, w: 130, h: 70, label: 'Cable Routing Area', color: '#fff9e6' },
       ],
     },
   },
@@ -43,12 +59,18 @@ const PARTS_CATALOG = [
     mountingPoints: 8,
     isEnclosure: true,
     layout: {
-      psuPosition: { x: 50, y: 50, w: 120, h: 60 },
-      batteryPosition: { x: 50, y: 120, w: 140, h: 100 },
+      dinRail: { x: 20, y: 20, w: 120, h: 15 },
+      psuPosition: { x: 20, y: 40, w: 110, h: 75, label: 'PSU (8A)', color: '#4a4a4a' },
+      batteryPosition: { x: 20, y: 125, w: 110, h: 120, label: 'Battery 18Ah', color: '#dc2626' },
+      pcbMountingArea: { x: 145, y: 20, w: 270, h: 285, label: 'PCB Mounting' },
       pcbSlots: [
-        { label: 'PCB1', x: 200, y: 50, w: 180, h: 150 },
-        { label: 'PCB2', x: 200, y: 210, w: 180, h: 150 },
+        { label: 'ISC/IAC', x: 155, y: 35, w: 90, h: 85, color: '#1a5c2a' },
+        { label: 'ILAM', x: 255, y: 35, w: 75, h: 85, color: '#2d5a3d' },
+        { label: 'Module 2', x: 155, y: 130, w: 90, h: 85, color: '#2d5a3d' },
+        { label: 'I/O Exp', x: 255, y: 130, w: 75, h: 85, color: '#2d5a3d' },
       ],
+      topCableEntry: { x: 50, y: 5, w: 80, h: 8 },
+      bottomCableEntry: { x: 50, y: 305, w: 80, h: 8 },
     },
   },
   {
@@ -67,13 +89,22 @@ const PARTS_CATALOG = [
     mountingPoints: 12,
     isEnclosure: true,
     layout: {
-      psuPosition: { x: 50, y: 50, w: 120, h: 60 },
-      batteryPosition: { x: 50, y: 120, w: 120, h: 80 },
+      dinRail: { x: 20, y: 20, w: 120, h: 15 },
+      psuPosition: { x: 20, y: 40, w: 110, h: 75, label: 'PSU (3A)', color: '#4a4a4a' },
+      batteryPosition: { x: 20, y: 125, w: 110, h: 100, label: 'Battery 7Ah', color: '#dc2626' },
+      pcbMountingArea: { x: 145, y: 20, w: 505, h: 285, label: 'PCB Mounting Area (4 slots)' },
       pcbSlots: [
-        { label: 'PCB1', x: 200, y: 50, w: 180, h: 150 },
-        { label: 'PCB2', x: 420, y: 50, w: 180, h: 150 },
-        { label: 'PCB3', x: 200, y: 210, w: 180, h: 150 },
-        { label: 'PCB4', x: 420, y: 210, w: 180, h: 150 },
+        { label: 'ISC/IAC', x: 155, y: 35, w: 100, h: 85, color: '#1a5c2a' },
+        { label: 'ILAM-8', x: 265, y: 35, w: 100, h: 85, color: '#2d5a3d' },
+        { label: 'Module', x: 375, y: 35, w: 90, h: 85, color: '#2d5a3d' },
+        { label: 'Expansion', x: 475, y: 35, w: 85, h: 85, color: '#2d5a3d' },
+        { label: 'Module 2', x: 155, y: 130, w: 100, h: 85, color: '#2d5a3d' },
+        { label: 'I/O Exp', x: 265, y: 130, w: 100, h: 85, color: '#2d5a3d' },
+      ],
+      topCableEntry: { x: 80, y: 5, w: 120, h: 8 },
+      bottomCableEntry: { x: 80, y: 305, w: 120, h: 8 },
+      clearanceZones: [
+        { x: 20, y: 235, w: 630, h: 70, label: 'Cable Routing Area', color: '#fff9e6' },
       ],
     },
   },
