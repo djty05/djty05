@@ -1,25 +1,31 @@
-// Bill of Materials - works with placedParts + enclosure
+// Bill of Materials - aggregates all enclosures + components
 
 function generateBOM() {
   const items = {};
 
-  // Add enclosure
-  if (currentEnclosure) {
-    items[currentEnclosure.id] = {
-      code: currentEnclosure.code,
-      description: currentEnclosure.description,
-      price: currentEnclosure.price,
-      qty: 1,
-    };
+  // Add all enclosures
+  if (currentProject?.enclosures) {
+    currentProject.enclosures.forEach(enc => {
+      const part = getPartById(enc.enclosureId);
+      if (!items[part.id]) {
+        items[part.id] = {
+          code: part.code,
+          description: part.description,
+          price: part.price,
+          qty: 0,
+        };
+      }
+      items[part.id].qty++;
+    });
   }
 
-  // Add placed components
+  // Add all placed components
   getPlacedComponents().forEach(c => {
     if (!items[c.partId]) {
       items[c.partId] = {
-        code: c.part.code,
-        description: c.part.description,
-        price: c.part.price,
+        code: c.component.code,
+        description: c.component.description,
+        price: c.component.price,
         qty: 0,
       };
     }

@@ -1,11 +1,12 @@
-// Main app initialization
+// Main app - Multi-Enclosure Project Support
 
 document.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().split('T')[0];
   const dateInput = document.getElementById('tb-date');
   if (dateInput) dateInput.value = today;
 
-  // Start with enclosure selector
+  // Initialize project
+  initializeProject('New Project');
   showEnclosureSelector();
 
   // Populate palette
@@ -52,6 +53,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-print').addEventListener('click', () => {
     window.print();
+  });
+
+  // Site page buttons
+  document.getElementById('btn-add-enclosure')?.addEventListener('click', showEnclosureSelector);
+  document.getElementById('btn-add-reader')?.addEventListener('click', () => {
+    showAddComponentDialog('reader');
+  });
+  document.getElementById('btn-add-lock')?.addEventListener('click', () => {
+    showAddComponentDialog('lock');
   });
 
   // Page tabs
@@ -118,7 +128,6 @@ function createPaletteCard(part) {
   makePaletteCardTouchable(card, part.id);
 
   card.addEventListener('click', e => {
-    // Only trigger click-select on non-touch devices
     if (!('ontouchstart' in window)) {
       selectPartFromPalette(part.id);
     }
@@ -147,26 +156,100 @@ function switchPage(page) {
   document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
+  if (page === 'site') renderSitePlan();
   if (page === 'bom') renderBOM();
   if (page === 'cable') renderCableSchedule();
   if (page === 'schematic') renderSchematicDiagram();
 }
 
-function newProject() {
-  if (Object.keys(placedParts).length > 0 && !confirm('Discard current project?')) return;
+function renderSitePlan() {
+  const canvas = document.getElementById('site-canvas');
+  if (!canvas || !currentProject) return;
 
-  placedParts = {};
-  closeModal('modal-menu');
+  canvas.innerHTML = '';
+  canvas.style.display = 'flex';
+  canvas.style.flexWrap = 'wrap';
+  canvas.style.gap = '20px';
+  canvas.style.padding = '20px';
+  canvas.style.justifyContent = 'center';
+
+  currentProject.enclosures.forEach((enclosure, idx) => {
+    const part = getPartById(enclosure.enclosureId);
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: white;
+      border: 2px solid var(--ir-red);
+      padding: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      flex: 0 1 auto;
+      text-align: center;
+      transition: all 0.2s;
+    `;
+    card.onmouseover = () => card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+    card.onmouseout = () => card.style.boxShadow = 'none';
+
+    card.innerHTML = `
+      <strong style="display:block; color:var(--ir-red); margin-bottom:4px">${part.code}</strong>
+      <div style="font-size:11px; color:var(--ir-gray); margin-bottom:8px">${part.description}</div>
+      <div style="font-size:10px; color:var(--ir-gray); margin-bottom:8px">${part.width_mm}×${part.height_mm}mm</div>
+      <div style="display:flex; gap:4px; justify-content:center">
+        <button onclick="selectEnclosure(${idx})" style="flex:1; padding:6px; background:var(--ir-red); color:white; border:none; border-radius:2px; font-size:11px; cursor:pointer">Edit</button>
+        <button onclick="removeEnclosureFromProject(${idx})" style="flex:0 0 30px; padding:6px; background:#fecaca; color:#dc2626; border:none; border-radius:2px; cursor:pointer">✕</button>
+      </div>
+    `;
+    canvas.appendChild(card);
+  });
+
+  if (currentProject.enclosures.length === 0) {
+    canvas.innerHTML = '<div style="text-align:center; color:var(--ir-gray); padding:40px">No enclosures. Click + Add to start.</div>';
+  }
+}
+
+function renderSchematicDiagram() {
+  const container = document.getElementById('schematic-preview');
+  if (!container) return;
+
+  const components = getPlacedComponents();
+
+  if (components.length === 0) {
+    container.innerHTML = '<p class="muted" style="text-align:center; padding:40px">No components placed.</p>';
+    return;
+  }
+
+  let html = '<div style="display:grid; gap:8px">';
+
+  components.forEach(c => {
+    html += `
+      <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--ir-border); border-left:4px solid var(--ir-red); background:var(--ir-white); border-radius:3px">
+        <div style="background:var(--ir-red); color:white; padding:4px 8px; border-radius:2px; font-size:11px; font-weight:700; align-self:flex-start">${c.enclosurePart.code}</div>
+        <div style="flex:1">
+          <strong>${c.component.code}</strong>
+          <div style="font-size:12px; color:var(--ir-gray); margin:2px 0">${c.component.description}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function newProject() {
+  if (currentProject?.enclosures.length > 0 && !confirm('Discard project?')) return;
+  initializeProject('New Project');
   renderEnclosureLayout();
   updateStats();
   toast('New project');
 }
 
 function saveProject() {
+  if (!currentProject) return;
+
   const project = {
-    enclosureId: currentEnclosure?.id,
-    variantIdx: currentVariantIdx,
-    placedParts,
+    name: currentProject.name,
+    enclosures: currentProject.enclosures,
+    siteComponents: currentProject.siteComponents,
     titleBlock: {
       project: document.getElementById('tb-project')?.value,
       client: document.getElementById('tb-client')?.value,
@@ -201,18 +284,17 @@ function saveProject() {
 function loadProject(jsonStr) {
   try {
     const project = JSON.parse(jsonStr);
-    if (project.enclosureId) {
-      currentEnclosure = getPartById(project.enclosureId);
-      currentVariantIdx = project.variantIdx || 0;
-    }
-    placedParts = project.placedParts || {};
+    currentProject = project;
+    selectedEnclosureIdx = 0;
 
     if (project.titleBlock) {
       const tb = project.titleBlock;
+      const map = {
+        project: 'tb-project', client: 'tb-client', site: 'tb-site',
+        dwgNo: 'tb-dwgno', rev: 'tb-rev', sheet: 'tb-sheet', date: 'tb-date',
+        scale: 'tb-scale', drawn: 'tb-drawn', company: 'tb-company', lic: 'tb-lic'
+      };
       Object.keys(tb).forEach(key => {
-        const map = { project: 'tb-project', client: 'tb-client', site: 'tb-site',
-          dwgNo: 'tb-dwgno', rev: 'tb-rev', sheet: 'tb-sheet', date: 'tb-date',
-          scale: 'tb-scale', drawn: 'tb-drawn', company: 'tb-company', lic: 'tb-lic' };
         const el = document.getElementById(map[key]);
         if (el && tb[key] !== undefined) el.value = tb[key];
       });
@@ -268,34 +350,20 @@ function importCSV() {
   toast(`Imported ${imported} parts`);
 }
 
-function renderSchematicDiagram() {
-  const container = document.getElementById('schematic-preview');
-  if (!container) return;
-
-  const components = getPlacedComponents();
-
-  if (components.length === 0) {
-    container.innerHTML = '<p class="muted" style="text-align:center; padding:40px">No components placed. Drag PCBs into the enclosure layout first.</p>';
+function showAddComponentDialog(type) {
+  // Placeholder - would open a dialog to select reader/lock from catalog
+  const typeLabel = type === 'reader' ? 'Reader' : 'Lock';
+  const parts = PARTS_CATALOG.filter(p => p.type === type);
+  if (parts.length === 0) {
+    toast(`No ${typeLabel}s available`);
     return;
   }
+  toast(`Add ${typeLabel} feature coming soon`);
+}
 
-  let html = '<div style="display:grid; gap:8px">';
-
-  components.forEach(c => {
-    html += `
-      <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--ir-border); border-left:4px solid var(--ir-red); background:var(--ir-white); border-radius:3px">
-        <div style="background:var(--ir-red); color:white; padding:4px 8px; border-radius:2px; font-size:11px; font-weight:700; align-self:flex-start">${c.slotId}</div>
-        <div style="flex:1">
-          <strong>${c.part.code}</strong>
-          <div style="font-size:12px; color:var(--ir-gray); margin:2px 0">${c.part.description}</div>
-          <div style="font-size:11px; color:var(--ir-gray)">
-            Terminals: ${c.part.terminals?.map(t => t.name).join(' · ') || 'N/A'}
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
+function skipEnclosure() {
+  if (currentProject.enclosures.length === 0) {
+    renderEnclosureLayout();
+    toast('No enclosure - site-only mode');
+  }
 }

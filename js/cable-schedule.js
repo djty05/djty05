@@ -1,65 +1,56 @@
-// Cable Schedule - auto-generates from placed components
+// Cable Schedule - aggregates all enclosures
 
 function generateCableSchedule() {
   const schedule = [];
   const components = getPlacedComponents();
   if (components.length === 0) return schedule;
 
-  // Find PSU
-  const psu = components.find(c => c.part.type === 'psu');
-  const controller = components.find(c => c.part.type === 'controller');
-
   let n = 1;
 
-  // Power distribution
-  if (psu) {
-    components.forEach(c => {
-      if (c.part.type !== 'psu' && c.part.wattage > 0) {
+  // Group by enclosure
+  const enclosures = new Map();
+  components.forEach(c => {
+    if (!enclosures.has(c.enclosureIdx)) {
+      enclosures.set(c.enclosureIdx, []);
+    }
+    enclosures.get(c.enclosureIdx).push(c);
+  });
+
+  // For each enclosure, generate cables
+  enclosures.forEach((comps, encIdx) => {
+    const psu = comps.find(c => c.component.type === 'psu');
+    const controller = comps.find(c => c.component.type === 'controller');
+    const enc = currentProject?.enclosures[encIdx];
+    const encPart = enc ? getPartById(enc.enclosureId) : null;
+
+    // Power to other components
+    if (psu) {
+      comps.forEach(c => {
+        if (c.component.type !== 'psu' && c.component.wattage > 0) {
+          schedule.push({
+            ref: `C${n++}`,
+            from: `${encPart?.code}-PSU`,
+            to: `${encPart?.code}-${c.slotId}`,
+            type: '2-pair Power',
+            length: 1,
+          });
+        }
+      });
+    }
+
+    // Controller to modules
+    if (controller) {
+      comps.filter(c => c.component.type === 'module').forEach(c => {
         schedule.push({
           ref: `C${n++}`,
-          from: psu.slotId,
-          to: c.slotId,
-          type: '2-pair Power',
+          from: `${encPart?.code}-Controller`,
+          to: `${encPart?.code}-${c.slotId}`,
+          type: 'RS485/UBUS',
           length: 1,
         });
-      }
-    });
-  }
-
-  // Controller to modules (RS485/UBUS)
-  if (controller) {
-    components.filter(c => c.part.type === 'module').forEach(c => {
-      schedule.push({
-        ref: `C${n++}`,
-        from: controller.slotId,
-        to: c.slotId,
-        type: 'RS485/UBUS',
-        length: 1,
       });
-    });
-
-    // Controller to readers
-    components.filter(c => c.part.type === 'reader').forEach(c => {
-      schedule.push({
-        ref: `C${n++}`,
-        from: controller.slotId,
-        to: c.slotId + ' (external)',
-        type: '4-core Security',
-        length: 10,
-      });
-    });
-
-    // Controller to keypads
-    components.filter(c => c.part.type === 'keypad').forEach(c => {
-      schedule.push({
-        ref: `C${n++}`,
-        from: controller.slotId,
-        to: c.slotId + ' (external)',
-        type: '4-core Security',
-        length: 5,
-      });
-    });
-  }
+    }
+  });
 
   return schedule;
 }
