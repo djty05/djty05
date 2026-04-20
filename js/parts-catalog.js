@@ -250,7 +250,7 @@ const PARTS_CATALOG = [
     psuRating: 36,
     batteryCapacity: '9Ah',
     size: 'medium',
-    width_mm: 395,
+    width_mm: 450,
     height_mm: 280,
     type: 'enclosure',
     variants: [
@@ -291,7 +291,7 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'medium',
-    width_mm: 395,
+    width_mm: 450,
     height_mm: 280,
     type: 'enclosure',
     variants: [
@@ -319,8 +319,8 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'large',
-    width_mm: 450,
-    height_mm: 360,
+    width_mm: 520,
+    height_mm: 340,
     type: 'enclosure',
     variants: [
       {
@@ -348,8 +348,8 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'xlarge',
-    width_mm: 510,
-    height_mm: 400,
+    width_mm: 600,
+    height_mm: 370,
     type: 'enclosure',
     variants: [
       {
