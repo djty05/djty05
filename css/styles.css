@@ -453,9 +453,9 @@ html, body {
 
 @media (max-width: 768px) {
   .enclosure-box {
-    transform: scale(0.6);
+    transform: scale(0.75);
     transform-origin: top center;
-    margin-bottom: -40%;
+    margin-bottom: -25%;
   }
 }
 
@@ -612,14 +612,14 @@ html, body {
   border-radius: 2px;
   padding: 4px;
   text-align: center;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
+  line-height: 1.2;
 }
 
 .transformer-slot small {
   font-size: 9px;
   font-weight: 400;
+  opacity: 0.75;
+  display: block;
   margin-top: 2px;
 }
 

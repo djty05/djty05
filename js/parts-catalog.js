@@ -238,44 +238,57 @@ const PARTS_CATALOG = [
     type: 'keypad',
   },
 
-  // ===== ENCLOSURES (with real dimensions in mm) =====
+  // ===== ENCLOSURES (with real dimensions in mm - based on Inner Range specs) =====
+  // Layout convention:
+  //   - Battery shelf sits at the BOTTOM spanning most of the width
+  //   - Transformer is in the bottom-LEFT corner next to the battery
+  //   - PCBs mount on the backplate above the battery shelf
+  //
   {
     id: 'ENC-MD3A',
     category: 'Enclosures',
     code: 'IR-995201',
     manufacturer: 'Inner Range',
-    description: 'Medium Enclosure (3A)',
+    description: 'Medium Enclosure (3A, 9Ah)',
     price: 685,
     wattage: 0,
     psuRating: 36,
     batteryCapacity: '9Ah',
     size: 'medium',
-    width_mm: 450,
-    height_mm: 280,
+    width_mm: 520,
+    height_mm: 420,
     type: 'enclosure',
     variants: [
       {
         name: 'Standard Layout',
         slots: [
-          { id: 'A1', size: 'A', x: 20, y: 15, w: 155, h: 110 },
-          { id: 'A2', size: 'A', x: 180, y: 15, w: 155, h: 110 },
-          { id: 'B1', size: 'B', x: 20, y: 135, w: 155, h: 75 },
-          { id: 'C1', size: 'C', x: 190, y: 135, w: 145, h: 75 },
-          { id: 'PSU', size: 'C', x: 20, y: 220, w: 50, h: 50, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 80, y: 215, w: 255, h: 55, label: '9Ah Battery' },
+          // Top row: Size A (controllers)
+          { id: 'A1', size: 'A', x: 25, y: 25, w: 220, h: 140 },
+          { id: 'A2', size: 'A', x: 275, y: 25, w: 220, h: 140 },
+          // Middle row: Size B (modules)
+          { id: 'B1', size: 'B', x: 25, y: 185, w: 220, h: 95 },
+          { id: 'B2', size: 'B', x: 275, y: 185, w: 220, h: 95 },
+          // Lower row: Size C (PSU/small)
+          { id: 'C1', size: 'C', x: 25, y: 295, w: 220, h: 35 },
+          { id: 'C2', size: 'C', x: 275, y: 295, w: 220, h: 35 },
+          // Bottom shelf: Transformer + Battery (full width)
+          { id: 'PSU', size: 'C', x: 25, y: 345, w: 85, h: 60, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 120, y: 345, w: 375, h: 60, label: '9Ah Battery' },
         ],
       },
       {
         name: 'Dense Layout',
         slots: [
-          { id: 'C1', size: 'C', x: 20, y: 15, w: 145, h: 65 },
-          { id: 'C2', size: 'C', x: 180, y: 15, w: 155, h: 65 },
-          { id: 'C3', size: 'C', x: 20, y: 90, w: 145, h: 65 },
-          { id: 'B1', size: 'B', x: 180, y: 90, w: 155, h: 65 },
-          { id: 'C4', size: 'C', x: 20, y: 165, w: 145, h: 65 },
-          { id: 'C5', size: 'C', x: 180, y: 165, w: 155, h: 65 },
-          { id: 'PSU', size: 'C', x: 20, y: 240, w: 50, h: 40, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 80, y: 240, w: 255, h: 40, label: '9Ah Battery' },
+          { id: 'C1', size: 'C', x: 25, y: 25, w: 220, h: 45 },
+          { id: 'C2', size: 'C', x: 275, y: 25, w: 220, h: 45 },
+          { id: 'B1', size: 'B', x: 25, y: 85, w: 220, h: 90 },
+          { id: 'B2', size: 'B', x: 275, y: 85, w: 220, h: 90 },
+          { id: 'B3', size: 'B', x: 25, y: 190, w: 220, h: 90 },
+          { id: 'B4', size: 'B', x: 275, y: 190, w: 220, h: 90 },
+          { id: 'C3', size: 'C', x: 25, y: 295, w: 220, h: 35 },
+          { id: 'C4', size: 'C', x: 275, y: 295, w: 220, h: 35 },
+          { id: 'PSU', size: 'C', x: 25, y: 345, w: 85, h: 60, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 120, y: 345, w: 375, h: 60, label: '9Ah Battery' },
         ],
       },
     ],
@@ -285,25 +298,31 @@ const PARTS_CATALOG = [
     category: 'Enclosures',
     code: 'IR-995202',
     manufacturer: 'Inner Range',
-    description: 'Medium Enclosure (8A)',
+    description: 'Medium Enclosure (8A, 18Ah)',
     price: 895,
     wattage: 0,
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'medium',
-    width_mm: 450,
-    height_mm: 280,
+    width_mm: 520,
+    height_mm: 460,
     type: 'enclosure',
     variants: [
       {
         name: 'Standard Layout',
         slots: [
-          { id: 'A1', size: 'A', x: 20, y: 15, w: 155, h: 110 },
-          { id: 'A2', size: 'A', x: 180, y: 15, w: 155, h: 110 },
-          { id: 'B1', size: 'B', x: 20, y: 135, w: 155, h: 75 },
-          { id: 'C1', size: 'C', x: 190, y: 135, w: 145, h: 75 },
-          { id: 'PSU', size: 'C', x: 20, y: 220, w: 50, h: 50, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 80, y: 215, w: 255, h: 55, label: '18Ah Battery' },
+          // Top row: Size A
+          { id: 'A1', size: 'A', x: 25, y: 25, w: 220, h: 140 },
+          { id: 'A2', size: 'A', x: 275, y: 25, w: 220, h: 140 },
+          // Middle row: Size B
+          { id: 'B1', size: 'B', x: 25, y: 185, w: 220, h: 95 },
+          { id: 'B2', size: 'B', x: 275, y: 185, w: 220, h: 95 },
+          // Lower row: Size C
+          { id: 'C1', size: 'C', x: 25, y: 300, w: 220, h: 50 },
+          { id: 'C2', size: 'C', x: 275, y: 300, w: 220, h: 50 },
+          // Battery shelf — 18Ah is larger so taller
+          { id: 'PSU', size: 'C', x: 25, y: 365, w: 90, h: 80, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 125, y: 365, w: 370, h: 80, label: '18Ah Battery' },
         ],
       },
     ],
@@ -313,26 +332,33 @@ const PARTS_CATALOG = [
     category: 'Enclosures',
     code: 'IR-995203',
     manufacturer: 'Inner Range',
-    description: 'Large Enclosure (8A)',
+    description: 'Large Enclosure (8A, 18Ah)',
     price: 1195,
     wattage: 0,
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'large',
-    width_mm: 520,
-    height_mm: 340,
+    width_mm: 620,
+    height_mm: 520,
     type: 'enclosure',
     variants: [
       {
         name: 'Access Control',
         slots: [
-          { id: 'A1', size: 'A', x: 25, y: 20, w: 180, h: 130 },
-          { id: 'B1', size: 'B', x: 220, y: 20, w: 200, h: 80 },
-          { id: 'B2', size: 'B', x: 220, y: 110, w: 200, h: 80 },
-          { id: 'C1', size: 'C', x: 25, y: 160, w: 150, h: 70 },
-          { id: 'C2', size: 'C', x: 190, y: 160, w: 230, h: 70 },
-          { id: 'PSU', size: 'C', x: 25, y: 240, w: 50, h: 60, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 85, y: 240, w: 335, h: 60, label: '18Ah Battery' },
+          // Top row: Size A
+          { id: 'A1', size: 'A', x: 25, y: 25, w: 265, h: 150 },
+          { id: 'A2', size: 'A', x: 320, y: 25, w: 275, h: 150 },
+          // Middle row: Size B
+          { id: 'B1', size: 'B', x: 25, y: 195, w: 180, h: 100 },
+          { id: 'B2', size: 'B', x: 220, y: 195, w: 180, h: 100 },
+          { id: 'B3', size: 'B', x: 415, y: 195, w: 180, h: 100 },
+          // Lower row: Size C (small modules)
+          { id: 'C1', size: 'C', x: 25, y: 315, w: 180, h: 90 },
+          { id: 'C2', size: 'C', x: 220, y: 315, w: 180, h: 90 },
+          { id: 'C3', size: 'C', x: 415, y: 315, w: 180, h: 90 },
+          // Battery shelf — full width
+          { id: 'PSU', size: 'C', x: 25, y: 425, w: 90, h: 80, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 125, y: 425, w: 470, h: 80, label: '18Ah Battery' },
         ],
       },
     ],
@@ -342,28 +368,38 @@ const PARTS_CATALOG = [
     category: 'Enclosures',
     code: 'IR-995204',
     manufacturer: 'Inner Range',
-    description: 'Xtra Large Enclosure (8A)',
+    description: 'Xtra Large Enclosure (8A, 18Ah)',
     price: 1485,
     wattage: 0,
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'xlarge',
-    width_mm: 600,
-    height_mm: 370,
+    width_mm: 720,
+    height_mm: 580,
     type: 'enclosure',
     variants: [
       {
         name: 'Full System',
         slots: [
-          { id: 'A1', size: 'A', x: 25, y: 20, w: 200, h: 130 },
-          { id: 'A2', size: 'A', x: 240, y: 20, w: 200, h: 130 },
-          { id: 'B1', size: 'B', x: 25, y: 160, w: 200, h: 80 },
-          { id: 'B2', size: 'B', x: 240, y: 160, w: 200, h: 80 },
-          { id: 'B3', size: 'B', x: 25, y: 250, w: 200, h: 80 },
-          { id: 'B4', size: 'B', x: 240, y: 250, w: 200, h: 80 },
-          { id: 'C1', size: 'C', x: 455, y: 20, w: 50, h: 290, label: 'Area 3' },
-          { id: 'PSU', size: 'C', x: 25, y: 340, w: 50, h: 50, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 85, y: 335, w: 370, h: 60, label: '18Ah Battery' },
+          // Top row: 3x Size A controllers
+          { id: 'A1', size: 'A', x: 25, y: 25, w: 220, h: 155 },
+          { id: 'A2', size: 'A', x: 260, y: 25, w: 220, h: 155 },
+          { id: 'A3', size: 'A', x: 495, y: 25, w: 200, h: 155 },
+          // Middle row: 3x Size B
+          { id: 'B1', size: 'B', x: 25, y: 200, w: 220, h: 105 },
+          { id: 'B2', size: 'B', x: 260, y: 200, w: 220, h: 105 },
+          { id: 'B3', size: 'B', x: 495, y: 200, w: 200, h: 105 },
+          // Lower middle: 3x Size B
+          { id: 'B4', size: 'B', x: 25, y: 325, w: 220, h: 105 },
+          { id: 'B5', size: 'B', x: 260, y: 325, w: 220, h: 105 },
+          { id: 'B6', size: 'B', x: 495, y: 325, w: 200, h: 105 },
+          // Lower row: 3x Size C
+          { id: 'C1', size: 'C', x: 25, y: 445, w: 220, h: 50 },
+          { id: 'C2', size: 'C', x: 260, y: 445, w: 220, h: 50 },
+          { id: 'C3', size: 'C', x: 495, y: 445, w: 200, h: 50 },
+          // Battery shelf — full width
+          { id: 'PSU', size: 'C', x: 25, y: 510, w: 90, h: 60, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 125, y: 510, w: 570, h: 60, label: '18Ah Battery' },
         ],
       },
     ],

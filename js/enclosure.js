@@ -169,7 +169,7 @@ function renderEnclosureLayout() {
   // Enclosure box (properly scaled)
   const box = document.createElement('div');
   box.className = 'enclosure-box';
-  const scale = 0.4; // 40% scale for display
+  const scale = 0.7; // 70% scale — larger, easier to work with
 
   const isPortrait = enclosureData.orientation === 'portrait';
   const displayWidth = isPortrait ? enclosure.height_mm : enclosure.width_mm;
@@ -178,14 +178,49 @@ function renderEnclosureLayout() {
   box.style.width = (displayWidth * scale) + 'px';
   box.style.height = (displayHeight * scale) + 'px';
   box.style.position = 'relative';
-  box.style.background = '#f5f5f5';
-  box.style.border = '2px solid #333';
+  box.style.background = '#ececec';
+  box.style.border = '3px solid #2a2a2a';
+  box.style.borderRadius = '4px';
   box.style.margin = '0 auto 16px';
-  box.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+  box.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.5)';
+
+  // Battery shelf indicator (find battery slot and draw a divider above it)
+  const batterySlot = variant.slots.find(s => s.size === 'battery');
+  if (batterySlot) {
+    const transformedBattery = isPortrait ? transformSlotPortrait(batterySlot, enclosure) : batterySlot;
+    const shelf = document.createElement('div');
+    shelf.style.cssText = `
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: ${(transformedBattery.y - 5) * scale}px;
+      height: 3px;
+      background: linear-gradient(to bottom, #888, #555);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      pointer-events: none;
+      z-index: 1;
+    `;
+    box.appendChild(shelf);
+
+    // Slight tint for battery compartment area
+    const compartment = document.createElement('div');
+    compartment.style.cssText = `
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: ${(transformedBattery.y - 5) * scale}px;
+      bottom: 0;
+      background: rgba(200,200,200,0.35);
+      pointer-events: none;
+      z-index: 0;
+    `;
+    box.appendChild(compartment);
+  }
 
   variant.slots.forEach(slot => {
     const transformedSlot = isPortrait ? transformSlotPortrait(slot, enclosure) : slot;
     const el = createSlotElement(transformedSlot, enclosureData, scale);
+    el.style.zIndex = '2';
     box.appendChild(el);
   });
 
@@ -224,20 +259,25 @@ function createSlotElement(slot, enclosureData, scale) {
 
   if (slot.size === 'battery') {
     el.className = 'battery-slot';
-    el.textContent = slot.label || 'Battery';
-    el.style.fontSize = '9px';
+    el.innerHTML = `
+      <div style="display:flex; align-items:center; gap:8px; pointer-events:none">
+        <span style="font-size:13px">🔋</span>
+        <span style="font-weight:700">${slot.label || 'Battery'}</span>
+      </div>
+    `;
+    el.style.fontSize = '11px';
     return el;
   }
 
   if (slot.fixed === 'transformer') {
     el.className = 'transformer-slot';
-    el.innerHTML = `4A<small>Xfm</small>`;
-    el.style.fontSize = '8px';
+    el.innerHTML = `<strong>XFMR</strong><small>AC Input</small>`;
+    el.style.fontSize = '10px';
     return el;
   }
 
   el.className = `pcb-slot size-${slot.size}`;
-  el.style.fontSize = '9px';
+  el.style.fontSize = '11px';
 
   const placedPartId = enclosureData.placedParts[slot.id];
   if (placedPartId) {
@@ -248,7 +288,7 @@ function createSlotElement(slot, enclosureData, scale) {
         <div class="mount-holes">
           <span></span><span></span><span></span><span></span>
         </div>
-        <div class="pcb-label" style="font-size:8px">${part.code}</div>
+        <div class="pcb-label" style="font-size:11px">${part.code}</div>
       `;
       el.title = part.code;
       el.addEventListener('click', () => {
