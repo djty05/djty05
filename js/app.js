@@ -1,14 +1,14 @@
-// Main app initialization - Mobile-first
+// Main app initialization
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Set today's date
   const today = new Date().toISOString().split('T')[0];
-  document.getElementById('tb-date').value = today;
+  const dateInput = document.getElementById('tb-date');
+  if (dateInput) dateInput.value = today;
 
-  // Init modals
+  // Start with enclosure selector
   showEnclosureSelector();
 
-  // Populate parts palette
+  // Populate palette
   populateParts();
 
   // Header buttons
@@ -17,12 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-info').addEventListener('click', () => {
-    openModal('modal-power');
     updatePowerInfo();
+    openModal('modal-power');
   });
 
   // Menu actions
   document.getElementById('btn-new').addEventListener('click', newProject);
+  document.getElementById('btn-change-enclosure').addEventListener('click', () => {
+    closeModal('modal-menu');
+    showEnclosureSelector();
+  });
   document.getElementById('btn-save').addEventListener('click', saveProject);
   document.getElementById('btn-load').addEventListener('click', () => {
     document.getElementById('file-load').click();
@@ -35,22 +39,19 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsText(file);
   });
 
-  document.getElementById('btn-export-json').addEventListener('click', saveProject);
   document.getElementById('btn-import-csv').addEventListener('click', () => {
+    closeModal('modal-menu');
     openModal('modal-csv');
   });
   document.getElementById('btn-import-csv-go').addEventListener('click', importCSV);
 
-  document.getElementById('btn-print').addEventListener('click', () => {
-    window.print();
-  });
-
   document.getElementById('btn-titleblock').addEventListener('click', () => {
+    closeModal('modal-menu');
     openModal('modal-titleblock');
   });
 
-  document.getElementById('btn-auto-cable')?.addEventListener('click', () => {
-    showConnectionSuggestions();
+  document.getElementById('btn-print').addEventListener('click', () => {
+    window.print();
   });
 
   // Page tabs
@@ -61,46 +62,81 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Skip enclosure button
   document.getElementById('btn-skip-enclosure')?.addEventListener('click', skipEnclosure);
 
-  updateZoom();
-  updateStats();
-  toast('Ready! Select an enclosure to start.');
+  // Search
+  document.getElementById('search-parts')?.addEventListener('input', e => {
+    filterParts(e.target.value);
+  });
+
+  renderEnclosureLayout();
 });
 
 function populateParts() {
   const list = document.getElementById('parts-list');
+  list.innerHTML = '';
+
   const categories = getCategories();
 
   categories.forEach(cat => {
     const parts = getPartsByCategory(cat);
 
-    // Category header
-    const catDiv = document.createElement('div');
-    catDiv.style.fontSize = '11px';
-    catDiv.style.fontWeight = '700';
-    catDiv.style.padding = '8px 4px 2px';
-    catDiv.style.textTransform = 'uppercase';
-    catDiv.style.color = '#6b7280';
-    catDiv.style.borderBottom = '1px solid #e5e7eb';
-    catDiv.textContent = cat;
-    list.appendChild(catDiv);
+    const header = document.createElement('div');
+    header.className = 'part-category-header';
+    header.textContent = cat;
+    list.appendChild(header);
 
-    // Parts
     parts.forEach(part => {
-      const item = document.createElement('button');
-      item.className = 'part-item';
-      item.innerHTML = `
-        <div class="code">${part.code}</div>
-        <div class="desc">${part.description.substring(0, 40)}</div>
-        <div class="desc">$${part.price.toFixed(0)}</div>
-      `;
-      item.addEventListener('click', () => {
-        selectPartFromPalette(part.id);
-      });
-      list.appendChild(item);
+      const card = createPaletteCard(part);
+      list.appendChild(card);
     });
+  });
+}
+
+function createPaletteCard(part) {
+  const card = document.createElement('div');
+  card.className = 'part-card';
+  card.dataset.partId = part.id;
+  card.dataset.category = part.category;
+
+  let thumbClass = `part-card-thumb size-${(part.pcbSize || 'c').toLowerCase()}`;
+  if (part.type === 'psu') thumbClass += ' psu';
+
+  const sizeLabel = part.pcbSize === 'external' ? 'EXT' :
+    (part.pcbSize ? `SIZE ${part.pcbSize}` : 'N/A');
+
+  card.innerHTML = `
+    <div class="${thumbClass}">${sizeLabel}</div>
+    <div class="part-card-info">
+      <div class="part-card-code">${part.code}</div>
+      <div class="part-card-desc">${part.description}</div>
+      <div class="part-card-price">$${part.price.toFixed(0)}${part.wattage ? ' · ' + part.wattage + 'W' : ''}</div>
+    </div>
+  `;
+
+  makePaletteCardDraggable(card, part.id);
+  makePaletteCardTouchable(card, part.id);
+
+  card.addEventListener('click', e => {
+    // Only trigger click-select on non-touch devices
+    if (!('ontouchstart' in window)) {
+      selectPartFromPalette(part.id);
+    }
+  });
+
+  return card;
+}
+
+function filterParts(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.part-card').forEach(card => {
+    const code = card.querySelector('.part-card-code')?.textContent.toLowerCase() || '';
+    const desc = card.querySelector('.part-card-desc')?.textContent.toLowerCase() || '';
+    card.style.display = (code.includes(q) || desc.includes(q)) ? '' : 'none';
+  });
+
+  document.querySelectorAll('.part-category-header').forEach(h => {
+    h.style.display = query ? 'none' : '';
   });
 }
 
@@ -111,33 +147,26 @@ function switchPage(page) {
   document.querySelectorAll('.page-tab').forEach(t => t.classList.remove('active'));
   document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
 
-  if (page === 'schematic') renderSchematicDiagram();
   if (page === 'bom') renderBOM();
   if (page === 'cable') renderCableSchedule();
+  if (page === 'schematic') renderSchematicDiagram();
 }
 
 function newProject() {
-  if (canvasState.components.length > 0 && !confirm('Discard current project?')) return;
+  if (Object.keys(placedParts).length > 0 && !confirm('Discard current project?')) return;
 
-  document.getElementById('layer-components').innerHTML = '';
-  document.getElementById('layer-wires').innerHTML = '';
-  canvasState.components = [];
-  canvasState.wires = [];
-  canvasState.selectedComponent = null;
-  canvasState.nextComponentId = 1;
-  canvasState.nextWireId = 1;
-
+  placedParts = {};
   closeModal('modal-menu');
+  renderEnclosureLayout();
   updateStats();
-  renderBOM();
   toast('New project');
 }
 
 function saveProject() {
   const project = {
     enclosureId: currentEnclosure?.id,
-    components: canvasState.components,
-    wires: canvasState.wires,
+    variantIdx: currentVariantIdx,
+    placedParts,
     titleBlock: {
       project: document.getElementById('tb-project')?.value,
       client: document.getElementById('tb-client')?.value,
@@ -166,66 +195,33 @@ function saveProject() {
 
   localStorage.setItem('ir-project', json);
   closeModal('modal-menu');
-  toast('Project saved!');
+  toast('Project saved');
 }
 
 function loadProject(jsonStr) {
   try {
     const project = JSON.parse(jsonStr);
-
-    // Restore enclosure
     if (project.enclosureId) {
       currentEnclosure = getPartById(project.enclosureId);
+      currentVariantIdx = project.variantIdx || 0;
     }
+    placedParts = project.placedParts || {};
 
-    // Clear canvas
-    document.getElementById('layer-components').innerHTML = '';
-    document.getElementById('layer-wires').innerHTML = '';
-    canvasState.components = [];
-    canvasState.wires = [];
-
-    // Restore components
-    project.components?.forEach(comp => {
-      const g = createComponentSymbol(comp.partId, comp.id);
-      if (g) {
-        g.setAttribute('id', `comp-${comp.id}`);
-        g.setAttribute('transform', `translate(${comp.x}, ${comp.y})`);
-        document.getElementById('layer-components').appendChild(g);
-      }
-      canvasState.components.push(comp);
-      canvasState.nextComponentId = Math.max(canvasState.nextComponentId, parseInt(comp.id.match(/\d+/)?.[0] || 0) + 1);
-    });
-
-    // Restore wires
-    project.wires?.forEach(wire => {
-      const fromComp = canvasState.components.find(c => c.id === wire.fromComp);
-      const toComp = canvasState.components.find(c => c.id === wire.toComp);
-      if (fromComp && toComp) {
-        const path = createWirePath(fromComp.x + 60, fromComp.y + 60, toComp.x + 60, toComp.y + 60, wire.id);
-        document.getElementById('layer-wires').appendChild(path);
-      }
-      canvasState.wires.push(wire);
-    });
-
-    // Restore title block
     if (project.titleBlock) {
-      document.getElementById('tb-project').value = project.titleBlock.project || '';
-      document.getElementById('tb-client').value = project.titleBlock.client || '';
-      document.getElementById('tb-site').value = project.titleBlock.site || '';
-      document.getElementById('tb-dwgno').value = project.titleBlock.dwgNo || 'DWG-001';
-      document.getElementById('tb-rev').value = project.titleBlock.rev || 'A';
-      document.getElementById('tb-sheet').value = project.titleBlock.sheet || '1 of 1';
-      document.getElementById('tb-date').value = project.titleBlock.date || '';
-      document.getElementById('tb-scale').value = project.titleBlock.scale || 'NTS';
-      document.getElementById('tb-drawn').value = project.titleBlock.drawn || '';
-      document.getElementById('tb-company').value = project.titleBlock.company || '';
-      document.getElementById('tb-lic').value = project.titleBlock.lic || '';
+      const tb = project.titleBlock;
+      Object.keys(tb).forEach(key => {
+        const map = { project: 'tb-project', client: 'tb-client', site: 'tb-site',
+          dwgNo: 'tb-dwgno', rev: 'tb-rev', sheet: 'tb-sheet', date: 'tb-date',
+          scale: 'tb-scale', drawn: 'tb-drawn', company: 'tb-company', lic: 'tb-lic' };
+        const el = document.getElementById(map[key]);
+        if (el && tb[key] !== undefined) el.value = tb[key];
+      });
     }
 
+    renderEnclosureLayout();
     updatePowerInfo();
     updateStats();
-    renderBOM();
-    toast('Project loaded!');
+    toast('Project loaded');
   } catch (e) {
     toast('Error: ' + e.message);
   }
@@ -239,7 +235,6 @@ function importCSV() {
     return;
   }
 
-  // Simple CSV parsing
   const lines = text.split('\n');
   let imported = 0;
 
@@ -248,9 +243,9 @@ function importCSV() {
     if (parts.length < 3) return;
 
     const [code, desc, cat, watt, price] = parts;
-    const existingPart = PARTS_CATALOG.find(p => p.code === code);
+    const existing = PARTS_CATALOG.find(p => p.code === code);
 
-    if (!existingPart) {
+    if (!existing) {
       PARTS_CATALOG.push({
         id: `CUSTOM-${code}`,
         category: cat || 'Custom',
@@ -259,9 +254,9 @@ function importCSV() {
         description: desc,
         price: parseFloat(price) || 0,
         wattage: parseFloat(watt) || 0,
+        pcbSize: 'C',
+        type: 'module',
         terminals: [],
-        width: 80,
-        height: 80,
       });
       imported++;
     }
@@ -277,43 +272,29 @@ function renderSchematicDiagram() {
   const container = document.getElementById('schematic-preview');
   if (!container) return;
 
-  let html = '<h4 style="text-align:center">Electrical Schematic</h4>';
-  html += '<div style="padding:20px; border:1px solid #e5e7eb; border-radius:4px">';
+  const components = getPlacedComponents();
 
-  if (canvasState.components.length === 0) {
-    html += '<p style="color:#9ca3af; text-align:center">No components placed yet.</p>';
-  } else {
-    html += '<div style="font-size:12px; line-height:1.8">';
-
-    canvasState.components.forEach(comp => {
-      const part = getPartById(comp.partId);
-      if (!part) return;
-      html += `<div style="padding:8px; background:#f3f4f6; margin:4px 0; border-radius:3px">
-        <strong>${comp.id}</strong>: ${part.code} - ${part.description}
-      </div>`;
-    });
-
-    html += '</div>';
-
-    if (canvasState.wires.length > 0) {
-      html += '<hr style="margin:15px 0" />';
-      html += '<h5 style="margin:10px 0">Connections</h5>';
-      html += '<div style="font-size:11px; line-height:1.6">';
-
-      canvasState.wires.forEach((wire, idx) => {
-        const fromComp = canvasState.components.find(c => c.id === wire.fromComp);
-        const toComp = canvasState.components.find(c => c.id === wire.toComp);
-        if (fromComp && toComp) {
-          html += `<div style="padding:4px">
-            <strong>C${idx + 1}:</strong> ${fromComp.id}.${wire.fromTerm} → ${toComp.id}.${wire.toTerm}
-            <span style="color:#6b7280">(${wire.type || 'Cable'})</span>
-          </div>`;
-        }
-      });
-
-      html += '</div>';
-    }
+  if (components.length === 0) {
+    container.innerHTML = '<p class="muted" style="text-align:center; padding:40px">No components placed. Drag PCBs into the enclosure layout first.</p>';
+    return;
   }
+
+  let html = '<div style="display:grid; gap:8px">';
+
+  components.forEach(c => {
+    html += `
+      <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--ir-border); border-left:4px solid var(--ir-red); background:var(--ir-white); border-radius:3px">
+        <div style="background:var(--ir-red); color:white; padding:4px 8px; border-radius:2px; font-size:11px; font-weight:700; align-self:flex-start">${c.slotId}</div>
+        <div style="flex:1">
+          <strong>${c.part.code}</strong>
+          <div style="font-size:12px; color:var(--ir-gray); margin:2px 0">${c.part.description}</div>
+          <div style="font-size:11px; color:var(--ir-gray)">
+            Terminals: ${c.part.terminals?.map(t => t.name).join(' · ') || 'N/A'}
+          </div>
+        </div>
+      </div>
+    `;
+  });
 
   html += '</div>';
   container.innerHTML = html;

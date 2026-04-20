@@ -1,84 +1,91 @@
-// Cable Schedule auto-generation
+// Cable Schedule - auto-generates from placed components
 
 function generateCableSchedule() {
   const schedule = [];
-  let cableNum = 1;
+  const components = getPlacedComponents();
+  if (components.length === 0) return schedule;
 
-  canvasState.wires.forEach(wire => {
-    const fromComp = canvasState.components.find(c => c.id === wire.fromComp);
-    const toComp = canvasState.components.find(c => c.id === wire.toComp);
+  // Find PSU
+  const psu = components.find(c => c.part.type === 'psu');
+  const controller = components.find(c => c.part.type === 'controller');
 
-    if (!fromComp || !toComp) return;
+  let n = 1;
 
-    const fromPart = getPartById(fromComp.partId);
-    const toPart = getPartById(toComp.partId);
-
-    // Infer cable type based on terminal types
-    let cableType = 'Multi-pair';
-    let cores = 4;
-
-    if (wire.fromTerm.includes('DATA') || wire.toTerm.includes('DATA')) {
-      cableType = 'CAT6';
-      cores = 8;
-    } else if (wire.fromTerm.includes('TX') || wire.toTerm.includes('TX')) {
-      cableType = '4-core Security';
-      cores = 4;
-    } else if (wire.fromTerm.includes('REL') || wire.toTerm.includes('REL')) {
-      cableType = '2-pair';
-      cores = 2;
-    } else if (wire.fromTerm.includes('ALARM') || wire.toTerm.includes('ALARM')) {
-      cableType = '2-pair';
-      cores = 2;
-    } else if (wire.fromTerm.includes('+12V') || wire.fromTerm.includes('GND')) {
-      cableType = '2-pair Power';
-      cores = 2;
-    }
-
-    // Estimate cable length (rough, based on component distance)
-    const dx = fromComp.x - toComp.x;
-    const dy = fromComp.y - toComp.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const estimatedLength = Math.max(1, Math.round(dist / 100)); // rough estimate
-
-    schedule.push({
-      ref: `C${cableNum++}`,
-      fromDevice: wire.fromComp,
-      fromTerm: wire.fromTerm,
-      toDevice: wire.toComp,
-      toTerm: wire.toTerm,
-      cableType,
-      cores,
-      length: estimatedLength,
-      notes: `${fromPart?.code || '?'} to ${toPart?.code || '?'}`,
+  // Power distribution
+  if (psu) {
+    components.forEach(c => {
+      if (c.part.type !== 'psu' && c.part.wattage > 0) {
+        schedule.push({
+          ref: `C${n++}`,
+          from: psu.slotId,
+          to: c.slotId,
+          type: '2-pair Power',
+          length: 1,
+        });
+      }
     });
-  });
+  }
+
+  // Controller to modules (RS485/UBUS)
+  if (controller) {
+    components.filter(c => c.part.type === 'module').forEach(c => {
+      schedule.push({
+        ref: `C${n++}`,
+        from: controller.slotId,
+        to: c.slotId,
+        type: 'RS485/UBUS',
+        length: 1,
+      });
+    });
+
+    // Controller to readers
+    components.filter(c => c.part.type === 'reader').forEach(c => {
+      schedule.push({
+        ref: `C${n++}`,
+        from: controller.slotId,
+        to: c.slotId + ' (external)',
+        type: '4-core Security',
+        length: 10,
+      });
+    });
+
+    // Controller to keypads
+    components.filter(c => c.part.type === 'keypad').forEach(c => {
+      schedule.push({
+        ref: `C${n++}`,
+        from: controller.slotId,
+        to: c.slotId + ' (external)',
+        type: '4-core Security',
+        length: 5,
+      });
+    });
+  }
 
   return schedule;
 }
 
 function renderCableSchedule() {
   const table = document.getElementById('cable-table');
+  if (!table) return;
   const tbody = table.querySelector('tbody');
   tbody.innerHTML = '';
 
   const schedule = generateCableSchedule();
 
-  schedule.forEach(cable => {
+  if (schedule.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--ir-gray); padding:20px">No cables generated. Place components first.</td></tr>';
+    return;
+  }
+
+  schedule.forEach(c => {
     const row = document.createElement('tr');
     row.innerHTML = `
-      <td><strong>${cable.ref}</strong></td>
-      <td>${cable.fromDevice}</td>
-      <td><small>${cable.fromTerm}</small></td>
-      <td>${cable.toDevice}</td>
-      <td><small>${cable.toTerm}</small></td>
-      <td>${cable.cableType}</td>
-      <td style="text-align:center">${cable.cores}</td>
-      <td style="text-align:center">${cable.length}</td>
-      <td><small>${cable.notes}</small></td>
+      <td><strong>${c.ref}</strong></td>
+      <td>${c.from}</td>
+      <td>${c.to}</td>
+      <td>${c.type}</td>
+      <td style="text-align:center">${c.length}</td>
     `;
     tbody.appendChild(row);
   });
-
-  // Update mini title block on Cable page
-  updateMiniTitleBlock('titleblock-cable');
 }
