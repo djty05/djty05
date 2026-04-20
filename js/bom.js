@@ -32,6 +32,22 @@ function generateBOM() {
     items[c.partId].qty++;
   });
 
+  // Add site components
+  if (currentProject?.siteComponents) {
+    currentProject.siteComponents.forEach(sc => {
+      const part = getPartById(sc.partId);
+      if (!items[part.id]) {
+        items[part.id] = {
+          code: part.code,
+          description: part.description,
+          price: part.price,
+          qty: 0,
+        };
+      }
+      items[part.id].qty++;
+    });
+  }
+
   return Object.values(items);
 }
 

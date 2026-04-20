@@ -167,13 +167,16 @@ function renderSitePlan() {
   if (!canvas || !currentProject) return;
 
   canvas.innerHTML = '';
-  canvas.style.display = 'flex';
-  canvas.style.flexWrap = 'wrap';
+  canvas.style.display = 'grid';
+  canvas.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
   canvas.style.gap = '20px';
   canvas.style.padding = '20px';
-  canvas.style.justifyContent = 'center';
 
+  let hasItems = false;
+
+  // Render enclosures
   currentProject.enclosures.forEach((enclosure, idx) => {
+    hasItems = true;
     const part = getPartById(enclosure.enclosureId);
     const card = document.createElement('div');
     card.style.cssText = `
@@ -181,15 +184,15 @@ function renderSitePlan() {
       border: 2px solid var(--ir-red);
       padding: 12px;
       border-radius: 4px;
-      cursor: pointer;
-      flex: 0 1 auto;
       text-align: center;
       transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     `;
     card.onmouseover = () => card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-    card.onmouseout = () => card.style.boxShadow = 'none';
+    card.onmouseout = () => card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
 
     card.innerHTML = `
+      <div style="margin-bottom:4px; font-size:11px; color:#999">Enclosure</div>
       <strong style="display:block; color:var(--ir-red); margin-bottom:4px">${part.code}</strong>
       <div style="font-size:11px; color:var(--ir-gray); margin-bottom:8px">${part.description}</div>
       <div style="font-size:10px; color:var(--ir-gray); margin-bottom:8px">${part.width_mm}×${part.height_mm}mm</div>
@@ -201,8 +204,38 @@ function renderSitePlan() {
     canvas.appendChild(card);
   });
 
-  if (currentProject.enclosures.length === 0) {
-    canvas.innerHTML = '<div style="text-align:center; color:var(--ir-gray); padding:40px">No enclosures. Click + Add to start.</div>';
+  // Render site components
+  currentProject.siteComponents.forEach((comp, idx) => {
+    hasItems = true;
+    const part = getPartById(comp.partId);
+    const card = document.createElement('div');
+    card.style.cssText = `
+      background: white;
+      border: 2px solid #999;
+      padding: 12px;
+      border-radius: 4px;
+      text-align: center;
+      transition: all 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    `;
+    card.onmouseover = () => card.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+    card.onmouseout = () => card.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+
+    card.innerHTML = `
+      <div style="margin-bottom:4px; font-size:11px; color:#999">${part.type === 'reader' ? 'Reader' : 'Lock'}</div>
+      <strong style="display:block; color:#333; margin-bottom:4px">${part.code}</strong>
+      <div style="font-size:11px; color:var(--ir-gray); margin-bottom:8px">${part.description}</div>
+      <div style="font-size:10px; color:#999; margin-bottom:8px">${part.wattage}W · $${part.price.toFixed(0)}</div>
+      <div style="display:flex; gap:4px; justify-content:center">
+        <button onclick="removeSiteComponent(${idx})" style="flex:1; padding:6px; background:#fecaca; color:#dc2626; border:none; border-radius:2px; font-size:11px; cursor:pointer">Remove</button>
+      </div>
+    `;
+    canvas.appendChild(card);
+  });
+
+  if (!hasItems) {
+    canvas.style.display = 'flex';
+    canvas.innerHTML = '<div style="text-align:center; color:var(--ir-gray); padding:40px; width:100%">No enclosures or components. Click + Add to start.</div>';
   }
 }
 
@@ -211,14 +244,16 @@ function renderSchematicDiagram() {
   if (!container) return;
 
   const components = getPlacedComponents();
+  const siteComps = currentProject?.siteComponents || [];
 
-  if (components.length === 0) {
+  if (components.length === 0 && siteComps.length === 0) {
     container.innerHTML = '<p class="muted" style="text-align:center; padding:40px">No components placed.</p>';
     return;
   }
 
   let html = '<div style="display:grid; gap:8px">';
 
+  // Enclosure components
   components.forEach(c => {
     html += `
       <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--ir-border); border-left:4px solid var(--ir-red); background:var(--ir-white); border-radius:3px">
@@ -229,6 +264,22 @@ function renderSchematicDiagram() {
         </div>
       </div>
     `;
+  });
+
+  // Site components
+  siteComps.forEach(sc => {
+    const part = getPartById(sc.partId);
+    if (part) {
+      html += `
+        <div style="display:flex; gap:12px; padding:12px; border:1px solid var(--ir-border); border-left:4px solid #999; background:var(--ir-white); border-radius:3px">
+          <div style="background:#999; color:white; padding:4px 8px; border-radius:2px; font-size:11px; font-weight:700; align-self:flex-start">SITE</div>
+          <div style="flex:1">
+            <strong>${part.code}</strong>
+            <div style="font-size:12px; color:var(--ir-gray); margin:2px 0">${part.description}</div>
+          </div>
+        </div>
+      `;
+    }
   });
 
   html += '</div>';
@@ -351,14 +402,88 @@ function importCSV() {
 }
 
 function showAddComponentDialog(type) {
-  // Placeholder - would open a dialog to select reader/lock from catalog
   const typeLabel = type === 'reader' ? 'Reader' : 'Lock';
   const parts = PARTS_CATALOG.filter(p => p.type === type);
   if (parts.length === 0) {
     toast(`No ${typeLabel}s available`);
     return;
   }
-  toast(`Add ${typeLabel} feature coming soon`);
+
+  const container = document.getElementById('site-canvas');
+  if (!container) return;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  `;
+
+  const dialog = document.createElement('div');
+  dialog.style.cssText = `
+    background: white;
+    border-radius: 6px;
+    padding: 24px;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  `;
+
+  let html = `<h2 style="margin-top:0; color:var(--ir-red)">Add ${typeLabel}</h2><div style="display:grid; gap:12px;">`;
+
+  parts.forEach(part => {
+    html += `
+      <div style="padding:12px; border:1px solid #ddd; border-radius:4px; cursor:pointer; transition:all 0.2s; hover:background:#f5f5f5"
+           onclick="addSiteComponent('${part.id}'); this.closest('[data-modal]').remove();" data-modal="true">
+        <div style="font-weight:600; color:var(--ir-red)">${part.code}</div>
+        <div style="font-size:12px; color:#666; margin:4px 0">${part.description}</div>
+        <div style="font-size:11px; color:#999">${part.wattage}W · $${part.price.toFixed(0)}</div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  dialog.innerHTML = html;
+  dialog.setAttribute('data-modal', 'true');
+
+  modal.appendChild(dialog);
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.remove();
+  });
+  document.body.appendChild(modal);
+}
+
+function addSiteComponent(partId) {
+  if (!currentProject) return;
+  const part = getPartById(partId);
+  if (!part) return;
+
+  currentProject.siteComponents.push({
+    id: `SC-${Date.now()}-${currentProject.siteComponents.length}`,
+    partId,
+    qty: 1,
+  });
+
+  updateStats();
+  renderSitePlan();
+  toast(`Added ${part.code}`);
+}
+
+function removeSiteComponent(idx) {
+  if (!currentProject || idx < 0 || idx >= currentProject.siteComponents.length) return;
+  const part = getPartById(currentProject.siteComponents[idx].partId);
+  currentProject.siteComponents.splice(idx, 1);
+  updateStats();
+  renderSitePlan();
+  toast(`Removed ${part?.code || 'component'}`);
 }
 
 function skipEnclosure() {
