@@ -29,6 +29,7 @@ function addEnclosureToProject(enclosureId) {
     enclosureId,
     variantIdx: 0,
     placedParts: {},
+    orientation: 'landscape',
     x,
     y,
   });
@@ -81,20 +82,44 @@ function renderEnclosureLayout() {
   const header = document.createElement('div');
   header.className = 'enclosure-title-bar';
   header.style.marginBottom = '16px';
-  header.innerHTML = `
-    <div class="logo">
-      <span class="logo-dots"></span>
-      <div>
-        <div class="title-sub">Enclosure Design ${selectedEnclosureIdx + 1} of ${currentProject.enclosures.length}</div>
-        <div class="title-main">${enclosure.description}</div>
-      </div>
+  header.style.display = 'flex';
+  header.style.justifyContent = 'space-between';
+  header.style.alignItems = 'center';
+
+  const titleDiv = document.createElement('div');
+  titleDiv.style.display = 'flex';
+  titleDiv.style.alignItems = 'center';
+  titleDiv.style.gap = '12px';
+  titleDiv.innerHTML = `
+    <span class="logo-dots" style="display:inline-block; width:22px; height:16px; background-image: radial-gradient(circle, var(--ir-red) 2px, transparent 2px), radial-gradient(circle, var(--ir-red) 2px, transparent 2px), radial-gradient(circle, var(--ir-red) 2px, transparent 2px); background-size: 6px 6px; background-position: 0 0, 6px 0, 12px 0; background-repeat: no-repeat;"></span>
+    <div>
+      <div class="title-sub">Enclosure Design ${selectedEnclosureIdx + 1} of ${currentProject.enclosures.length}</div>
+      <div class="title-main">${enclosure.description}</div>
     </div>
+  `;
+  header.appendChild(titleDiv);
+
+  const rightDiv = document.createElement('div');
+  rightDiv.style.display = 'flex';
+  rightDiv.style.alignItems = 'center';
+  rightDiv.style.gap = '12px';
+  rightDiv.innerHTML = `
     <div style="text-align:right; font-size:11px; color:#aaa">
       <div>${enclosure.code}</div>
       <div>${enclosure.psuRating}W · ${enclosure.batteryCapacity}</div>
     </div>
+    <button id="btn-rotate" style="background:transparent; color:var(--ir-white); border:1px solid rgba(255,255,255,0.3); padding:6px 12px; border-radius:3px; cursor:pointer; font-size:12px; white-space:nowrap">
+      ${enclosureData.orientation === 'landscape' ? '⤵️ Portrait' : '⤴️ Landscape'}
+    </button>
   `;
+  header.appendChild(rightDiv);
+  header.style.gap = '16px';
   container.appendChild(header);
+
+  document.getElementById('btn-rotate')?.addEventListener('click', () => {
+    enclosureData.orientation = enclosureData.orientation === 'landscape' ? 'portrait' : 'landscape';
+    renderEnclosureLayout();
+  });
 
   // Enclosure selector tabs
   if (currentProject.enclosures.length > 1) {
@@ -145,8 +170,13 @@ function renderEnclosureLayout() {
   const box = document.createElement('div');
   box.className = 'enclosure-box';
   const scale = 0.4; // 40% scale for display
-  box.style.width = (enclosure.width_mm * scale) + 'px';
-  box.style.height = (enclosure.height_mm * scale) + 'px';
+
+  const isPortrait = enclosureData.orientation === 'portrait';
+  const displayWidth = isPortrait ? enclosure.height_mm : enclosure.width_mm;
+  const displayHeight = isPortrait ? enclosure.width_mm : enclosure.height_mm;
+
+  box.style.width = (displayWidth * scale) + 'px';
+  box.style.height = (displayHeight * scale) + 'px';
   box.style.position = 'relative';
   box.style.background = '#f5f5f5';
   box.style.border = '2px solid #333';
@@ -154,7 +184,8 @@ function renderEnclosureLayout() {
   box.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
 
   variant.slots.forEach(slot => {
-    const el = createSlotElement(slot, enclosureData, scale);
+    const transformedSlot = isPortrait ? transformSlotPortrait(slot, enclosure) : slot;
+    const el = createSlotElement(transformedSlot, enclosureData, scale);
     box.appendChild(el);
   });
 
@@ -164,10 +195,21 @@ function renderEnclosureLayout() {
   const info = document.createElement('div');
   info.style.cssText = 'margin-top:16px; font-size:11px; color:var(--ir-gray); text-align:center; max-width:600px; margin-left:auto; margin-right:auto';
   info.innerHTML = `
-    <strong>Dimensions:</strong> ${enclosure.width_mm}mm × ${enclosure.height_mm}mm ·
+    <strong>Dimensions:</strong> ${displayWidth}mm × ${displayHeight}mm ·
     <strong>${variant.slots.filter(s => !s.fixed && s.size !== 'battery').length} slots</strong>
   `;
   container.appendChild(info);
+}
+
+function transformSlotPortrait(slot, enclosure) {
+  const baseWidth = enclosure.width_mm;
+  return {
+    ...slot,
+    x: slot.y,
+    y: baseWidth - slot.x - slot.w,
+    w: slot.h,
+    h: slot.w,
+  };
 }
 
 function createSlotElement(slot, enclosureData, scale) {
