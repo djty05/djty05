@@ -257,6 +257,8 @@ const PARTS_CATALOG = [
     size: 'medium',
     width_mm: 520,
     height_mm: 420,
+    portrait_width_mm: 420,
+    portrait_height_mm: 520,
     type: 'enclosure',
     variants: [
       {
@@ -275,6 +277,19 @@ const PARTS_CATALOG = [
           { id: 'PSU', size: 'C', x: 25, y: 345, w: 85, h: 60, fixed: 'transformer' },
           { id: 'BAT', size: 'battery', x: 120, y: 345, w: 375, h: 60, label: '9Ah Battery' },
         ],
+        portraitSlots: [
+          // 2-column grid in portrait (420 wide x 520 tall)
+          { id: 'A1', size: 'A', x: 15, y: 20, w: 195, h: 135 },
+          { id: 'A2', size: 'A', x: 215, y: 20, w: 190, h: 135 },
+          { id: 'B1', size: 'B', x: 15, y: 170, w: 195, h: 95 },
+          { id: 'B2', size: 'B', x: 215, y: 170, w: 190, h: 95 },
+          { id: 'C1', size: 'C', x: 15, y: 280, w: 195, h: 65 },
+          { id: 'C2', size: 'C', x: 215, y: 280, w: 190, h: 65 },
+          { id: 'C3', size: 'C', x: 15, y: 360, w: 390, h: 60 },
+          // Battery shelf at BOTTOM
+          { id: 'PSU', size: 'C', x: 15, y: 445, w: 85, h: 60, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 445, w: 295, h: 60, label: '9Ah Battery' },
+        ],
       },
       {
         name: 'Dense Layout',
@@ -289,6 +304,20 @@ const PARTS_CATALOG = [
           { id: 'C4', size: 'C', x: 275, y: 295, w: 220, h: 35 },
           { id: 'PSU', size: 'C', x: 25, y: 345, w: 85, h: 60, fixed: 'transformer' },
           { id: 'BAT', size: 'battery', x: 120, y: 345, w: 375, h: 60, label: '9Ah Battery' },
+        ],
+        portraitSlots: [
+          { id: 'C1', size: 'C', x: 15, y: 20, w: 195, h: 50 },
+          { id: 'C2', size: 'C', x: 215, y: 20, w: 190, h: 50 },
+          { id: 'B1', size: 'B', x: 15, y: 80, w: 195, h: 90 },
+          { id: 'B2', size: 'B', x: 215, y: 80, w: 190, h: 90 },
+          { id: 'B3', size: 'B', x: 15, y: 180, w: 195, h: 90 },
+          { id: 'B4', size: 'B', x: 215, y: 180, w: 190, h: 90 },
+          { id: 'B5', size: 'B', x: 15, y: 280, w: 195, h: 90 },
+          { id: 'B6', size: 'B', x: 215, y: 280, w: 190, h: 90 },
+          { id: 'C3', size: 'C', x: 15, y: 380, w: 195, h: 55 },
+          { id: 'C4', size: 'C', x: 215, y: 380, w: 190, h: 55 },
+          { id: 'PSU', size: 'C', x: 15, y: 445, w: 85, h: 60, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 445, w: 295, h: 60, label: '9Ah Battery' },
         ],
       },
     ],
@@ -306,6 +335,8 @@ const PARTS_CATALOG = [
     size: 'medium',
     width_mm: 520,
     height_mm: 460,
+    portrait_width_mm: 460,
+    portrait_height_mm: 520,
     type: 'enclosure',
     variants: [
       {
@@ -324,6 +355,20 @@ const PARTS_CATALOG = [
           { id: 'PSU', size: 'C', x: 25, y: 365, w: 90, h: 80, fixed: 'transformer' },
           { id: 'BAT', size: 'battery', x: 125, y: 365, w: 370, h: 80, label: '18Ah Battery' },
         ],
+        portraitSlots: [
+          // 2-column portrait layout (460 wide × 520 tall)
+          { id: 'A1', size: 'A', x: 15, y: 20, w: 215, h: 130 },
+          { id: 'A2', size: 'A', x: 235, y: 20, w: 210, h: 130 },
+          { id: 'B1', size: 'B', x: 15, y: 160, w: 215, h: 95 },
+          { id: 'B2', size: 'B', x: 235, y: 160, w: 210, h: 95 },
+          { id: 'B3', size: 'B', x: 15, y: 265, w: 215, h: 95 },
+          { id: 'B4', size: 'B', x: 235, y: 265, w: 210, h: 95 },
+          { id: 'C1', size: 'C', x: 15, y: 370, w: 215, h: 55 },
+          { id: 'C2', size: 'C', x: 235, y: 370, w: 210, h: 55 },
+          // Battery shelf at BOTTOM
+          { id: 'PSU', size: 'C', x: 15, y: 435, w: 90, h: 80, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 115, y: 435, w: 330, h: 80, label: '18Ah Battery' },
+        ],
       },
     ],
   },
@@ -340,6 +385,8 @@ const PARTS_CATALOG = [
     size: 'large',
     width_mm: 620,
     height_mm: 520,
+    portrait_width_mm: 520,
+    portrait_height_mm: 620,
     type: 'enclosure',
     variants: [
       {
@@ -360,6 +407,22 @@ const PARTS_CATALOG = [
           { id: 'PSU', size: 'C', x: 25, y: 425, w: 90, h: 80, fixed: 'transformer' },
           { id: 'BAT', size: 'battery', x: 125, y: 425, w: 470, h: 80, label: '18Ah Battery' },
         ],
+        portraitSlots: [
+          // 2-column portrait layout (520 wide × 620 tall)
+          { id: 'A1', size: 'A', x: 15, y: 20, w: 245, h: 150 },
+          { id: 'A2', size: 'A', x: 265, y: 20, w: 240, h: 150 },
+          { id: 'B1', size: 'B', x: 15, y: 180, w: 245, h: 100 },
+          { id: 'B2', size: 'B', x: 265, y: 180, w: 240, h: 100 },
+          { id: 'B3', size: 'B', x: 15, y: 290, w: 245, h: 100 },
+          { id: 'B4', size: 'B', x: 265, y: 290, w: 240, h: 100 },
+          { id: 'C1', size: 'C', x: 15, y: 400, w: 245, h: 60 },
+          { id: 'C2', size: 'C', x: 265, y: 400, w: 240, h: 60 },
+          { id: 'C3', size: 'C', x: 15, y: 470, w: 245, h: 60 },
+          { id: 'C4', size: 'C', x: 265, y: 470, w: 240, h: 60 },
+          // Battery shelf at BOTTOM
+          { id: 'PSU', size: 'C', x: 15, y: 540, w: 90, h: 75, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 115, y: 540, w: 390, h: 75, label: '18Ah Battery' },
+        ],
       },
     ],
   },
@@ -376,6 +439,8 @@ const PARTS_CATALOG = [
     size: 'xlarge',
     width_mm: 720,
     height_mm: 580,
+    portrait_width_mm: 580,
+    portrait_height_mm: 720,
     type: 'enclosure',
     variants: [
       {
@@ -400,6 +465,24 @@ const PARTS_CATALOG = [
           // Battery shelf — full width
           { id: 'PSU', size: 'C', x: 25, y: 510, w: 90, h: 60, fixed: 'transformer' },
           { id: 'BAT', size: 'battery', x: 125, y: 510, w: 570, h: 60, label: '18Ah Battery' },
+        ],
+        portraitSlots: [
+          // 2-column portrait layout (580 wide × 720 tall)
+          { id: 'A1', size: 'A', x: 15, y: 20, w: 275, h: 150 },
+          { id: 'A2', size: 'A', x: 295, y: 20, w: 270, h: 150 },
+          { id: 'B1', size: 'B', x: 15, y: 180, w: 275, h: 100 },
+          { id: 'B2', size: 'B', x: 295, y: 180, w: 270, h: 100 },
+          { id: 'B3', size: 'B', x: 15, y: 290, w: 275, h: 100 },
+          { id: 'B4', size: 'B', x: 295, y: 290, w: 270, h: 100 },
+          { id: 'B5', size: 'B', x: 15, y: 400, w: 275, h: 100 },
+          { id: 'B6', size: 'B', x: 295, y: 400, w: 270, h: 100 },
+          { id: 'C1', size: 'C', x: 15, y: 510, w: 275, h: 55 },
+          { id: 'C2', size: 'C', x: 295, y: 510, w: 270, h: 55 },
+          { id: 'C3', size: 'C', x: 15, y: 575, w: 275, h: 50 },
+          { id: 'C4', size: 'C', x: 295, y: 575, w: 270, h: 50 },
+          // Battery shelf at BOTTOM
+          { id: 'PSU', size: 'C', x: 15, y: 635, w: 90, h: 75, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 115, y: 635, w: 450, h: 75, label: '18Ah Battery' },
         ],
       },
     ],

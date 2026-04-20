@@ -172,8 +172,12 @@ function renderEnclosureLayout() {
   const scale = 0.7; // 70% scale — larger, easier to work with
 
   const isPortrait = enclosureData.orientation === 'portrait';
-  const displayWidth = isPortrait ? enclosure.height_mm : enclosure.width_mm;
-  const displayHeight = isPortrait ? enclosure.width_mm : enclosure.height_mm;
+
+  // Pick correct layout: portrait uses portraitSlots + portrait dimensions, else landscape
+  const hasPortrait = isPortrait && variant.portraitSlots;
+  const slotsToRender = hasPortrait ? variant.portraitSlots : variant.slots;
+  const displayWidth = hasPortrait ? (enclosure.portrait_width_mm || enclosure.height_mm) : enclosure.width_mm;
+  const displayHeight = hasPortrait ? (enclosure.portrait_height_mm || enclosure.width_mm) : enclosure.height_mm;
 
   box.style.width = (displayWidth * scale) + 'px';
   box.style.height = (displayHeight * scale) + 'px';
@@ -184,16 +188,15 @@ function renderEnclosureLayout() {
   box.style.margin = '0 auto 16px';
   box.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.5)';
 
-  // Battery shelf indicator (find battery slot and draw a divider above it)
-  const batterySlot = variant.slots.find(s => s.size === 'battery');
+  // Battery shelf indicator — battery is ALWAYS at the bottom
+  const batterySlot = slotsToRender.find(s => s.size === 'battery');
   if (batterySlot) {
-    const transformedBattery = isPortrait ? transformSlotPortrait(batterySlot, enclosure) : batterySlot;
     const shelf = document.createElement('div');
     shelf.style.cssText = `
       position: absolute;
       left: 0;
       right: 0;
-      top: ${(transformedBattery.y - 5) * scale}px;
+      top: ${(batterySlot.y - 5) * scale}px;
       height: 3px;
       background: linear-gradient(to bottom, #888, #555);
       box-shadow: 0 1px 2px rgba(0,0,0,0.3);
@@ -202,13 +205,12 @@ function renderEnclosureLayout() {
     `;
     box.appendChild(shelf);
 
-    // Slight tint for battery compartment area
     const compartment = document.createElement('div');
     compartment.style.cssText = `
       position: absolute;
       left: 0;
       right: 0;
-      top: ${(transformedBattery.y - 5) * scale}px;
+      top: ${(batterySlot.y - 5) * scale}px;
       bottom: 0;
       background: rgba(200,200,200,0.35);
       pointer-events: none;
@@ -217,9 +219,8 @@ function renderEnclosureLayout() {
     box.appendChild(compartment);
   }
 
-  variant.slots.forEach(slot => {
-    const transformedSlot = isPortrait ? transformSlotPortrait(slot, enclosure) : slot;
-    const el = createSlotElement(transformedSlot, enclosureData, scale);
+  slotsToRender.forEach(slot => {
+    const el = createSlotElement(slot, enclosureData, scale);
     el.style.zIndex = '2';
     box.appendChild(el);
   });
@@ -231,20 +232,9 @@ function renderEnclosureLayout() {
   info.style.cssText = 'margin-top:16px; font-size:11px; color:var(--ir-gray); text-align:center; max-width:600px; margin-left:auto; margin-right:auto';
   info.innerHTML = `
     <strong>Dimensions:</strong> ${displayWidth}mm × ${displayHeight}mm ·
-    <strong>${variant.slots.filter(s => !s.fixed && s.size !== 'battery').length} slots</strong>
+    <strong>${slotsToRender.filter(s => !s.fixed && s.size !== 'battery').length} slots</strong>
   `;
   container.appendChild(info);
-}
-
-function transformSlotPortrait(slot, enclosure) {
-  const baseWidth = enclosure.width_mm;
-  return {
-    ...slot,
-    x: slot.y,
-    y: baseWidth - slot.x - slot.w,
-    w: slot.h,
-    h: slot.w,
-  };
 }
 
 function createSlotElement(slot, enclosureData, scale) {
@@ -344,7 +334,10 @@ function placePartInSlot(slotId, partId, enclosureData) {
 
   const enclosure = getPartById(enclosureData.enclosureId);
   const variant = enclosure.variants[enclosureData.variantIdx];
-  const slot = variant.slots.find(s => s.id === slotId);
+  const slotsToSearch = (enclosureData.orientation === 'portrait' && variant.portraitSlots)
+    ? variant.portraitSlots
+    : variant.slots;
+  const slot = slotsToSearch.find(s => s.id === slotId);
 
   if (!slot || slot.fixed || slot.size === 'battery') {
     toast('Cannot place there');
