@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluke Scanner AU</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#1a1a2e">
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <h1>Fluke Scanner AU</h1>
+            <span class="subtitle">Marketplace Monitor</span>
+        </div>
+        <div class="header-right">
+            <button id="btn-fb-login" class="btn btn-fb" title="Facebook Login">
+                <span class="fb-icon">f</span>
+                <span id="fb-status-text">Connect FB</span>
+            </button>
+            <button id="btn-settings" class="btn btn-secondary" title="Settings">Settings</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="search-section">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search all marketplaces..." />
+                <button id="btn-search" class="btn btn-primary">Search</button>
+                <button id="btn-scan-all" class="btn btn-accent" title="Scan all configured terms">Scan All</button>
+            </div>
+            <div class="quick-terms" id="quick-terms"></div>
+            <div class="scanner-status" id="scanner-status"></div>
+        </section>
+
+        <section class="source-filters" id="source-filters">
+            <label><input type="checkbox" value="ebay" checked> eBay AU</label>
+            <label><input type="checkbox" value="gumtree" checked> Gumtree</label>
+            <label><input type="checkbox" value="facebook" checked> Facebook</label>
+            <label><input type="checkbox" value="cashconverters" checked> Cash Converters</label>
+            <label><input type="checkbox" value="tradingpost" checked> Trading Post</label>
+        </section>
+
+        <div class="results-header">
+            <h2>Results <span id="results-count">(0)</span></h2>
+            <div class="results-controls">
+                <button id="btn-toggle-map" class="btn btn-small">Toggle Map</button>
+                <button id="btn-clear" class="btn btn-small btn-danger">Clear</button>
+            </div>
+        </div>
+
+        <div id="map-container" class="map-container hidden">
+            <div id="map"></div>
+        </div>
+
+        <div class="results-grid" id="results-grid">
+            <div class="empty-state" id="empty-state">
+                <p>No results yet. Click <strong>Scan All</strong> to search all marketplaces, or type a search term above.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Facebook Login Modal -->
+    <div class="modal-overlay hidden" id="fb-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Connect Facebook</h3>
+                <button class="modal-close" id="fb-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Log in to search Facebook Marketplace for your stolen equipment. Credentials are stored locally only.</p>
+                <div id="fb-login-error" class="alert alert-error hidden"></div>
+                <div id="fb-login-success" class="alert alert-success hidden"></div>
+                <form id="fb-login-form">
+                    <div class="form-group">
+                        <label for="fb-email">Facebook Email</label>
+                        <input type="email" id="fb-email" placeholder="your@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fb-password">Password</label>
+                        <input type="password" id="fb-password" placeholder="Password" required>
+                    </div>
+                    <p class="form-note">Note: 2FA must be disabled for HTTP login to work.</p>
+                    <button type="submit" class="btn btn-fb btn-full" id="fb-login-submit">
+                        Log In to Facebook
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay hidden" id="settings-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="modal-close" id="settings-modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Search Terms (one per line)</label>
+                    <textarea id="settings-terms" rows="8"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Scan Interval (minutes)</label>
+                    <input type="number" id="settings-interval" min="5" max="1440" value="30">
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <div class="location-row">
+                        <input type="text" id="settings-location-name" placeholder="City name">
+                        <input type="number" id="settings-radius" placeholder="Radius (km)" min="1" max="500">
+                    </div>
+                    <p class="form-note">Click the map to set your location, or enter coordinates manually.</p>
+                    <div id="settings-map" style="height:250px;border-radius:8px;margin-top:8px;"></div>
+                </div>
+                <button class="btn btn-primary btn-full" id="settings-save">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

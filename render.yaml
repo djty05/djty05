@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: marketplace-scanner
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-cloud.txt
+    startCommand: gunicorn webapp:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300 --preload
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: RENDER
+        value: "true"
+      - key: FLASK_SECRET_KEY
+        generateValue: true
