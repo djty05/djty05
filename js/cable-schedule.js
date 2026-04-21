@@ -5,6 +5,11 @@ function generateCableSchedule() {
   const components = getPlacedComponents();
   if (components.length === 0) return schedule;
 
+  const nameMap = (typeof buildComponentNames === 'function') ? buildComponentNames() : {};
+  const designatorFor = (c) => nameMap[`${c.enclosureIdx}:${c.slotId}`]
+    || c.component.shortName
+    || c.component.code;
+
   let n = 1;
 
   // Group by enclosure
@@ -20,17 +25,16 @@ function generateCableSchedule() {
   enclosures.forEach((comps, encIdx) => {
     const psu = comps.find(c => c.component.type === 'psu');
     const controller = comps.find(c => c.component.type === 'controller');
-    const enc = currentProject?.enclosures[encIdx];
-    const encPart = enc ? getPartById(enc.enclosureId) : null;
 
     // Power to other components
     if (psu) {
+      const psuName = designatorFor(psu);
       comps.forEach(c => {
         if (c.component.type !== 'psu' && c.component.wattage > 0) {
           schedule.push({
             ref: `C${n++}`,
-            from: `${encPart?.code}-PSU`,
-            to: `${encPart?.code}-${c.slotId}`,
+            from: psuName,
+            to: designatorFor(c),
             type: '2-pair Power',
             length: 1,
           });
@@ -40,11 +44,12 @@ function generateCableSchedule() {
 
     // Controller to modules
     if (controller) {
+      const ctrlName = designatorFor(controller);
       comps.filter(c => c.component.type === 'module').forEach(c => {
         schedule.push({
           ref: `C${n++}`,
-          from: `${encPart?.code}-Controller`,
-          to: `${encPart?.code}-${c.slotId}`,
+          from: ctrlName,
+          to: designatorFor(c),
           type: 'RS485/UBUS',
           length: 1,
         });

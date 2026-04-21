@@ -459,17 +459,17 @@ html, body {
   }
 }
 
-/* PCB SLOT */
+/* PCB SLOT — empty (slot indicator on standoff plate) */
 .pcb-slot {
   position: absolute;
-  background: var(--slot-empty);
-  border: 2px dashed var(--ir-border);
-  border-radius: 3px;
+  background: rgba(255,255,255,0.35);
+  border: 1px dashed rgba(80,80,80,0.55);
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--ir-gray);
   transition: all 0.15s;
   cursor: pointer;
@@ -480,16 +480,22 @@ html, body {
   background: var(--slot-hover);
   border-color: var(--ir-red);
   border-style: solid;
-  box-shadow: 0 0 0 3px rgba(230,0,18,0.2);
+  box-shadow: 0 0 0 3px rgba(230,0,18,0.25);
 }
 
+/* PCB SLOT — filled (real-looking PCB) */
 .pcb-slot.filled {
-  background: var(--pcb-red);
-  border-style: solid;
-  border-color: var(--ir-red-dark);
+  background:
+    radial-gradient(ellipse at 30% 30%, rgba(255,255,255,0.15) 0%, transparent 50%),
+    linear-gradient(135deg, var(--pcb-red) 0%, var(--ir-red-dark) 100%);
+  border: 1px solid var(--ir-red-dark);
   color: var(--ir-white);
   cursor: grab;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2), 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.15),
+    inset 0 -2px 4px rgba(0,0,0,0.2),
+    0 2px 4px rgba(0,0,0,0.25);
+  overflow: hidden;
 }
 
 .pcb-slot.filled:active {
@@ -497,130 +503,217 @@ html, body {
 }
 
 .pcb-slot.filled.selected {
-  box-shadow: 0 0 0 3px var(--ir-black), inset 0 0 0 1px rgba(255,255,255,0.2);
-}
-
-/* Mounting holes (white dots) */
-.pcb-slot.filled::before,
-.pcb-slot.filled::after {
-  content: '';
-  position: absolute;
-  width: 5px; height: 5px;
-  background: var(--ir-white);
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
-}
-
-.pcb-slot.filled::before {
-  top: 4px; left: 4px;
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.3),
-    calc(100% + 8px) 0 0 -1px var(--ir-white),
-    0 calc(100% + 8px) 0 -1px var(--ir-white),
-    calc(100% + 8px) calc(100% + 8px) 0 -1px var(--ir-white);
+    0 0 0 3px var(--ir-black),
+    inset 0 0 0 1px rgba(255,255,255,0.2);
 }
 
-.pcb-slot.filled::after {
-  display: none;
+/* PCB traces — subtle copper-like lines on filled PCBs */
+.pcb-slot .pcb-traces {
+  position: absolute;
+  inset: 8px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, transparent 49%, rgba(255,180,80,0.18) 49%, rgba(255,180,80,0.18) 51%, transparent 51%),
+    linear-gradient(0deg, transparent 49%, rgba(255,180,80,0.18) 49%, rgba(255,180,80,0.18) 51%, transparent 51%);
+  background-size: 14px 14px;
+  opacity: 0.55;
 }
 
+/* Mounting holes for filled PCBs — silver standoff screws */
 .pcb-slot .mount-holes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.pcb-slot .mount-holes span {
+  position: absolute;
+  width: 7px; height: 7px;
+  background: radial-gradient(circle at 30% 30%, #fff 0%, #ccc 50%, #888 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 1px rgba(0,0,0,0.3);
+}
+
+.pcb-slot .mount-holes span:nth-child(1) { top: 4px; left: 4px; }
+.pcb-slot .mount-holes span:nth-child(2) { top: 4px; right: 4px; }
+.pcb-slot .mount-holes span:nth-child(3) { bottom: 4px; left: 4px; }
+.pcb-slot .mount-holes span:nth-child(4) { bottom: 4px; right: 4px; }
+
+/* Standoff hole dots in EMPTY slots (just where standoffs would be) */
+.pcb-slot .standoff-corners {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-.pcb-slot .mount-holes span {
+.pcb-slot .standoff-corners span {
   position: absolute;
-  width: 6px; height: 6px;
-  background: var(--ir-white);
+  width: 5px; height: 5px;
+  background: rgba(60,60,60,0.5);
+  border: 1px solid rgba(0,0,0,0.4);
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4);
 }
 
-.pcb-slot .mount-holes span:nth-child(1) { top: 5px; left: 5px; }
-.pcb-slot .mount-holes span:nth-child(2) { top: 5px; right: 5px; }
-.pcb-slot .mount-holes span:nth-child(3) { bottom: 5px; left: 5px; }
-.pcb-slot .mount-holes span:nth-child(4) { bottom: 5px; right: 5px; }
+.pcb-slot .standoff-corners span:nth-child(1) { top: 4px; left: 4px; }
+.pcb-slot .standoff-corners span:nth-child(2) { top: 4px; right: 4px; }
+.pcb-slot .standoff-corners span:nth-child(3) { bottom: 4px; left: 4px; }
+.pcb-slot .standoff-corners span:nth-child(4) { bottom: 4px; right: 4px; }
 
-.pcb-slot .pcb-label {
-  font-weight: 700;
-  line-height: 1.3;
-  padding: 4px;
+/* Designator label (ILAM 1, ISC 2, etc) — large, prominent */
+.pcb-slot .pcb-designator {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.1;
+  padding: 3px 6px;
   pointer-events: none;
+  text-align: center;
+  letter-spacing: 0.5px;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  z-index: 3;
 }
 
+/* Part code below designator — smaller */
+.pcb-slot .pcb-code {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 500;
+  opacity: 0.75;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Empty slot label */
 .pcb-slot .pcb-slot-label {
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.2;
   padding: 4px;
   pointer-events: none;
-  color: var(--ir-gray);
+  color: rgba(40,40,40,0.7);
   font-size: 10px;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
 }
 
-.pcb-slot.size-a .pcb-slot-label::before { content: 'PCB Size A'; display: block; }
-.pcb-slot.size-b .pcb-slot-label::before { content: 'PCB Size B'; display: block; }
-.pcb-slot.size-c .pcb-slot-label::before { content: 'PCB Size C'; display: block; }
+.pcb-slot.size-a .pcb-slot-label::before { content: 'A'; font-size: 14px; font-weight: 800; display: block; }
+.pcb-slot.size-b .pcb-slot-label::before { content: 'B'; font-size: 13px; font-weight: 800; display: block; }
+.pcb-slot.size-c .pcb-slot-label::before { content: 'C'; font-size: 11px; font-weight: 800; display: block; }
 
-/* BATTERY */
+/* BATTERY — black 12V battery with terminals */
 .battery-slot {
   position: absolute;
-  background: var(--battery-black);
+  background:
+    linear-gradient(180deg, #1f1f1f 0%, #0a0a0a 50%, #1a1a1a 100%);
   color: var(--ir-white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid var(--ir-gray-dark);
-  border-radius: 2px;
-  padding: 4px;
-  text-align: center;
-}
-
-.battery-slot::before {
-  content: '';
-  position: absolute;
-  top: 4px; right: 4px;
-  width: 6px; height: 6px;
-  background: var(--ir-red);
-  border-radius: 50%;
-}
-
-.battery-slot::after {
-  content: '';
-  position: absolute;
-  top: 4px; left: 4px;
-  width: 6px; height: 6px;
-  background: var(--ir-white);
-  border-radius: 50%;
-}
-
-/* TRANSFORMER */
-.transformer-slot {
-  position: absolute;
-  background: var(--transformer-gray);
-  color: var(--ir-black);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   font-weight: 700;
-  border: 1px solid var(--ir-gray-dark);
-  border-radius: 2px;
-  padding: 4px;
+  border: 2px solid #000;
+  border-radius: 4px;
+  padding: 6px 8px;
   text-align: center;
-  line-height: 1.2;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.08),
+    inset 0 -8px 12px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.3);
+  overflow: hidden;
 }
 
-.transformer-slot small {
-  font-size: 9px;
+.battery-slot .bat-terminals {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12%;
+  pointer-events: none;
+}
+
+.battery-slot .bat-pos,
+.battery-slot .bat-neg {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  background: radial-gradient(circle at 30% 30%, #ddd 0%, #999 70%, #555 100%);
+  border-radius: 50%;
+  border: 1px solid #000;
+  font-size: 10px;
+  font-weight: 900;
+  color: #000;
+  text-align: center;
+  line-height: 13px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.5);
+}
+
+.battery-slot .bat-pos { color: #c00; }
+.battery-slot .bat-neg { color: #000; }
+
+.battery-slot .bat-label {
+  margin-top: 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* TRANSFORMER — steel laminated core */
+.transformer-slot {
+  position: absolute;
+  background:
+    linear-gradient(135deg, #b8b8b8 0%, #909090 100%);
+  color: var(--ir-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  border: 2px solid #4a4a4a;
+  border-radius: 3px;
+  padding: 6px;
+  text-align: center;
+  line-height: 1.1;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.4),
+    inset 0 -3px 6px rgba(0,0,0,0.2),
+    0 2px 4px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+.transformer-slot .xfmr-core {
+  position: absolute;
+  inset: 6px;
+  background:
+    repeating-linear-gradient(0deg,
+      rgba(60,60,60,0.35) 0px,
+      rgba(60,60,60,0.35) 2px,
+      transparent 2px,
+      transparent 5px);
+  pointer-events: none;
+}
+
+.transformer-slot .xfmr-label {
+  position: relative;
+  z-index: 1;
+  background: rgba(220,220,220,0.85);
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+.transformer-slot .xfmr-label small {
+  font-size: 8px;
   font-weight: 400;
-  opacity: 0.75;
+  opacity: 0.8;
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* MODALS */

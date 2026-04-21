@@ -182,24 +182,55 @@ function renderEnclosureLayout() {
   box.style.width = (displayWidth * scale) + 'px';
   box.style.height = (displayHeight * scale) + 'px';
   box.style.position = 'relative';
-  box.style.background = '#ececec';
+  box.style.background = '#d4d4d4';
   box.style.border = '3px solid #2a2a2a';
   box.style.borderRadius = '4px';
   box.style.margin = '0 auto 16px';
-  box.style.boxShadow = '0 4px 16px rgba(0,0,0,0.2), inset 0 0 0 1px rgba(255,255,255,0.5)';
+  box.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.4)';
 
-  // Battery shelf indicator — battery is ALWAYS at the bottom
   const batterySlot = slotsToRender.find(s => s.size === 'battery');
+  const transformerSlot = slotsToRender.find(s => s.fixed === 'transformer');
+  const shelfTopY = batterySlot ? Math.min(batterySlot.y, transformerSlot ? transformerSlot.y : batterySlot.y) - 5 : displayHeight;
+  const cableEntryMm = enclosure.cableEntryMm || 0;
+  const cableEntryY = displayHeight - cableEntryMm;
+
+  // STANDOFF PLATE — perforated steel mounting plate behind PCBs
+  const inset = enclosure.standoffPlateInset || 8;
+  const plate = document.createElement('div');
+  plate.className = 'standoff-plate';
+  plate.style.cssText = `
+    position: absolute;
+    left: ${inset * scale}px;
+    top: ${inset * scale}px;
+    width: ${(displayWidth - inset * 2) * scale}px;
+    height: ${(shelfTopY - inset) * scale}px;
+    background:
+      radial-gradient(circle at 1.5px 1.5px, rgba(80,80,80,0.45) 0.9px, transparent 1.1px),
+      linear-gradient(135deg, #c8c8c8 0%, #b8b8b8 50%, #a8a8a8 100%);
+    background-size: ${12 * scale}px ${12 * scale}px, 100% 100%;
+    background-position: 0 0, 0 0;
+    border: 1px solid #888;
+    border-radius: 2px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,0.4),
+      inset 0 2px 4px rgba(0,0,0,0.1),
+      0 1px 2px rgba(0,0,0,0.15);
+    pointer-events: none;
+    z-index: 0;
+  `;
+  box.appendChild(plate);
+
+  // BATTERY SHELF DIVIDER
   if (batterySlot) {
     const shelf = document.createElement('div');
     shelf.style.cssText = `
       position: absolute;
       left: 0;
       right: 0;
-      top: ${(batterySlot.y - 5) * scale}px;
-      height: 3px;
-      background: linear-gradient(to bottom, #888, #555);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      top: ${shelfTopY * scale}px;
+      height: 4px;
+      background: linear-gradient(to bottom, #777, #444);
+      box-shadow: 0 2px 3px rgba(0,0,0,0.4);
       pointer-events: none;
       z-index: 1;
     `;
@@ -210,17 +241,51 @@ function renderEnclosureLayout() {
       position: absolute;
       left: 0;
       right: 0;
-      top: ${(batterySlot.y - 5) * scale}px;
+      top: ${(shelfTopY + 4) * scale}px;
       bottom: 0;
-      background: rgba(200,200,200,0.35);
+      background: linear-gradient(to bottom, rgba(180,180,180,0.4) 0%, rgba(160,160,160,0.5) 100%);
       pointer-events: none;
       z-index: 0;
     `;
     box.appendChild(compartment);
   }
 
+  // CABLE ENTRY ZONE (XL only — bottom 20mm)
+  if (cableEntryMm > 0) {
+    const cableZone = document.createElement('div');
+    cableZone.style.cssText = `
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: ${cableEntryY * scale}px;
+      height: ${cableEntryMm * scale}px;
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(255,200,0,0.15),
+        rgba(255,200,0,0.15) 4px,
+        rgba(0,0,0,0.05) 4px,
+        rgba(0,0,0,0.05) 8px
+      );
+      border-top: 1px dashed #c89800;
+      pointer-events: none;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: ${Math.max(8, 9 * scale)}px;
+      color: #886600;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    `;
+    cableZone.textContent = '⚡ MAINS CABLE ENTRY (20mm)';
+    box.appendChild(cableZone);
+  }
+
+  // Build naming map (e.g. ILAM 1, ILAM 2, ISC 1)
+  const nameMap = buildComponentNames();
+
   slotsToRender.forEach(slot => {
-    const el = createSlotElement(slot, enclosureData, scale);
+    const el = createSlotElement(slot, enclosureData, scale, nameMap);
     el.style.zIndex = '2';
     box.appendChild(el);
   });
@@ -237,7 +302,41 @@ function renderEnclosureLayout() {
   container.appendChild(info);
 }
 
-function createSlotElement(slot, enclosureData, scale) {
+// Build a global naming map across all enclosures
+// Result: { "encIdx:slotId" -> "ILAM 1" }
+function buildComponentNames() {
+  const counters = {};
+  const names = {};
+  if (!currentProject) return names;
+
+  currentProject.enclosures.forEach((enc, encIdx) => {
+    Object.entries(enc.placedParts).forEach(([slotId, partId]) => {
+      const part = getPartById(partId);
+      if (!part) return;
+      const short = part.shortName || part.code;
+      counters[short] = (counters[short] || 0) + 1;
+      names[`${encIdx}:${slotId}`] = `${short} ${counters[short]}`;
+    });
+  });
+
+  // Site components also get numbers
+  if (currentProject.siteComponents) {
+    currentProject.siteComponents.forEach((sc, idx) => {
+      const part = getPartById(sc.partId);
+      if (!part) return;
+      const short = part.shortName || part.code;
+      counters[short] = (counters[short] || 0) + 1;
+      names[`site:${idx}`] = `${short} ${counters[short]}`;
+    });
+  }
+
+  return names;
+}
+
+// Expose globally so other modules (BOM, schematic) can use the names
+window.buildComponentNames = buildComponentNames;
+
+function createSlotElement(slot, enclosureData, scale, nameMap) {
   const el = document.createElement('div');
   el.style.position = 'absolute';
   el.style.left = (slot.x * scale) + 'px';
@@ -250,37 +349,47 @@ function createSlotElement(slot, enclosureData, scale) {
   if (slot.size === 'battery') {
     el.className = 'battery-slot';
     el.innerHTML = `
-      <div style="display:flex; align-items:center; gap:8px; pointer-events:none">
-        <span style="font-size:13px">🔋</span>
-        <span style="font-weight:700">${slot.label || 'Battery'}</span>
+      <div class="bat-terminals">
+        <span class="bat-pos">+</span>
+        <span class="bat-neg">−</span>
       </div>
+      <div class="bat-label">${slot.label || 'Battery'}</div>
     `;
-    el.style.fontSize = '11px';
     return el;
   }
 
   if (slot.fixed === 'transformer') {
     el.className = 'transformer-slot';
-    el.innerHTML = `<strong>XFMR</strong><small>AC Input</small>`;
-    el.style.fontSize = '10px';
+    el.innerHTML = `
+      <div class="xfmr-core"></div>
+      <div class="xfmr-label">
+        <strong>XFMR</strong>
+        <small>AC Mains</small>
+      </div>
+    `;
     return el;
   }
 
   el.className = `pcb-slot size-${slot.size}`;
   el.style.fontSize = '11px';
 
+  const encIdx = currentProject?.enclosures.indexOf(enclosureData) ?? -1;
   const placedPartId = enclosureData.placedParts[slot.id];
+
   if (placedPartId) {
     const part = getPartById(placedPartId);
     if (part) {
+      const designator = nameMap?.[`${encIdx}:${slot.id}`] || part.shortName || part.code;
       el.classList.add('filled');
       el.innerHTML = `
         <div class="mount-holes">
           <span></span><span></span><span></span><span></span>
         </div>
-        <div class="pcb-label" style="font-size:11px">${part.code}</div>
+        <div class="pcb-traces"></div>
+        <div class="pcb-designator">${designator}</div>
+        <div class="pcb-code">${part.code}</div>
       `;
-      el.title = part.code;
+      el.title = `${designator} — ${part.description}`;
       el.addEventListener('click', () => {
         delete enclosureData.placedParts[slot.id];
         renderEnclosureLayout();
@@ -289,7 +398,7 @@ function createSlotElement(slot, enclosureData, scale) {
     }
   } else {
     el.innerHTML = `
-      <div class="mount-holes">
+      <div class="standoff-corners">
         <span></span><span></span><span></span><span></span>
       </div>
       <div class="pcb-slot-label"></div>
