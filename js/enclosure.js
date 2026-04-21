@@ -169,7 +169,7 @@ function renderEnclosureLayout() {
   // Enclosure box (properly scaled)
   const box = document.createElement('div');
   box.className = 'enclosure-box';
-  const scale = 0.7; // 70% scale — larger, easier to work with
+  const scale = 0.95; // 95% scale — larger for smaller real-mm dimensions
 
   const isPortrait = enclosureData.orientation === 'portrait';
 
