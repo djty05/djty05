@@ -3,6 +3,8 @@ node_modules/
 out/
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 .env
 .env.local
 .DS_Store
