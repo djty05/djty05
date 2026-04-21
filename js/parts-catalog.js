@@ -468,7 +468,7 @@ const PARTS_CATALOG = [
   {
     id: 'ENC-XL8A',
     category: 'Enclosures',
-    code: 'IR-995204',
+    code: 'IR-995203',  // Real Inner Range XL code per Document 635203
     manufacturer: 'Inner Range',
     description: 'Xtra Large Enclosure (8A, 18Ah)',
     price: 1485,
@@ -476,55 +476,163 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'xlarge',
-    // CONFIRMED REAL SPEC: 700mm length × 358mm width × 83mm depth
+    // CONFIRMED REAL SPEC per Document 635203:
+    // 700mm length × 358mm width × 83mm depth
+    // Battery 18Ah: 180×145mm | Battery 17Ah: 180×145mm
     // Bottom 20mm reserved for mains cable entry
     width_mm: 700,
     height_mm: 358,
     portrait_width_mm: 358,
     portrait_height_mm: 700,
     standoffPlateInset: 8,
-    cableEntryMm: 20,  // bottom 20mm for mains cable entry
+    cableEntryMm: 20,
+    // Ordering options per Inner Range spec sheet (AU/NZ, UK/EU, ME, US/CA)
+    orderingOptions: [
+      { code: '995203',    name: 'Enclosure Only',       psuId: null },
+      { code: '995203PE2', name: '+ 2A Transformer',     psuId: null, psuNote: '2A Transformer' },
+      { code: '995203PE3', name: '+ SMART 3A PSU',       psuId: 'IR-996091' },
+      { code: '995203PE8', name: '+ SMART 8A PSU',       psuId: 'IR-996092' },
+    ],
     type: 'enclosure',
+    // Layout variants per Document Part No: 635203 (mounting position options)
     variants: [
       {
-        name: 'Full System',
-        // Landscape 700×358: 4 columns of A, modules below, shelf at bottom
+        // Ref: "Integriti Size A mounting positions (1 req'd)"
+        name: '1× Size A',
         slots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 155, h: 155 },
-          { id: 'A2', size: 'A', x: 180, y: 15, w: 155, h: 155 },
-          { id: 'A3', size: 'A', x: 345, y: 15, w: 155, h: 155 },
-          { id: 'A4', size: 'A', x: 510, y: 15, w: 155, h: 155 },
-          { id: 'B1', size: 'B', x: 15, y: 180, w: 155, h: 30 },
-          { id: 'B2', size: 'B', x: 180, y: 180, w: 155, h: 30 },
-          { id: 'B3', size: 'B', x: 345, y: 180, w: 155, h: 30 },
-          { id: 'B4', size: 'B', x: 510, y: 180, w: 155, h: 30 },
+          { id: 'A1', size: 'A', x: 270, y: 30, w: 160, h: 160 },
           { id: 'PSU', size: 'C', x: 15, y: 220, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 220, w: 180, h: 115, label: '18Ah Battery' },
-          { id: 'C1', size: 'C', x: 305, y: 230, w: 90, h: 50 },
-          { id: 'C2', size: 'C', x: 405, y: 230, w: 90, h: 50 },
-          { id: 'C3', size: 'C', x: 505, y: 230, w: 90, h: 50 },
-          { id: 'C4', size: 'C', x: 605, y: 230, w: 60, h: 50 },
-          { id: 'C5', size: 'C', x: 305, y: 285, w: 90, h: 50 },
-          { id: 'C6', size: 'C', x: 405, y: 285, w: 90, h: 50 },
-          { id: 'C7', size: 'C', x: 505, y: 285, w: 90, h: 50 },
+          { id: 'BAT', size: 'battery', x: 110, y: 210, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 305, y: 250, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 405, y: 250, w: 95, h: 70 },
         ],
-        // Portrait 358×700 - REAL Inner Range orientation (TALL narrow)
         portraitSlots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 155, h: 155 },
-          { id: 'A2', size: 'A', x: 180, y: 15, w: 155, h: 155 },
-          { id: 'A3', size: 'A', x: 15, y: 180, w: 155, h: 155 },
-          { id: 'A4', size: 'A', x: 180, y: 180, w: 155, h: 155 },
-          { id: 'B1', size: 'B', x: 15, y: 345, w: 155, h: 80 },
-          { id: 'B2', size: 'B', x: 180, y: 345, w: 155, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 435, w: 155, h: 80 },
-          { id: 'B4', size: 'B', x: 180, y: 435, w: 155, h: 80 },
-          { id: 'C1', size: 'C', x: 15, y: 525, w: 80, h: 30 },
-          { id: 'C2', size: 'C', x: 105, y: 525, w: 80, h: 30 },
-          { id: 'C3', size: 'C', x: 195, y: 525, w: 80, h: 30 },
-          { id: 'C4', size: 'C', x: 285, y: 525, w: 50, h: 30 },
-          { id: 'PSU', size: 'C', x: 15, y: 565, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 565, w: 180, h: 115, label: '18Ah Battery' },
-          // Bottom 20mm (y=680-700) reserved for mains cable entry
+          { id: 'A1', size: 'A', x: 100, y: 200, w: 160, h: 160 },
+          { id: 'PSU', size: 'C', x: 15, y: 555, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 15, y: 420, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 115, y: 420, w: 95, h: 70 },
+        ],
+      },
+      {
+        // Ref: "Concept Size A mounting positions (2 req'd, Mini Expandar, Analogue Module)"
+        name: '2× Size A',
+        slots: [
+          { id: 'A1', size: 'A', x: 185, y: 30, w: 160, h: 160 },
+          { id: 'A2', size: 'A', x: 355, y: 30, w: 160, h: 160 },
+          { id: 'PSU', size: 'C', x: 15, y: 220, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 210, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 305, y: 250, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 405, y: 250, w: 95, h: 70 },
+          { id: 'C3', size: 'C', x: 525, y: 250, w: 95, h: 70 },
+        ],
+        portraitSlots: [
+          { id: 'A1', size: 'A', x: 15, y: 30, w: 160, h: 160 },
+          { id: 'A2', size: 'A', x: 185, y: 30, w: 160, h: 160 },
+          { id: 'C1', size: 'C', x: 15, y: 210, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 115, y: 210, w: 95, h: 70 },
+          { id: 'C3', size: 'C', x: 15, y: 290, w: 330, h: 60 },
+          { id: 'PSU', size: 'C', x: 15, y: 555, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 180, h: 125, label: '18Ah Battery' },
+        ],
+      },
+      {
+        // Ref: "Concept Size B mounting positions (3 qty)"
+        name: '3× Size B',
+        slots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 200, h: 95 },
+          { id: 'B2', size: 'B', x: 30, y: 130, w: 200, h: 95 },
+          { id: 'B3', size: 'B', x: 250, y: 30, w: 200, h: 95 },
+          { id: 'PSU', size: 'C', x: 15, y: 230, w: 85, h: 105, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 210, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 465, y: 30, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 570, y: 30, w: 95, h: 70 },
+        ],
+        portraitSlots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 290, h: 95 },
+          { id: 'B2', size: 'B', x: 30, y: 130, w: 290, h: 95 },
+          { id: 'B3', size: 'B', x: 30, y: 230, w: 290, h: 95 },
+          { id: 'C1', size: 'C', x: 30, y: 345, w: 140, h: 70 },
+          { id: 'C2', size: 'C', x: 185, y: 345, w: 140, h: 70 },
+          { id: 'PSU', size: 'C', x: 15, y: 555, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 180, h: 125, label: '18Ah Battery' },
+        ],
+      },
+      {
+        // Ref: "Concept Size B mounting positions (4 qty)"
+        name: '4× Size B',
+        slots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 200, h: 95 },
+          { id: 'B2', size: 'B', x: 30, y: 130, w: 200, h: 95 },
+          { id: 'B3', size: 'B', x: 250, y: 30, w: 200, h: 95 },
+          { id: 'B4', size: 'B', x: 250, y: 130, w: 200, h: 95 },
+          { id: 'PSU', size: 'C', x: 15, y: 230, w: 85, h: 105, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 210, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 465, y: 30, w: 95, h: 70 },
+          { id: 'C2', size: 'C', x: 570, y: 30, w: 95, h: 70 },
+          { id: 'C3', size: 'C', x: 465, y: 110, w: 200, h: 60 },
+        ],
+        portraitSlots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 290, h: 95 },
+          { id: 'B2', size: 'B', x: 30, y: 130, w: 290, h: 95 },
+          { id: 'B3', size: 'B', x: 30, y: 230, w: 290, h: 95 },
+          { id: 'B4', size: 'B', x: 30, y: 330, w: 290, h: 95 },
+          { id: 'C1', size: 'C', x: 30, y: 440, w: 140, h: 70 },
+          { id: 'C2', size: 'C', x: 185, y: 440, w: 140, h: 70 },
+          { id: 'PSU', size: 'C', x: 15, y: 555, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 180, h: 125, label: '18Ah Battery' },
+        ],
+      },
+      {
+        // Ref: "Concept Size B mounting positions (5 qty)"
+        name: '5× Size B',
+        slots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 200, h: 95 },
+          { id: 'B2', size: 'B', x: 30, y: 130, w: 200, h: 95 },
+          { id: 'B3', size: 'B', x: 250, y: 30, w: 200, h: 95 },
+          { id: 'B4', size: 'B', x: 250, y: 130, w: 200, h: 95 },
+          { id: 'B5', size: 'B', x: 465, y: 30, w: 200, h: 95 },
+          { id: 'PSU', size: 'C', x: 15, y: 230, w: 85, h: 105, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 210, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'C1', size: 'C', x: 465, y: 150, w: 95, h: 50 },
+          { id: 'C2', size: 'C', x: 570, y: 150, w: 95, h: 50 },
+        ],
+        portraitSlots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 290, h: 80 },
+          { id: 'B2', size: 'B', x: 30, y: 115, w: 290, h: 80 },
+          { id: 'B3', size: 'B', x: 30, y: 200, w: 290, h: 80 },
+          { id: 'B4', size: 'B', x: 30, y: 285, w: 290, h: 80 },
+          { id: 'B5', size: 'B', x: 30, y: 370, w: 290, h: 80 },
+          { id: 'C1', size: 'C', x: 30, y: 460, w: 140, h: 70 },
+          { id: 'C2', size: 'C', x: 185, y: 460, w: 140, h: 70 },
+          { id: 'PSU', size: 'C', x: 15, y: 555, w: 85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 180, h: 125, label: '18Ah Battery' },
+        ],
+      },
+      {
+        // Ref: "Full System with 8A PSU and dual batteries" (Example 2 from earlier ref)
+        name: 'Full System (8A PSU)',
+        slots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 100, h: 165 },
+          { id: 'B2', size: 'B', x: 150, y: 30, w: 200, h: 75 },
+          { id: 'B3', size: 'B', x: 150, y: 115, w: 200, h: 75 },
+          { id: 'C1', size: 'C', x: 370, y: 30, w: 95, h: 70 },
+          { id: 'B4', size: 'B', x: 475, y: 30, w: 200, h: 75 },
+          { id: 'B5', size: 'B', x: 370, y: 115, w: 305, h: 75 },
+          { id: 'PSU8', size: 'psu-module', x: 200, y: 215, w: 280, h: 75, fixed: '8a-psu', label: '8Amp PSU' },
+          { id: 'BAT1', size: 'battery', x: 15, y: 230, w: 155, h: 100, label: '9Ah Battery' },
+          { id: 'BAT2', size: 'battery', x: 500, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+        ],
+        portraitSlots: [
+          { id: 'B1', size: 'B', x: 30, y: 30, w: 100, h: 165 },
+          { id: 'B2', size: 'B', x: 150, y: 30, w: 175, h: 75 },
+          { id: 'B3', size: 'B', x: 150, y: 115, w: 175, h: 75 },
+          { id: 'C1', size: 'C', x: 30, y: 215, w: 95, h: 70 },
+          { id: 'B4', size: 'B', x: 140, y: 215, w: 185, h: 70 },
+          { id: 'B5', size: 'B', x: 30, y: 300, w: 295, h: 75 },
+          { id: 'PSU8', size: 'psu-module', x: 30, y: 400, w: 290, h: 75, fixed: '8a-psu', label: '8Amp PSU' },
+          { id: 'BAT1', size: 'battery', x: 15, y: 500, w: 155, h: 100, label: '9Ah Battery' },
+          { id: 'BAT2', size: 'battery', x: 180, y: 500, w: 145, h: 145, label: '18Ah Battery' },
         ],
       },
     ],

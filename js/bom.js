@@ -3,19 +3,23 @@
 function generateBOM() {
   const items = {};
 
-  // Add all enclosures
+  // Add all enclosures (using region-specific ordering code when selected)
   if (currentProject?.enclosures) {
     currentProject.enclosures.forEach(enc => {
       const part = getPartById(enc.enclosureId);
-      if (!items[part.id]) {
-        items[part.id] = {
-          code: part.code,
-          description: part.description,
+      // Use ordering code as key so different PSU variants line-item separately
+      const key = enc.orderingCode || part.id;
+      if (!items[key]) {
+        items[key] = {
+          code: enc.orderingCode || part.code,
+          description: enc.orderingName && enc.orderingName !== 'Enclosure Only'
+            ? `${part.description} ${enc.orderingName}`
+            : part.description,
           price: part.price,
           qty: 0,
         };
       }
-      items[part.id].qty++;
+      items[key].qty++;
     });
   }
 

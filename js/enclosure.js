@@ -14,17 +14,23 @@ function initializeProject(projectName = 'New Project') {
   selectedEnclosureIdx = 0;
 }
 
-function addEnclosureToProject(enclosureId) {
+function addEnclosureToProject(enclosureId, orderingCode = null) {
   if (!currentProject) initializeProject();
 
   const enclosure = getPartById(enclosureId);
   if (!enclosure) return;
 
+  // Determine ordering option (default = enclosure only)
+  const orderingOptions = enclosure.orderingOptions || [];
+  const ordering = orderingCode
+    ? orderingOptions.find(o => o.code === orderingCode)
+    : (orderingOptions[0] || null);
+
   // Calculate position (stagger them)
   const x = (currentProject.enclosures.length % 3) * 450;
   const y = Math.floor(currentProject.enclosures.length / 3) * 350;
 
-  currentProject.enclosures.push({
+  const newEnc = {
     id: `ENC-${Date.now()}-${currentProject.enclosures.length}`,
     enclosureId,
     variantIdx: 0,
@@ -32,11 +38,25 @@ function addEnclosureToProject(enclosureId) {
     orientation: 'landscape',
     x,
     y,
-  });
+    orderingCode: ordering ? ordering.code : enclosure.code,
+    orderingName: ordering ? ordering.name : 'Enclosure Only',
+  };
 
+  currentProject.enclosures.push(newEnc);
   selectedEnclosureIdx = currentProject.enclosures.length - 1;
+
+  // Auto-place PSU PCB if ordering option includes one
+  if (ordering && ordering.psuId) {
+    const variant = enclosure.variants[0];
+    const psuPcbSlot = variant.slots.find(s => s.size === 'C' && !s.fixed);
+    if (psuPcbSlot) {
+      newEnc.placedParts[psuPcbSlot.id] = ordering.psuId;
+    }
+  }
+
   renderEnclosureLayout();
   updatePowerInfo();
+  updateStats();
 }
 
 function removeEnclosureFromProject(idx) {
@@ -188,9 +208,19 @@ function renderEnclosureLayout() {
   box.style.margin = '0 auto 16px';
   box.style.boxShadow = '0 4px 16px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.4)';
 
-  const batterySlot = slotsToRender.find(s => s.size === 'battery');
+  // Support multiple batteries + PSU module
+  const batterySlots = slotsToRender.filter(s => s.size === 'battery');
   const transformerSlot = slotsToRender.find(s => s.fixed === 'transformer');
-  const shelfTopY = batterySlot ? Math.min(batterySlot.y, transformerSlot ? transformerSlot.y : batterySlot.y) - 5 : displayHeight;
+  const psuModuleSlot = slotsToRender.find(s => s.size === 'psu-module');
+  // Shelf starts at the topmost bottom-zone component
+  const bottomZoneItems = [
+    ...batterySlots,
+    ...(transformerSlot ? [transformerSlot] : []),
+    ...(psuModuleSlot ? [psuModuleSlot] : []),
+  ];
+  const shelfTopY = bottomZoneItems.length
+    ? Math.min(...bottomZoneItems.map(s => s.y)) - 5
+    : displayHeight;
   const cableEntryMm = enclosure.cableEntryMm || 0;
   const cableEntryY = displayHeight - cableEntryMm;
 
@@ -221,7 +251,7 @@ function renderEnclosureLayout() {
   box.appendChild(plate);
 
   // BATTERY SHELF DIVIDER
-  if (batterySlot) {
+  if (bottomZoneItems.length) {
     const shelf = document.createElement('div');
     shelf.style.cssText = `
       position: absolute;
@@ -366,6 +396,19 @@ function createSlotElement(slot, enclosureData, scale, nameMap) {
         <strong>XFMR</strong>
         <small>AC Mains</small>
       </div>
+    `;
+    return el;
+  }
+
+  if (slot.size === 'psu-module' || slot.fixed === '8a-psu') {
+    el.className = 'psu-module-slot';
+    el.innerHTML = `
+      <div class="psu-traces"></div>
+      <div class="psu-label">
+        <strong>${slot.label || '8Amp PSU'}</strong>
+        <small>Integrated Power Supply</small>
+      </div>
+      <div class="psu-indicator"></div>
     `;
     return el;
   }
@@ -546,12 +589,68 @@ function showEnclosureSelector() {
       <small style="color: var(--ir-red); font-weight:600; margin-top:4px">$${enc.price.toFixed(0)}</small>
     `;
     btn.addEventListener('click', () => {
-      addEnclosureToProject(enc.id);
-      closeModal('modal-enclosure');
+      if (enc.orderingOptions && enc.orderingOptions.length > 0) {
+        closeModal('modal-enclosure');
+        showOrderingOptionsModal(enc);
+      } else {
+        addEnclosureToProject(enc.id);
+        closeModal('modal-enclosure');
+      }
     });
     list.appendChild(btn);
   });
   openModal('modal-enclosure');
+}
+
+function showOrderingOptionsModal(enclosure) {
+  let modal = document.getElementById('modal-ordering');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-ordering';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 560px">
+        <div class="modal-header">
+          <h3 id="ordering-title">Ordering Options</h3>
+          <button class="modal-close" onclick="closeModal('modal-ordering')">×</button>
+        </div>
+        <div class="modal-body" id="ordering-body"></div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  document.getElementById('ordering-title').textContent =
+    `${enclosure.description} — Ordering Options`;
+
+  const body = document.getElementById('ordering-body');
+  body.innerHTML = `
+    <p style="margin:0 0 12px; font-size:12px; color:var(--ir-gray)">
+      Select an ordering option (region-specific part codes will be used in BOM):
+    </p>
+    <div class="ordering-grid" id="ordering-grid"></div>
+  `;
+
+  const grid = document.getElementById('ordering-grid');
+  enclosure.orderingOptions.forEach(opt => {
+    const card = document.createElement('button');
+    card.className = 'ordering-card';
+    const psuDesc = opt.psuId
+      ? getPartById(opt.psuId)?.description || opt.psuNote || ''
+      : (opt.psuNote || 'No PSU included');
+    card.innerHTML = `
+      <div class="order-code">${opt.code}</div>
+      <div class="order-name">${opt.name}</div>
+      <div class="order-note">${psuDesc}</div>
+    `;
+    card.addEventListener('click', () => {
+      addEnclosureToProject(enclosure.id, opt.code);
+      closeModal('modal-ordering');
+    });
+    grid.appendChild(card);
+  });
+
+  openModal('modal-ordering');
 }
 
 function openModal(id) {
