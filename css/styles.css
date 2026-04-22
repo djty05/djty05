@@ -536,10 +536,11 @@ html, body {
   box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 1px rgba(0,0,0,0.3);
 }
 
-.pcb-slot .mount-holes span:nth-child(1) { top: 4px; left: 4px; }
-.pcb-slot .mount-holes span:nth-child(2) { top: 4px; right: 4px; }
-.pcb-slot .mount-holes span:nth-child(3) { bottom: 4px; left: 4px; }
-.pcb-slot .mount-holes span:nth-child(4) { bottom: 4px; right: 4px; }
+/* Mounting holes inset 5mm from edges per IR standoff-plate spec (5mm × 0.95 scale ≈ 5px) */
+.pcb-slot .mount-holes span:nth-child(1) { top: 5px; left: 5px; }
+.pcb-slot .mount-holes span:nth-child(2) { top: 5px; right: 5px; }
+.pcb-slot .mount-holes span:nth-child(3) { bottom: 5px; left: 5px; }
+.pcb-slot .mount-holes span:nth-child(4) { bottom: 5px; right: 5px; }
 
 /* Standoff hole dots in EMPTY slots (just where standoffs would be) */
 .pcb-slot .standoff-corners {
@@ -556,10 +557,10 @@ html, body {
   border-radius: 50%;
 }
 
-.pcb-slot .standoff-corners span:nth-child(1) { top: 4px; left: 4px; }
-.pcb-slot .standoff-corners span:nth-child(2) { top: 4px; right: 4px; }
-.pcb-slot .standoff-corners span:nth-child(3) { bottom: 4px; left: 4px; }
-.pcb-slot .standoff-corners span:nth-child(4) { bottom: 4px; right: 4px; }
+.pcb-slot .standoff-corners span:nth-child(1) { top: 5px; left: 5px; }
+.pcb-slot .standoff-corners span:nth-child(2) { top: 5px; right: 5px; }
+.pcb-slot .standoff-corners span:nth-child(3) { bottom: 5px; left: 5px; }
+.pcb-slot .standoff-corners span:nth-child(4) { bottom: 5px; right: 5px; }
 
 /* Designator label (ILAM 1, ISC 2, etc) — large, prominent */
 .pcb-slot .pcb-designator {
@@ -602,6 +603,7 @@ html, body {
 .pcb-slot.size-a .pcb-slot-label::before { content: 'A'; font-size: 14px; font-weight: 800; display: block; }
 .pcb-slot.size-b .pcb-slot-label::before { content: 'B'; font-size: 13px; font-weight: 800; display: block; }
 .pcb-slot.size-c .pcb-slot-label::before { content: 'C'; font-size: 11px; font-weight: 800; display: block; }
+.pcb-slot.size-c2 .pcb-slot-label::before { content: 'C × 2'; font-size: 11px; font-weight: 800; display: block; }
 
 /* BATTERY — black 12V battery with terminals */
 .battery-slot {
