@@ -1,9 +1,18 @@
-// Inner Range Parts Catalog with REAL Inner Range Enclosure Dimensions
-// XL Enclosure spec confirmed: 700mm Length x 358mm Width x 83mm Depth
-// Allow 20mm at bottom for mains cable entry
+// Inner Range Parts Catalog — dimensions verified against manufacturer DXFs
+// Mounting grid per IR standoff plate: 95mm horizontal × 84mm vertical hole
+// centres, 5mm edge inset. All module PCBs are 94mm tall.
+//
+// PCB sizes (from DXF KO-layer outlines):
+//   A  = 200×200 mm  — Integriti controller (IR-996001 ISC, IR-996035 IAC)
+//   B  = 200×94  mm  — ILAM, SLAM, UniBus Door Controller, 16-Zone UEM, LAM
+//   C  = 105×94  mm  — UniBus 8-Zone, 8-Aux, 4-Aux (I/P Analog) expanders
+//   Cs = 94×94   mm  — UniBus UART, 2A/3A Smart PSU
+//
+// Depth (all 12V boards): ~83mm enclosure depth available.
+// XL enclosure spec: 700 L × 358 W × 83 D, 20mm bottom mains cable entry.
 
 const PARTS_CATALOG = [
-  // ===== CONTROLLERS (PCB Size A - SQUARE 160x160mm) =====
+  // ===== CONTROLLERS (PCB Size A — 200×200mm) =====
   {
     id: 'IR-996001',
     category: 'Controllers',
@@ -43,7 +52,8 @@ const PARTS_CATALOG = [
     ],
   },
 
-  // ===== EXPANSION MODULES (PCB Size B - 160x80mm or 80x160mm) =====
+  // ===== EXPANSION MODULES (PCB Size B — 200×94mm, confirmed via DXFs
+  //       936012 ILAM/SLAM and 936535 UniBus Door Controller) =====
   {
     id: 'IR-996018',
     category: 'Expansion Modules',
@@ -66,8 +76,24 @@ const PARTS_CATALOG = [
     code: 'IR-996535',
     shortName: 'SLAM',
     manufacturer: 'Inner Range',
-    description: 'UniBus 2-Door/2-Reader Expander',
+    description: 'UniBus 2-Door/2-Reader Expander (SLAM)',
     price: 625,
+    wattage: 2.5,
+    pcbSize: 'B',
+    type: 'module',
+    terminals: [
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+      { name: 'UBUS+', type: 'serial' }, { name: 'UBUS-', type: 'serial' },
+    ],
+  },
+  {
+    id: 'IR-936535',
+    category: 'Expansion Modules',
+    code: '936535',
+    shortName: 'UDC',
+    manufacturer: 'Inner Range',
+    description: 'UniBus Door Controller',
+    price: 695,
     wattage: 2.5,
     pcbSize: 'B',
     type: 'module',
@@ -109,8 +135,92 @@ const PARTS_CATALOG = [
     ],
   },
 
-  // ===== POWER (PCB Size C - Full 105×94mm | Size C2 - Double 210×94mm) =====
-  // Mounting: 5mm offset from edges → hole centres at 95×84mm (per IR standoff plate spec)
+  // ===== UniBus EXPANDERS (PCB Size C — 105×94mm, confirmed via DXFs
+  //       936500 / 936510 / 936515) =====
+  {
+    id: 'IR-936500',
+    category: 'UniBus Expanders',
+    code: '936500',
+    shortName: 'U8Z',
+    manufacturer: 'Inner Range',
+    description: 'UniBus 8-Zone Expander',
+    price: 425,
+    wattage: 1.5,
+    pcbSize: 'C',
+    type: 'module',
+    terminals: [
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+      { name: 'UBUS+', type: 'serial' }, { name: 'UBUS-', type: 'serial' },
+    ],
+  },
+  {
+    id: 'IR-936515',
+    category: 'UniBus Expanders',
+    code: '936515',
+    shortName: 'U8A',
+    manufacturer: 'Inner Range',
+    description: 'UniBus 8-Aux Expander',
+    price: 395,
+    wattage: 1.5,
+    pcbSize: 'C',
+    type: 'module',
+    terminals: [
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+      { name: 'UBUS+', type: 'serial' }, { name: 'UBUS-', type: 'serial' },
+    ],
+  },
+  {
+    id: 'IR-936510',
+    category: 'UniBus Expanders',
+    code: '936510',
+    shortName: 'U4A',
+    manufacturer: 'Inner Range',
+    description: 'UniBus 4 I/P Analog Expander',
+    price: 445,
+    wattage: 1.5,
+    pcbSize: 'C',
+    type: 'module',
+    terminals: [
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+      { name: 'UBUS+', type: 'serial' }, { name: 'UBUS-', type: 'serial' },
+    ],
+  },
+
+  // ===== POWER / SMALL MODULES (PCB Size Cs — 94×94mm square, confirmed
+  //       via DXFs 936520 UART + 936550 2A/3A Smart PSU) =====
+  {
+    id: 'IR-936520',
+    category: 'UniBus Expanders',
+    code: '936520',
+    shortName: 'UART',
+    manufacturer: 'Inner Range',
+    description: 'UniBus UART',
+    price: 325,
+    wattage: 1,
+    pcbSize: 'Cs',
+    type: 'module',
+    terminals: [
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+      { name: 'UBUS+', type: 'serial' }, { name: 'UBUS-', type: 'serial' },
+    ],
+  },
+  {
+    id: 'IR-996090',
+    category: 'Power',
+    code: '936550-2A',
+    shortName: 'PSU2',
+    manufacturer: 'Inner Range',
+    description: 'Smart 2A PSU',
+    price: 325,
+    wattage: 0,
+    psuRating: 24,
+    pcbSize: 'Cs',
+    type: 'psu',
+    terminals: [
+      { name: 'AC-IN', type: 'power' }, { name: 'AC-N', type: 'power' },
+      { name: '+12V', type: 'power' }, { name: 'GND', type: 'power' },
+    ],
+  },
   {
     id: 'IR-996091',
     category: 'Power',
@@ -121,7 +231,7 @@ const PARTS_CATALOG = [
     price: 385,
     wattage: 0,
     psuRating: 36,
-    pcbSize: 'C',
+    pcbSize: 'Cs',
     type: 'psu',
     terminals: [
       { name: 'AC-IN', type: 'power' }, { name: 'AC-N', type: 'power' },
@@ -138,7 +248,7 @@ const PARTS_CATALOG = [
     price: 595,
     wattage: 0,
     psuRating: 96,
-    pcbSize: 'C2',
+    pcbSize: 'B',
     type: 'psu',
     terminals: [
       { name: 'AC-IN', type: 'power' }, { name: 'AC-N', type: 'power' },
@@ -259,18 +369,18 @@ const PARTS_CATALOG = [
   },
 
   // ============================================
-  // ENCLOSURES - REAL Inner Range Specifications
+  // ENCLOSURES — layouts built on real IR standoff-plate grid
   // ============================================
-  // XL CONFIRMED SPEC: 700mm length × 358mm width × 83mm depth
-  // PCB Sizes (real, per IR standoff plate spec):
-  //   A  = 160×160mm (controller)
-  //   B  = 160×80mm  (expansion module)
-  //   C  = 105×94mm  (UniBus "Full Size" — 8-Zone, 8-Aux, 4 I/P Analog, UART, LAN Bridge, 3A PSU)
-  //   C2 = 210×94mm  (UniBus "Double Size" — 8A PSU and larger modules)
-  //   Mounting-hole offset: 5mm from each edge → hole spacing 95×84mm
-  // Battery 9Ah: ~150×65mm | Battery 18Ah: ~180×80mm
-  // Transformer: ~80×80mm
-  // Bottom 20mm reserved for mains cable entry
+  // XL spec: 700mm length × 358mm width × 83mm depth
+  // PCB sizes (verified via DXF KO-layer outlines):
+  //   A  = 200×200 mm   (controller)
+  //   B  = 200×94  mm   (full-width expansion module; ILAM/SLAM/Door Ctl/PSU8)
+  //   C  = 105×94  mm   (UniBus expander — 8-Zone, 4-Aux, 8-Aux)
+  //   Cs = 94×94   mm   (UniBus square — UART, 2A/3A Smart PSU)
+  // Mounting grid: 95mm horizontal × 84mm vertical hole centres, 5mm edge inset.
+  // Battery 9Ah: ~150×65mm | Battery 18Ah: ~180×120mm
+  // Transformer: ~85×85mm (2/3A) or ~85×115mm (8A)
+  // Bottom 20mm reserved for mains cable entry on XL
   // ============================================
 
   {
@@ -284,66 +394,50 @@ const PARTS_CATALOG = [
     psuRating: 36,
     batteryCapacity: '9Ah',
     size: 'medium',
+    // MD3A is too short for Size A (needs 200mm of plate height); it holds
+    // a single row of 94-tall modules plus the 9Ah battery shelf.
     width_mm: 380,
     height_mm: 280,
     portrait_width_mm: 280,
     portrait_height_mm: 380,
-    standoffPlateInset: 8,  // mm inset from enclosure edge
+    standoffPlateInset: 8,
     type: 'enclosure',
     variants: [
       {
-        name: 'Vertical B + A',
-        // Landscape 380×280: standoff plate area 0-180, shelf 180-280
+        name: 'Single Size B',
+        // Land 380×280, shelf y=185: 1 full-width Size B row
         slots: [
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 80, h: 160 },
-          { id: 'A1', size: 'A', x: 105, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 275, y: 15, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 185, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 190, w: 155, h: 80, label: '9Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  90, y:  15, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 185, w:  85, h:  85, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 195, w: 155, h:  75, label: '9Ah Battery' },
         ],
+        // Port 280×380, shelf y=230
         portraitSlots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'B1', size: 'B', x: 185, y: 15, w: 80, h: 160 },
-          { id: 'B2', size: 'B', x: 15, y: 185, w: 160, h: 80 },
-          { id: 'C1', size: 'C', x: 175, y: 185, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 290, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 290, w: 155, h: 85, label: '9Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  40, y:  15, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x:  15, y: 120, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 125, y: 120, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 230, w:  85, h:  95, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 240, w: 155, h:  85, label: '9Ah Battery' },
         ],
       },
       {
-        name: 'Dense Modules',
+        name: 'Mixed Modules',
+        // Land 380×280, shelf y=185: 2 Size C + 1 Size Cs in one row
         slots: [
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 155, h: 80 },
-          { id: 'B2', size: 'B', x: 180, y: 15, w: 155, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 100, w: 155, h: 80 },
-          { id: 'B4', size: 'B', x: 180, y: 100, w: 155, h: 80 },
-          { id: 'PSU', size: 'C', x: 15, y: 185, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 190, w: 155, h: 80, label: '9Ah Battery' },
+          { id: 'C1',  size: 'C',  x:  15, y:  15, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 130, y:  15, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 250, y:  15, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 185, w:  85, h:  85, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 195, w: 155, h:  75, label: '9Ah Battery' },
         ],
+        // Port 280×380
         portraitSlots: [
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 250, h: 80 },
-          { id: 'B2', size: 'B', x: 15, y: 100, w: 250, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 185, w: 250, h: 80 },
-          { id: 'PSU', size: 'C', x: 15, y: 290, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 290, w: 155, h: 85, label: '9Ah Battery' },
-        ],
-      },
-      {
-        name: 'Controller + C',
-        // Landscape 380×280: A (160×160) + 1 Size C to the right; 1 Size C on left of A limited by width
-        slots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 185, y: 15, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 185, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 190, w: 155, h: 80, label: '9Ah Battery' },
-        ],
-        portraitSlots: [
-          // Portrait 280×380: A at top, C stacked on right, 1 C in mid-left
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 175, y: 185, w: 105, h: 94 },
-          { id: 'C2', size: 'C', x: 15, y: 185, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 290, w: 85, h: 85, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 290, w: 155, h: 85, label: '9Ah Battery' },
+          { id: 'C1',  size: 'C',  x:  15, y:  15, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 130, y:  15, w:  94, h:  94 },
+          { id: 'C2',  size: 'C',  x:  15, y: 120, w: 105, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 130, y: 120, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 230, w:  85, h:  95, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 240, w: 155, h:  85, label: '9Ah Battery' },
         ],
       },
     ],
@@ -359,6 +453,8 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'medium',
+    // 8A-capable medium enclosure — fits 1 Size A or 2 rows of 94-tall modules
+    // plus an 18Ah battery + 8A transformer on the bottom shelf.
     width_mm: 480,
     height_mm: 340,
     portrait_width_mm: 340,
@@ -367,44 +463,71 @@ const PARTS_CATALOG = [
     type: 'enclosure',
     variants: [
       {
-        name: 'Vertical B + A (18Ah)',
-        // Landscape 480×340, shelf y=215: B1 + A1 + A2 fills the top; no room for extra Size C
+        name: 'Controller + Modules',
+        // Land 480×340, shelf y=220: 1× Size A left, 2×2 grid of Size C on right
         slots: [
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 80, h: 160 },
-          { id: 'A1', size: 'A', x: 105, y: 15, w: 160, h: 160 },
-          { id: 'A2', size: 'A', x: 275, y: 15, w: 160, h: 160 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 120, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'C1',  size: 'C',  x: 225, y:  15, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 335, y:  15, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x: 225, y: 115, w: 105, h:  94 },
+          { id: 'C4',  size: 'C',  x: 335, y: 115, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 220, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 220, w: 250, h: 120, label: '18Ah Battery' },
         ],
+        // Port 340×480, shelf y=335: Size A at top, right column of Cs, Size B below A
         portraitSlots: [
-          // Portrait 340×480, shelf y=350
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'B1', size: 'B', x: 185, y: 15, w: 80, h: 160 },
-          { id: 'A2', size: 'A', x: 15, y: 185, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 185, y: 185, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 350, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 350, w: 180, h: 120, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'B1',  size: 'B',  x:  70, y: 225, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 335, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 335, w: 210, h: 120, label: '18Ah Battery' },
         ],
       },
       {
-        name: 'Dense Layout',
-        // Landscape 480×340, shelf y=215: A + C2 (PSU8) on row 1; 2×Size C on row 2
+        name: 'Dual Size B + PSU8',
+        // Land 480×340, shelf y=220: 2 rows of Size B. Suits 8A PSU (PSU8 is Size B).
         slots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'C2', size: 'C2', x: 185, y: 15, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 185, y: 115, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 300, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 120, label: '18Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  15, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  15, y: 115, w: 200, h:  94 },
+          { id: 'B4',  size: 'B',  x: 225, y: 115, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 220, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 220, w: 250, h: 120, label: '18Ah Battery' },
+        ],
+        // Port 340×480, shelf y=335: 3 stacked Size B + right column of Cs
+        portraitSlots: [
+          { id: 'B1',  size: 'B',  x:  70, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x:  70, y: 115, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  70, y: 215, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 335, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 335, w: 210, h: 120, label: '18Ah Battery' },
+        ],
+      },
+      {
+        name: 'Dense Modules',
+        // Land 480×340, shelf y=220: 2 rows with mix of B/C/Cs
+        slots: [
+          { id: 'B1',  size: 'B',  x:  15, y:  15, w: 200, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 225, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 329, y:  15, w:  94, h:  94 },
+          { id: 'C1',  size: 'C',  x:  15, y: 115, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 130, y: 115, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x: 245, y: 115, w: 105, h:  94 },
+          { id: 'Cs3', size: 'Cs', x: 360, y: 115, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 220, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 220, w: 250, h: 120, label: '18Ah Battery' },
         ],
         portraitSlots: [
-          // Portrait 340×480, shelf y=350: A + B top; A + Size C mid; C2 below A2
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'B1', size: 'B', x: 185, y: 15, w: 80, h: 160 },
-          { id: 'A2', size: 'A', x: 15, y: 185, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 185, y: 185, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 350, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 350, w: 180, h: 120, label: '18Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  70, y:  15, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x:  15, y: 115, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 125, y: 115, w:  94, h:  94 },
+          { id: 'C2',  size: 'C',  x: 225, y: 115, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x:  15, y: 215, w: 105, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 125, y: 215, w:  94, h:  94 },
+          { id: 'C4',  size: 'C',  x: 225, y: 215, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 335, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 335, w: 210, h: 120, label: '18Ah Battery' },
         ],
       },
     ],
@@ -428,27 +551,74 @@ const PARTS_CATALOG = [
     type: 'enclosure',
     variants: [
       {
-        name: 'Standard',
-        // Landscape 600×358, shelf y=220: 2×A + C2 (PSU8) on row 1, 2×Size C on row 2
+        name: 'Dual Controller',
+        // Land 600×358, shelf y=225: 2×Size A + stacked Cs on right
         slots: [
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'A2', size: 'A', x: 185, y: 15, w: 160, h: 160 },
-          { id: 'C2', size: 'C2', x: 355, y: 15, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 355, y: 115, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 470, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 220, w: 85, h: 125, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 220, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x: 225, y:  15, w: 200, h: 200 },
+          { id: 'C1',  size: 'C',  x: 435, y:  15, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 435, y: 115, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 225, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 225, w: 250, h: 120, label: '18Ah Battery' },
         ],
+        // Port 358×600, shelf y=475: 2 Size A stacked + right column of Cs
         portraitSlots: [
-          // Portrait 358×600, shelf y=470
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'A2', size: 'A', x: 185, y: 15, w: 160, h: 160 },
-          { id: 'A3', size: 'A', x: 15, y: 185, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 185, y: 185, w: 105, h: 94 },
-          { id: 'C2', size: 'C2', x: 15, y: 355, w: 210, h: 94 },
-          { id: 'C3', size: 'C', x: 230, y: 355, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 470, w: 85, h: 125, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 470, w: 225, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x:  15, y: 225, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'Cs3', size: 'Cs', x: 230, y: 225, w:  94, h:  94 },
+          { id: 'Cs4', size: 'Cs', x: 230, y: 325, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 475, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 475, w: 240, h: 120, label: '18Ah Battery' },
+        ],
+      },
+      {
+        name: 'Controller + Modules',
+        // Land 600×358, shelf y=225: 1 Size A + 2 rows of modules right
+        slots: [
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'B1',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x: 435, y:  15, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 225, y: 115, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x: 335, y: 115, w: 105, h:  94 },
+          { id: 'C4',  size: 'C',  x: 445, y: 115, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 225, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 225, w: 250, h: 120, label: '18Ah Battery' },
+        ],
+        // Port 358×600, shelf y=475
+        portraitSlots: [
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'B1',  size: 'B',  x:  70, y: 225, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x:  70, y: 325, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 475, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 475, w: 240, h: 120, label: '18Ah Battery' },
+        ],
+      },
+      {
+        name: 'Modules Only',
+        // Land 600×358, shelf y=225: 3 Size B + a row of C/Cs
+        slots: [
+          { id: 'B1',  size: 'B',  x:  15, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 435, y:  15, w:  94, h:  94 },
+          { id: 'B3',  size: 'B',  x:  15, y: 115, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x: 225, y: 115, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 335, y: 115, w: 105, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 445, y: 115, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 225, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 225, w: 250, h: 120, label: '18Ah Battery' },
+        ],
+        // Port 358×600, shelf y=475
+        portraitSlots: [
+          { id: 'B1',  size: 'B',  x:  70, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x:  70, y: 115, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  70, y: 215, w: 200, h:  94 },
+          { id: 'B4',  size: 'B',  x:  70, y: 315, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 475, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 475, w: 240, h: 120, label: '18Ah Battery' },
         ],
       },
     ],
@@ -456,7 +626,7 @@ const PARTS_CATALOG = [
   {
     id: 'ENC-XL8A',
     category: 'Enclosures',
-    code: 'IR-995203',  // Real Inner Range XL code per Document 635203
+    code: 'IR-995203',
     manufacturer: 'Inner Range',
     description: 'Xtra Large Enclosure (8A, 18Ah)',
     price: 1485,
@@ -464,17 +634,13 @@ const PARTS_CATALOG = [
     psuRating: 96,
     batteryCapacity: '18Ah',
     size: 'xlarge',
-    // CONFIRMED REAL SPEC per Document 635203:
-    // 700mm length × 358mm width × 83mm depth
-    // Battery 18Ah: 180×145mm | Battery 17Ah: 180×145mm
-    // Bottom 20mm reserved for mains cable entry
+    // 700×358×83mm per Doc 635203. 20mm bottom mains cable entry.
     width_mm: 700,
     height_mm: 358,
     portrait_width_mm: 358,
     portrait_height_mm: 700,
     standoffPlateInset: 8,
     cableEntryMm: 20,
-    // Ordering options per Inner Range spec sheet (AU/NZ, UK/EU, ME, US/CA)
     orderingOptions: [
       { code: '995203',    name: 'Enclosure Only',       psuId: null },
       { code: '995203PE2', name: '+ 2A Transformer',     psuId: null, psuNote: '2A Transformer' },
@@ -482,187 +648,129 @@ const PARTS_CATALOG = [
       { code: '995203PE8', name: '+ SMART 8A PSU',       psuId: 'IR-996092' },
     ],
     type: 'enclosure',
-    // Layout variants per Document Part No: 635203 (mounting position options)
     variants: [
       {
-        // Ref: "Integriti Size A mounting positions (1 req'd)"
-        name: '1× Size A',
-        // Landscape 700×358, shelf y=215: C2(PSU8) + A + 2 Size C on row 1
+        name: '1× Size A + Modules',
+        // Land 700×358, shelf y=215
         slots: [
-          { id: 'C2', size: 'C2', x: 30, y: 15, w: 210, h: 94 },
-          { id: 'A1', size: 'A', x: 270, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 445, y: 15, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 560, y: 15, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 445, y: 115, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 560, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'B1',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x: 435, y:  15, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 545, y:  15, w:  94, h:  94 },
+          { id: 'C2',  size: 'C',  x: 225, y: 115, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x: 335, y: 115, w: 105, h:  94 },
+          { id: 'C4',  size: 'C',  x: 445, y: 115, w: 105, h:  94 },
+          { id: 'C5',  size: 'C',  x: 555, y: 115, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 215, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 250, h: 125, label: '18Ah Battery' },
         ],
+        // Port 358×700, shelf y=535 (usable top 0-530)
         portraitSlots: [
-          // Portrait 358×700, shelf y=545
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 185, y: 15, w: 105, h: 94 },
-          { id: 'C2', size: 'C2', x: 15, y: 185, w: 210, h: 94 },
-          { id: 'C3', size: 'C', x: 235, y: 185, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 15, y: 285, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 130, y: 285, w: 105, h: 94 },
-          { id: 'C6', size: 'C', x: 245, y: 285, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 545, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 225, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'B1',  size: 'B',  x:  70, y: 225, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x:  70, y: 325, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  70, y: 425, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 540, w:  85, h: 125, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 540, w: 240, h: 125, label: '18Ah Battery' },
         ],
       },
       {
-        // Ref: "Concept Size A mounting positions (2 req'd, Mini Expandar, Analogue Module)"
-        name: '2× Size A',
-        // Landscape 700×358, shelf y=215
+        name: '2× Size A + Modules',
+        // Land 700×358, shelf y=215
         slots: [
-          { id: 'C2', size: 'C2', x: 15, y: 15, w: 210, h: 94 },
-          { id: 'C4', size: 'C', x: 15, y: 115, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 130, y: 115, w: 105, h: 94 },
-          { id: 'A1', size: 'A', x: 250, y: 15, w: 160, h: 160 },
-          { id: 'A2', size: 'A', x: 420, y: 15, w: 160, h: 160 },
-          { id: 'C1', size: 'C', x: 590, y: 15, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 590, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x: 225, y:  15, w: 200, h: 200 },
+          { id: 'C1',  size: 'C',  x: 435, y:  15, w: 105, h:  94 },
+          { id: 'C2',  size: 'C',  x: 545, y:  15, w: 105, h:  94 },
+          { id: 'C3',  size: 'C',  x: 435, y: 115, w: 105, h:  94 },
+          { id: 'C4',  size: 'C',  x: 545, y: 115, w: 105, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 215, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 250, h: 125, label: '18Ah Battery' },
         ],
+        // Port 358×700 — 2 A stacked + right Cs column + Size B at bottom
         portraitSlots: [
-          // Portrait 358×700, shelf y=545
-          { id: 'A1', size: 'A', x: 15, y: 15, w: 160, h: 160 },
-          { id: 'A2', size: 'A', x: 185, y: 15, w: 160, h: 160 },
-          { id: 'C2', size: 'C2', x: 15, y: 185, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 235, y: 185, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 15, y: 285, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 130, y: 285, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 245, y: 285, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 545, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 225, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x:  15, y: 225, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'Cs3', size: 'Cs', x: 230, y: 225, w:  94, h:  94 },
+          { id: 'Cs4', size: 'Cs', x: 230, y: 325, w:  94, h:  94 },
+          { id: 'B1',  size: 'B',  x:  70, y: 435, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 540, w:  85, h: 125, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 540, w: 240, h: 125, label: '18Ah Battery' },
         ],
       },
       {
-        // Ref: "Concept Size B mounting positions (3 qty)"
-        name: '3× Size B',
-        // Landscape 700×358, shelf y=215
+        name: '3× Size A',
+        // Land 700×358, shelf y=215: max capacity — 3 controllers side-by-side
         slots: [
-          { id: 'B1', size: 'B', x: 30, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 30, y: 105, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 205, y: 15, w: 160, h: 80 },
-          { id: 'C2', size: 'C2', x: 380, y: 15, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 380, y: 115, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 495, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x: 225, y:  15, w: 200, h: 200 },
+          { id: 'A3',  size: 'A',  x: 435, y:  15, w: 200, h: 200 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 215, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 250, h: 125, label: '18Ah Battery' },
         ],
+        // Port: 2 A stacked + modules (3rd A doesn't fit with battery shelf)
         portraitSlots: [
-          // Portrait 358×700
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 185, y: 15, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 105, w: 160, h: 80 },
-          { id: 'C2', size: 'C2', x: 15, y: 195, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 235, y: 195, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 15, y: 295, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 130, y: 295, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 245, y: 295, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 545, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 225, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'A2',  size: 'A',  x:  15, y: 225, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'Cs3', size: 'Cs', x: 230, y: 225, w:  94, h:  94 },
+          { id: 'Cs4', size: 'Cs', x: 230, y: 325, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 540, w:  85, h: 125, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 540, w: 240, h: 125, label: '18Ah Battery' },
         ],
       },
       {
-        // Ref: "Concept Size B mounting positions (4 qty)"
-        name: '4× Size B',
-        // Landscape 700×358, shelf y=215
+        name: 'PSU8 + Controller + Modules',
+        // Land 700×358, shelf y=215. Size B row includes slot for 8A PSU (also Size B).
         slots: [
-          { id: 'B1', size: 'B', x: 30, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 30, y: 105, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 205, y: 15, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 205, y: 105, w: 160, h: 80 },
-          { id: 'C2', size: 'C2', x: 380, y: 15, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 380, y: 115, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 495, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'B1',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },  // ← PSU8 auto-lands here
+          { id: 'C1',  size: 'C',  x: 435, y:  15, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 545, y:  15, w:  94, h:  94 },
+          { id: 'B2',  size: 'B',  x: 225, y: 115, w: 200, h:  94 },
+          { id: 'C2',  size: 'C',  x: 435, y: 115, w: 105, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 545, y: 115, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 215, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 250, h: 125, label: '18Ah Battery' },
         ],
         portraitSlots: [
-          // Portrait 358×700
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 185, y: 15, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 105, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 185, y: 105, w: 160, h: 80 },
-          { id: 'C2', size: 'C2', x: 15, y: 195, w: 210, h: 94 },
-          { id: 'C1', size: 'C', x: 235, y: 195, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 15, y: 295, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 130, y: 295, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 245, y: 295, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 545, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 225, h: 125, label: '18Ah Battery' },
+          { id: 'A1',  size: 'A',  x:  15, y:  15, w: 200, h: 200 },
+          { id: 'Cs1', size: 'Cs', x: 230, y:  15, w:  94, h:  94 },
+          { id: 'Cs2', size: 'Cs', x: 230, y: 115, w:  94, h:  94 },
+          { id: 'B1',  size: 'B',  x:  70, y: 225, w: 200, h:  94 },   // ← PSU8 auto-lands here
+          { id: 'B2',  size: 'B',  x:  70, y: 325, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  70, y: 425, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 540, w:  85, h: 125, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 540, w: 240, h: 125, label: '18Ah Battery' },
         ],
       },
       {
-        // Ref: "Concept Size B mounting positions (5 qty)"
-        name: '5× Size B',
-        // Landscape 700×358, shelf y=215
+        name: 'Modules Only',
+        // Land 700×358, shelf y=215: 3 Size B on row 1, more modules on row 2
         slots: [
-          { id: 'B1', size: 'B', x: 30, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 30, y: 105, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 205, y: 15, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 205, y: 105, w: 160, h: 80 },
-          { id: 'B5', size: 'B', x: 380, y: 15, w: 160, h: 80 },
-          { id: 'C3', size: 'C', x: 555, y: 15, w: 105, h: 94 },
-          { id: 'C1', size: 'C', x: 380, y: 115, w: 105, h: 94 },
-          { id: 'C2', size: 'C', x: 495, y: 115, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 215, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 180, h: 125, label: '18Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  15, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x: 225, y:  15, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x: 435, y:  15, w: 200, h:  94 },
+          { id: 'B4',  size: 'B',  x:  15, y: 115, w: 200, h:  94 },
+          { id: 'B5',  size: 'B',  x: 225, y: 115, w: 200, h:  94 },
+          { id: 'C1',  size: 'C',  x: 435, y: 115, w: 105, h:  94 },
+          { id: 'Cs1', size: 'Cs', x: 545, y: 115, w:  94, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 215, w:  85, h: 115, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 215, w: 250, h: 125, label: '18Ah Battery' },
         ],
         portraitSlots: [
-          // Portrait 358×700
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 160, h: 80 },
-          { id: 'B2', size: 'B', x: 185, y: 15, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 15, y: 105, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 185, y: 105, w: 160, h: 80 },
-          { id: 'B5', size: 'B', x: 15, y: 195, w: 160, h: 80 },
-          { id: 'C1', size: 'C', x: 185, y: 195, w: 105, h: 94 },
-          { id: 'C2', size: 'C2', x: 15, y: 295, w: 210, h: 94 },
-          { id: 'C3', size: 'C', x: 235, y: 295, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 15, y: 395, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 130, y: 395, w: 105, h: 94 },
-          { id: 'C6', size: 'C', x: 245, y: 395, w: 105, h: 94 },
-          { id: 'PSU', size: 'C', x: 15, y: 545, w: 85, h: 115, fixed: 'transformer' },
-          { id: 'BAT', size: 'battery', x: 110, y: 545, w: 225, h: 125, label: '18Ah Battery' },
-        ],
-      },
-      {
-        // Ref: "Full System with 8A PSU and dual batteries" (Example 2 from earlier ref)
-        name: 'Full System (8A PSU)',
-        // Landscape 700×358, shelf y=210 (psu-module integrated)
-        slots: [
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 80, h: 160 },
-          { id: 'B2', size: 'B', x: 105, y: 15, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 105, y: 105, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 275, y: 15, w: 160, h: 80 },
-          { id: 'B5', size: 'B', x: 275, y: 105, w: 160, h: 80 },
-          { id: 'C1', size: 'C', x: 445, y: 15, w: 105, h: 94 },
-          { id: 'C2', size: 'C', x: 560, y: 15, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 445, y: 115, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 560, y: 115, w: 105, h: 94 },
-          { id: 'PSU8', size: 'psu-module', x: 200, y: 215, w: 280, h: 75, fixed: '8a-psu', label: '8Amp PSU' },
-          { id: 'BAT1', size: 'battery', x: 15, y: 230, w: 155, h: 100, label: '9Ah Battery' },
-          { id: 'BAT2', size: 'battery', x: 500, y: 215, w: 180, h: 125, label: '18Ah Battery' },
-        ],
-        portraitSlots: [
-          // Portrait 358×700
-          { id: 'B1', size: 'B', x: 15, y: 15, w: 80, h: 160 },
-          { id: 'B2', size: 'B', x: 105, y: 15, w: 160, h: 80 },
-          { id: 'B3', size: 'B', x: 105, y: 105, w: 160, h: 80 },
-          { id: 'B4', size: 'B', x: 275, y: 15, w: 80, h: 160 },
-          { id: 'C1', size: 'C', x: 15, y: 185, w: 105, h: 94 },
-          { id: 'C2', size: 'C', x: 130, y: 185, w: 105, h: 94 },
-          { id: 'C3', size: 'C', x: 245, y: 185, w: 105, h: 94 },
-          { id: 'C4', size: 'C', x: 15, y: 285, w: 105, h: 94 },
-          { id: 'C5', size: 'C', x: 130, y: 285, w: 105, h: 94 },
-          { id: 'C6', size: 'C', x: 245, y: 285, w: 105, h: 94 },
-          { id: 'PSU8', size: 'psu-module', x: 30, y: 400, w: 290, h: 75, fixed: '8a-psu', label: '8Amp PSU' },
-          { id: 'BAT1', size: 'battery', x: 15, y: 500, w: 155, h: 100, label: '9Ah Battery' },
-          { id: 'BAT2', size: 'battery', x: 180, y: 500, w: 145, h: 145, label: '18Ah Battery' },
+          { id: 'B1',  size: 'B',  x:  70, y:  15, w: 200, h:  94 },
+          { id: 'B2',  size: 'B',  x:  70, y: 115, w: 200, h:  94 },
+          { id: 'B3',  size: 'B',  x:  70, y: 215, w: 200, h:  94 },
+          { id: 'B4',  size: 'B',  x:  70, y: 315, w: 200, h:  94 },
+          { id: 'B5',  size: 'B',  x:  70, y: 415, w: 200, h:  94 },
+          { id: 'PSU', size: 'Cs', x:  15, y: 540, w:  85, h: 125, fixed: 'transformer' },
+          { id: 'BAT', size: 'battery', x: 110, y: 540, w: 240, h: 125, label: '18Ah Battery' },
         ],
       },
     ],
