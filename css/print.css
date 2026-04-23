@@ -1,0 +1,76 @@
+/* ============================================================
+   Print / PDF stylesheet - A3 Landscape
+   ============================================================ */
+
+@page {
+  size: A3 landscape;
+  margin: 8mm;
+}
+
+@media print {
+
+  html, body {
+    background: #fff !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Hide everything except the canvas area */
+  .app-header,
+  .palette,
+  .sidebar,
+  .canvas-toolbar,
+  .page-views,
+  #toast {
+    display: none !important;
+  }
+
+  .app-main {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .canvas-area {
+    background: #fff !important;
+    overflow: visible !important;
+  }
+
+  .canvas-wrap {
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    display: block !important;
+  }
+
+  /* Print all pages - each page-panel becomes a printed A3 sheet.
+     Only the active page normally shows; but we'll let the user
+     explicitly select which page they want to print.
+     Adding .print-all on body prints all. */
+  .page-panel { display: block !important; page-break-after: always; }
+  .page-panel:last-child { page-break-after: auto; }
+
+  .a3-page {
+    width: 100% !important;
+    height: 100vh !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure SVG scales cleanly */
+  #svg-canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Tables should repeat headers across pages */
+  .doc-table thead { display: table-header-group; }
+
+  /* Hide form inputs in titleblock preview page - show values */
+  .titleblock-form { display: none !important; }
+}
+
+/* Print only the active panel by default */
+@media print {
+  body.print-active .page-panel:not(.active) { display: none !important; }
+}
