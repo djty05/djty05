@@ -242,6 +242,197 @@ function initializeDb(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS tenders (
+      id TEXT PRIMARY KEY,
+      tender_number TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      client_id TEXT REFERENCES clients(id),
+      status TEXT DEFAULT 'identified',
+      stage TEXT DEFAULT 'prospect',
+      priority TEXT DEFAULT 'medium',
+      tender_type TEXT DEFAULT 'competitive',
+      source TEXT,
+      estimated_value REAL DEFAULT 0,
+      submitted_value REAL DEFAULT 0,
+      margin_percent REAL DEFAULT 0,
+      issue_date TEXT,
+      site_visit_date TEXT,
+      submission_deadline TEXT,
+      decision_date TEXT,
+      awarded_date TEXT,
+      lost_reason TEXT,
+      contact_name TEXT,
+      contact_email TEXT,
+      contact_phone TEXT,
+      site_address TEXT,
+      site_city TEXT,
+      site_state TEXT,
+      site_zip TEXT,
+      scope_of_work TEXT,
+      notes TEXT,
+      assigned_to TEXT REFERENCES users(id),
+      created_by TEXT REFERENCES users(id),
+      job_id TEXT REFERENCES jobs(id),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS tender_items (
+      id TEXT PRIMARY KEY,
+      tender_id TEXT REFERENCES tenders(id) ON DELETE CASCADE,
+      description TEXT NOT NULL,
+      category TEXT DEFAULT 'general',
+      quantity REAL DEFAULT 1,
+      unit TEXT DEFAULT 'each',
+      unit_cost REAL DEFAULT 0,
+      markup_percent REAL DEFAULT 20,
+      total REAL DEFAULT 0,
+      notes TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS tender_checklist (
+      id TEXT PRIMARY KEY,
+      tender_id TEXT REFERENCES tenders(id) ON DELETE CASCADE,
+      item TEXT NOT NULL,
+      is_complete INTEGER DEFAULT 0,
+      completed_by TEXT REFERENCES users(id),
+      completed_at TEXT,
+      due_date TEXT,
+      sort_order INTEGER DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS tender_documents (
+      id TEXT PRIMARY KEY,
+      tender_id TEXT REFERENCES tenders(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      file_type TEXT,
+      category TEXT DEFAULT 'general',
+      notes TEXT,
+      uploaded_by TEXT REFERENCES users(id),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS follow_ups (
+      id TEXT PRIMARY KEY,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      due_date TEXT NOT NULL,
+      completed_date TEXT,
+      status TEXT DEFAULT 'pending',
+      priority TEXT DEFAULT 'medium',
+      assigned_to TEXT REFERENCES users(id),
+      created_by TEXT REFERENCES users(id),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS automation_rules (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      trigger_type TEXT NOT NULL,
+      trigger_config TEXT NOT NULL DEFAULT '{}',
+      action_type TEXT NOT NULL,
+      action_config TEXT NOT NULL DEFAULT '{}',
+      is_active INTEGER DEFAULT 1,
+      last_run TEXT,
+      run_count INTEGER DEFAULT 0,
+      created_by TEXT REFERENCES users(id),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS automation_log (
+      id TEXT PRIMARY KEY,
+      rule_id TEXT REFERENCES automation_rules(id),
+      trigger_type TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      details TEXT,
+      status TEXT DEFAULT 'success',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS alerts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      title TEXT NOT NULL,
+      message TEXT,
+      type TEXT DEFAULT 'info',
+      entity_type TEXT,
+      entity_id TEXT,
+      is_read INTEGER DEFAULT 0,
+      action_url TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Seed demo automation rules
+    INSERT OR IGNORE INTO automation_rules (id, name, description, trigger_type, trigger_config, action_type, action_config, is_active, created_by) VALUES
+      ('auto_1', 'Tender Deadline Warning (7 days)', 'Alert when tender submission is due within 7 days', 'tender_deadline_approaching', '{"days_before": 7}', 'create_alert', '{"type": "warning", "message": "Tender submission due in 7 days"}', 1, 'usr_1'),
+      ('auto_2', 'Tender Deadline Urgent (2 days)', 'Urgent alert when tender submission is due within 2 days', 'tender_deadline_approaching', '{"days_before": 2}', 'create_alert', '{"type": "urgent", "message": "URGENT: Tender submission due in 2 days"}', 1, 'usr_1'),
+      ('auto_3', 'Quote Follow-up (3 days)', 'Create follow-up when quote has been sent for 3+ days with no response', 'quote_no_response', '{"days_after_sent": 3}', 'create_follow_up', '{"title": "Follow up on sent quote", "priority": "high"}', 1, 'usr_1'),
+      ('auto_4', 'Invoice Overdue Alert', 'Alert when invoice passes due date', 'invoice_overdue', '{}', 'create_alert', '{"type": "warning", "message": "Invoice is overdue"}', 1, 'usr_1'),
+      ('auto_5', 'Tender Checklist Incomplete', 'Alert if tender checklist has incomplete items within 3 days of deadline', 'tender_checklist_incomplete', '{"days_before": 3}', 'create_alert', '{"type": "urgent", "message": "Tender has incomplete checklist items"}', 1, 'usr_1'),
+      ('auto_6', 'Site Visit Reminder', 'Remind assigned user about upcoming site visit', 'site_visit_approaching', '{"days_before": 1}', 'create_alert', '{"type": "info", "message": "Site visit tomorrow"}', 1, 'usr_1'),
+      ('auto_7', 'Job Completion Follow-up', 'Create follow-up to check client satisfaction after job completion', 'job_completed', '{"days_after": 3}', 'create_follow_up', '{"title": "Client satisfaction check", "priority": "medium"}', 1, 'usr_1'),
+      ('auto_8', 'Tender Won - Create Job', 'Prompt to create a job when tender is marked as won', 'tender_won', '{}', 'create_alert', '{"type": "success", "message": "Tender won! Create a job to begin work."}', 1, 'usr_1');
+
+    -- Seed demo tenders
+    INSERT OR IGNORE INTO tenders (id, tender_number, title, description, client_id, status, stage, priority, tender_type, estimated_value, submission_deadline, site_visit_date, scope_of_work, assigned_to, created_by, contact_name, contact_email, site_address, site_city, site_state) VALUES
+      ('tnd_1', 'TND-001', 'Warehouse LED Lighting Retrofit', 'Full LED retrofit for 50,000 sqft warehouse including emergency lighting', 'cli_1', 'in_progress', 'bid_preparation', 'high', 'competitive', 125000, '2026-05-10', '2026-04-30', 'Supply and install LED high-bay lighting throughout warehouse. Replace existing HID fixtures. Include emergency lighting to AS2293. New switchboard and sub-boards as required.', 'usr_3', 'usr_1', 'John Smith', 'john@acme.com', '200 Industrial Ave', 'Austin', 'TX'),
+      ('tnd_2', 'TND-002', 'Shopping Centre Electrical Upgrade', 'Main switchboard upgrade and power factor correction for Sunrise Mall', 'cli_2', 'submitted', 'submitted', 'high', 'competitive', 280000, '2026-04-25', '2026-04-15', 'Upgrade main switchboard from 1000A to 2000A. Install power factor correction unit. New submains to tenancies. After-hours work required.', 'usr_5', 'usr_2', 'Lisa Park', 'lisa@sunrise.com', '456 Oak Ave', 'Houston', 'TX'),
+      ('tnd_3', 'TND-003', 'Office Fitout Level 12', 'Complete electrical fitout for new office space', 'cli_3', 'identified', 'prospect', 'medium', 'invited', 85000, '2026-05-20', NULL, 'New electrical fitout including lighting, power, data, fire detection, and emergency systems. Design and construct.', 'usr_3', 'usr_1', 'Robert Davis', 'robert@metro.com', '789 Pine Rd', 'Dallas', 'TX'),
+      ('tnd_4', 'TND-004', 'Solar Panel Installation - Greenfield Estate', 'Supply and install 200kW solar system across 15 homes', 'cli_4', 'won', 'awarded', 'medium', 'negotiated', 350000, '2026-03-15', '2026-03-10', 'Design, supply and install 13.3kW solar systems on 15 residential properties. Include battery storage. Grid connection applications.', 'usr_5', 'usr_2', 'Amy Wright', 'amy@greenfield.com', '15 Meadow Ln', 'San Antonio', 'TX'),
+      ('tnd_5', 'TND-005', 'Hospital Emergency Power', 'Standby generator and automatic transfer system', 'cli_1', 'lost', 'closed', 'urgent', 'competitive', 195000, '2026-03-01', '2026-02-20', 'Supply and install 500kVA diesel generator with automatic transfer switch. Essential and non-essential load circuits. Weekly test system.', 'usr_3', 'usr_1', 'John Smith', 'john@acme.com', '300 Medical Dr', 'Austin', 'TX');
+
+    -- Seed tender checklist items
+    INSERT OR IGNORE INTO tender_checklist (id, tender_id, item, is_complete, sort_order, due_date) VALUES
+      ('chk_1', 'tnd_1', 'Review tender documents and specifications', 1, 1, '2026-04-25'),
+      ('chk_2', 'tnd_1', 'Complete site visit and measurements', 0, 2, '2026-04-30'),
+      ('chk_3', 'tnd_1', 'Request supplier quotes for LED fixtures', 1, 3, '2026-04-28'),
+      ('chk_4', 'tnd_1', 'Request supplier quotes for switchboard', 0, 4, '2026-04-28'),
+      ('chk_5', 'tnd_1', 'Calculate cable runs and quantities', 0, 5, '2026-05-02'),
+      ('chk_6', 'tnd_1', 'Prepare labour estimate', 0, 6, '2026-05-05'),
+      ('chk_7', 'tnd_1', 'Complete pricing schedule', 0, 7, '2026-05-07'),
+      ('chk_8', 'tnd_1', 'Management review and sign-off', 0, 8, '2026-05-08'),
+      ('chk_9', 'tnd_1', 'Submit tender', 0, 9, '2026-05-10'),
+      ('chk_10', 'tnd_2', 'Review tender documents', 1, 1, '2026-04-18'),
+      ('chk_11', 'tnd_2', 'Site visit completed', 1, 2, '2026-04-15'),
+      ('chk_12', 'tnd_2', 'Supplier quotes received', 1, 3, '2026-04-20'),
+      ('chk_13', 'tnd_2', 'Pricing complete', 1, 4, '2026-04-22'),
+      ('chk_14', 'tnd_2', 'Submit tender', 1, 5, '2026-04-25');
+
+    -- Seed tender items (pricing)
+    INSERT OR IGNORE INTO tender_items (id, tender_id, description, category, quantity, unit, unit_cost, markup_percent, total, sort_order) VALUES
+      ('ti_1', 'tnd_1', '200W LED High Bay Fixture', 'materials', 120, 'each', 285, 20, 41040, 1),
+      ('ti_2', 'tnd_1', 'Emergency LED Batten', 'materials', 45, 'each', 180, 20, 9720, 2),
+      ('ti_3', 'tnd_1', 'Distribution Board 24-way', 'materials', 4, 'each', 1200, 20, 5760, 3),
+      ('ti_4', 'tnd_1', 'Cable and Containment', 'materials', 1, 'lot', 18000, 15, 20700, 4),
+      ('ti_5', 'tnd_1', 'Electrician Labour', 'labour', 480, 'hours', 75, 0, 36000, 5),
+      ('ti_6', 'tnd_1', 'Apprentice Labour', 'labour', 480, 'hours', 35, 0, 16800, 6),
+      ('ti_7', 'tnd_1', 'Project Management', 'overhead', 1, 'lot', 8500, 0, 8500, 7),
+      ('ti_8', 'tnd_1', 'EWP Hire (2 weeks)', 'equipment', 2, 'weeks', 1800, 10, 3960, 8);
+
+    -- Seed follow-ups
+    INSERT OR IGNORE INTO follow_ups (id, entity_type, entity_id, title, description, due_date, status, priority, assigned_to, created_by) VALUES
+      ('fu_1', 'tender', 'tnd_2', 'Follow up on Shopping Centre tender', 'Check with Lisa Park on tender decision timeline', '2026-04-28', 'pending', 'high', 'usr_2', 'usr_1'),
+      ('fu_2', 'tender', 'tnd_3', 'Confirm interest in Office Fitout', 'Call Robert Davis to confirm we will tender', '2026-04-29', 'pending', 'medium', 'usr_1', 'usr_1'),
+      ('fu_3', 'quote', 'quo_3', 'Follow up on Electrical Upgrade quote', 'Quote sent 5 days ago - no response yet', '2026-04-28', 'pending', 'high', 'usr_1', 'usr_1'),
+      ('fu_4', 'invoice', 'inv_3', 'Chase overdue payment', 'Plumbing Remodel invoice is overdue', '2026-04-27', 'pending', 'urgent', 'usr_2', 'usr_1');
+
+    -- Seed alerts
+    INSERT OR IGNORE INTO alerts (id, user_id, title, message, type, entity_type, entity_id, is_read, action_url) VALUES
+      ('alrt_1', 'usr_1', 'Tender TND-001 deadline in 12 days', 'Warehouse LED Lighting Retrofit submission due May 10', 'warning', 'tender', 'tnd_1', 0, '/tenders/tnd_1'),
+      ('alrt_2', 'usr_2', 'Tender TND-002 awaiting decision', 'Shopping Centre Electrical Upgrade was submitted - follow up needed', 'info', 'tender', 'tnd_2', 0, '/tenders/tnd_2'),
+      ('alrt_3', 'usr_1', 'Invoice INV-003 is overdue', 'Plumbing Remodel deposit invoice is past due date', 'warning', 'invoice', 'inv_3', 0, '/invoices/inv_3'),
+      ('alrt_4', 'usr_1', 'Quote QUO-003 sent 5 days ago', 'No response on Electrical Upgrade Quote - follow up recommended', 'info', 'quote', 'quo_3', 0, '/quotes/quo_3'),
+      ('alrt_5', 'usr_3', 'Site visit tomorrow - TND-001', 'Warehouse LED Lighting Retrofit site visit scheduled for April 30', 'info', 'tender', 'tnd_1', 0, '/tenders/tnd_1'),
+      ('alrt_6', 'usr_1', 'Tender TND-001: 5 checklist items incomplete', 'Checklist items need completion before submission deadline', 'urgent', 'tender', 'tnd_1', 0, '/tenders/tnd_1');
+
     -- Seed demo data if empty
     INSERT OR IGNORE INTO users (id, email, name, role, phone, password_hash) VALUES
       ('usr_1', 'admin@fieldpro.com', 'Alex Johnson', 'admin', '555-0100', 'demo'),

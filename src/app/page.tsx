@@ -55,6 +55,30 @@ interface RevenueData {
   change?: string;
 }
 
+interface Tender {
+  id: string;
+  tender_number: string;
+  title: string;
+  client_name?: string;
+  stage: string;
+  status: string;
+  priority: string;
+  estimated_value: number;
+  submission_deadline: string;
+}
+
+interface Alert {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  entity_type: string;
+  entity_id: string;
+  action_url: string;
+  is_read: number;
+  created_at: string;
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -128,30 +152,36 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [revenueRes, jobsRes, tasksRes, schedulesRes, invoicesRes] =
+        const [revenueRes, jobsRes, tasksRes, schedulesRes, invoicesRes, tendersRes, alertsRes] =
           await Promise.all([
             fetch("/api/reports?type=revenue"),
             fetch("/api/jobs"),
             fetch("/api/tasks"),
             fetch("/api/schedules"),
             fetch("/api/invoices"),
+            fetch("/api/tenders"),
+            fetch("/api/alerts?is_read=0"),
           ]);
 
         if (!revenueRes.ok || !jobsRes.ok || !tasksRes.ok || !schedulesRes.ok || !invoicesRes.ok) {
           throw new Error("Failed to fetch dashboard data");
         }
 
-        const [revenueData, jobsData, tasksData, schedulesData, invoicesData] =
+        const [revenueData, jobsData, tasksData, schedulesData, invoicesData, tendersData, alertsData] =
           await Promise.all([
             revenueRes.json(),
             jobsRes.json(),
             tasksRes.json(),
             schedulesRes.json(),
             invoicesRes.json(),
+            tendersRes.ok ? tendersRes.json() : [],
+            alertsRes.ok ? alertsRes.json() : [],
           ]);
 
         setRevenue(revenueData);
@@ -163,6 +193,8 @@ export default function DashboardPage() {
         setInvoices(
           Array.isArray(invoicesData) ? invoicesData : invoicesData.data ?? []
         );
+        setTenders(Array.isArray(tendersData) ? tendersData : []);
+        setAlerts(Array.isArray(alertsData) ? alertsData : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
@@ -291,6 +323,111 @@ export default function DashboardPage() {
             changeType={tasksDueToday.length > 0 ? "negative" : "positive"}
           />
         </div>
+      )}
+
+      {/* Alerts Banner */}
+      {!loading && alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.filter(a => a.type === "urgent").slice(0, 3).map((alert) => (
+            <div
+              key={alert.id}
+              onClick={() => alert.action_url && router.push(alert.action_url)}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 transition-colors hover:bg-red-100"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">{alert.title}</p>
+                <p className="text-xs text-red-600">{alert.message}</p>
+              </div>
+            </div>
+          ))}
+          {alerts.filter(a => a.type === "warning").slice(0, 2).map((alert) => (
+            <div
+              key={alert.id}
+              onClick={() => alert.action_url && router.push(alert.action_url)}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 transition-colors hover:bg-amber-100"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-800">{alert.title}</p>
+                <p className="text-xs text-amber-600">{alert.message}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tender Pipeline */}
+      {!loading && tenders.length > 0 && (
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Tender Pipeline</h2>
+            <button onClick={() => router.push("/tenders")} className="text-sm font-medium text-blue-600 hover:text-blue-700">
+              View All &rarr;
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {[
+              { stage: "prospect", label: "Prospect", color: "bg-gray-100 text-gray-700" },
+              { stage: "bid_preparation", label: "Bid Prep", color: "bg-blue-100 text-blue-700" },
+              { stage: "submitted", label: "Submitted", color: "bg-indigo-100 text-indigo-700" },
+              { stage: "awarded", label: "Won", color: "bg-green-100 text-green-700" },
+              { stage: "closed", label: "Lost", color: "bg-red-100 text-red-700" },
+            ].map(({ stage, label, color }) => {
+              const stageTenders = tenders.filter((t) => t.stage === stage);
+              const value = stageTenders.reduce((s, t) => s + (t.estimated_value || 0), 0);
+              return (
+                <div
+                  key={stage}
+                  onClick={() => router.push(`/tenders?stage=${stage}`)}
+                  className="cursor-pointer rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50"
+                >
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${color}`}>{label}</span>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">{stageTenders.length}</p>
+                  <p className="text-xs text-gray-500">{formatCurrency(value)}</p>
+                </div>
+              );
+            })}
+          </div>
+          {tenders.filter((t) => t.submission_deadline && !["won", "lost"].includes(t.status)).length > 0 && (
+            <div className="mt-4 border-t pt-4">
+              <h3 className="mb-2 text-sm font-semibold text-gray-700">Upcoming Deadlines</h3>
+              <div className="space-y-2">
+                {tenders
+                  .filter((t) => t.submission_deadline && !["won", "lost"].includes(t.status))
+                  .sort((a, b) => new Date(a.submission_deadline).getTime() - new Date(b.submission_deadline).getTime())
+                  .slice(0, 3)
+                  .map((t) => {
+                    const days = Math.ceil((new Date(t.submission_deadline).getTime() - Date.now()) / 86400000);
+                    const urgency = days <= 2 ? "text-red-600 bg-red-50 border-red-200" : days <= 7 ? "text-amber-600 bg-amber-50 border-amber-200" : "text-green-600 bg-green-50 border-green-200";
+                    return (
+                      <div
+                        key={t.id}
+                        onClick={() => router.push(`/tenders/${t.id}`)}
+                        className={`flex cursor-pointer items-center justify-between rounded-lg border p-2.5 transition-colors hover:opacity-80 ${urgency}`}
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{t.tender_number}: {t.title}</p>
+                          <p className="text-xs opacity-75">{t.client_name} &middot; {formatCurrency(t.estimated_value)}</p>
+                        </div>
+                        <span className="shrink-0 text-xs font-bold">
+                          {days <= 0 ? "OVERDUE" : `${days}d left`}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </Card>
       )}
 
       {/* Two-Column Grid: Schedule + Activity */}

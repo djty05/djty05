@@ -70,7 +70,29 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-type Tab = "jobs" | "quotes" | "invoices";
+interface Tender {
+  id: string;
+  tender_number: string;
+  title: string;
+  status: string;
+  stage: string;
+  estimated_value: number;
+  submission_deadline: string;
+  [key: string]: unknown;
+}
+
+interface FollowUp {
+  id: string;
+  title: string;
+  description: string;
+  due_date: string;
+  status: string;
+  priority: string;
+  entity_type: string;
+  [key: string]: unknown;
+}
+
+type Tab = "jobs" | "quotes" | "invoices" | "tenders" | "follow_ups";
 
 export default function ClientDetailPage() {
   const router = useRouter();
@@ -85,6 +107,8 @@ export default function ClientDetailPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [tenders, setTenders] = useState<Tender[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [tabLoading, setTabLoading] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -139,6 +163,18 @@ export default function ClientDetailPage() {
           if (res.ok) {
             const data = await res.json();
             setInvoices(data);
+          }
+        } else if (tab === "tenders") {
+          const res = await fetch(`/api/tenders?client_id=${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setTenders(Array.isArray(data) ? data : []);
+          }
+        } else if (tab === "follow_ups") {
+          const res = await fetch(`/api/follow-ups?entity_type=client&entity_id=${id}`);
+          if (res.ok) {
+            const data = await res.json();
+            setFollowUps(Array.isArray(data) ? data : []);
           }
         }
       } catch {
@@ -269,10 +305,50 @@ export default function ClientDetailPage() {
     },
   ];
 
+  const tenderColumns = [
+    { key: "tender_number", label: "Tender #" },
+    { key: "title", label: "Title" },
+    {
+      key: "stage",
+      label: "Stage",
+      render: (value: unknown) => <StatusBadge status={value as string} size="sm" />,
+    },
+    {
+      key: "estimated_value",
+      label: "Est. Value",
+      render: (value: unknown) => (
+        <span className="font-medium">{formatCurrency(value as number)}</span>
+      ),
+    },
+    {
+      key: "submission_deadline",
+      label: "Deadline",
+      render: (value: unknown) => formatDate(value as string),
+    },
+  ];
+
+  const followUpColumns = [
+    { key: "title", label: "Title" },
+    { key: "entity_type", label: "Related To" },
+    {
+      key: "status",
+      label: "Status",
+      render: (value: unknown) => <StatusBadge status={value as string} size="sm" />,
+    },
+    { key: "priority", label: "Priority" },
+    {
+      key: "due_date",
+      label: "Due Date",
+      render: (value: unknown) => formatDate(value as string),
+    },
+  ];
+
   const tabs: { key: Tab; label: string }[] = [
     { key: "jobs", label: "Jobs" },
     { key: "quotes", label: "Quotes" },
     { key: "invoices", label: "Invoices" },
+    { key: "tenders", label: "Tenders" },
+    { key: "follow_ups", label: "Follow-ups" },
   ];
 
   if (loading) {
@@ -440,13 +516,32 @@ export default function ClientDetailPage() {
                 onRowClick={(row) => router.push(`/quotes/${row.id}`)}
               />
             )
-          ) : invoices.length === 0 ? (
-            <EmptyState title="No invoices found" description="No invoices for this client yet." />
+          ) : activeTab === "invoices" ? (
+            invoices.length === 0 ? (
+              <EmptyState title="No invoices found" description="No invoices for this client yet." />
+            ) : (
+              <DataTable
+                columns={invoiceColumns}
+                data={invoices as unknown as Record<string, unknown>[]}
+                onRowClick={(row) => router.push(`/invoices/${row.id}`)}
+              />
+            )
+          ) : activeTab === "tenders" ? (
+            tenders.length === 0 ? (
+              <EmptyState title="No tenders found" description="No tenders for this client yet." />
+            ) : (
+              <DataTable
+                columns={tenderColumns}
+                data={tenders as unknown as Record<string, unknown>[]}
+                onRowClick={(row) => router.push(`/tenders/${row.id}`)}
+              />
+            )
+          ) : followUps.length === 0 ? (
+            <EmptyState title="No follow-ups" description="No follow-ups for this client yet." />
           ) : (
             <DataTable
-              columns={invoiceColumns}
-              data={invoices as unknown as Record<string, unknown>[]}
-              onRowClick={(row) => router.push(`/invoices/${row.id}`)}
+              columns={followUpColumns}
+              data={followUps as unknown as Record<string, unknown>[]}
             />
           )}
         </div>

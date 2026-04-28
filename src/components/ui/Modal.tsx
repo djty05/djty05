@@ -2,12 +2,25 @@
 
 import React, { useEffect } from "react";
 
+type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "4xl" | "full";
+
+const sizeClasses: Record<ModalSize, string> = {
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+  "4xl": "max-w-4xl",
+  full: "max-w-6xl",
+};
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: ModalSize;
 }
 
 export default function Modal({
@@ -16,6 +29,7 @@ export default function Modal({
   title,
   children,
   footer,
+  size = "lg",
 }: ModalProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -45,7 +59,7 @@ export default function Modal({
       />
 
       {/* Dialog */}
-      <div className="relative z-10 w-full max-w-lg transform rounded-xl bg-white shadow-xl transition-all duration-200 animate-in fade-in zoom-in-95 mx-4">
+      <div className={`relative z-10 w-full ${sizeClasses[size]} transform rounded-xl bg-white shadow-xl transition-all duration-200 animate-in fade-in zoom-in-95 mx-4`}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
@@ -71,7 +85,7 @@ export default function Modal({
         </div>
 
         {/* Body */}
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-4 overflow-y-auto max-h-[calc(100vh-12rem)]">{children}</div>
 
         {/* Footer */}
         {footer && (

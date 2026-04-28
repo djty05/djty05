@@ -24,6 +24,13 @@ const statusColorMap: Record<string, string> = {
   overdue: "bg-red-100 text-red-700",
   accepted: "bg-emerald-100 text-emerald-700",
   open: "bg-sky-100 text-sky-700",
+  prospect: "bg-gray-100 text-gray-700",
+  bid_preparation: "bg-blue-100 text-blue-700",
+  submitted: "bg-indigo-100 text-indigo-700",
+  under_review: "bg-amber-100 text-amber-700",
+  awarded: "bg-green-100 text-green-700",
+  won: "bg-green-100 text-green-700",
+  lost: "bg-red-100 text-red-700",
 };
 
 const sizeClasses: Record<StatusBadgeSize, string> = {
