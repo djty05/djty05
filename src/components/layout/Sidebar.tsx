@@ -165,6 +165,15 @@ const navItems: NavItem[] = [
       </svg>
     ),
   },
+  {
+    label: "Integrations",
+    href: "/integrations",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0">
+        <path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24" />
+      </svg>
+    ),
+  },
 ];
 
 interface SidebarProps {

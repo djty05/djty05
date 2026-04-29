@@ -433,6 +433,103 @@ function initializeDb(db: Database.Database) {
       ('alrt_5', 'usr_3', 'Site visit tomorrow - TND-001', 'Warehouse LED Lighting Retrofit site visit scheduled for April 30', 'info', 'tender', 'tnd_1', 0, '/tenders/tnd_1'),
       ('alrt_6', 'usr_1', 'Tender TND-001: 5 checklist items incomplete', 'Checklist items need completion before submission deadline', 'urgent', 'tender', 'tnd_1', 0, '/tenders/tnd_1');
 
+    CREATE TABLE IF NOT EXISTS integration_settings (
+      id TEXT PRIMARY KEY,
+      provider TEXT UNIQUE NOT NULL,
+      is_enabled INTEGER DEFAULT 0,
+      api_url TEXT,
+      api_key TEXT,
+      api_secret TEXT,
+      username TEXT,
+      password TEXT,
+      extra_config TEXT DEFAULT '{}',
+      last_sync TEXT,
+      sync_status TEXT DEFAULT 'never',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS integration_log (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      action TEXT NOT NULL,
+      status TEXT DEFAULT 'success',
+      details TEXT,
+      items_processed INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS imported_tenders (
+      id TEXT PRIMARY KEY,
+      external_id TEXT,
+      provider TEXT NOT NULL,
+      external_number TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      client_name TEXT,
+      client_email TEXT,
+      client_phone TEXT,
+      location TEXT,
+      state TEXT,
+      category TEXT,
+      trade TEXT,
+      estimated_value REAL,
+      closing_date TEXT,
+      site_visit_date TEXT,
+      documents_url TEXT,
+      source_url TEXT,
+      keywords_matched TEXT,
+      decision TEXT DEFAULT 'pending',
+      decision_reason TEXT,
+      decision_by TEXT REFERENCES users(id),
+      decision_date TEXT,
+      tender_id TEXT REFERENCES tenders(id),
+      is_archived INTEGER DEFAULT 0,
+      raw_data TEXT,
+      imported_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS morning_digest (
+      id TEXT PRIMARY KEY,
+      digest_date TEXT NOT NULL,
+      total_new INTEGER DEFAULT 0,
+      total_vic INTEGER DEFAULT 0,
+      total_electrical INTEGER DEFAULT 0,
+      pending_decisions INTEGER DEFAULT 0,
+      summary TEXT,
+      is_sent INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS simpro_sync (
+      id TEXT PRIMARY KEY,
+      entity_type TEXT NOT NULL,
+      local_id TEXT NOT NULL,
+      simpro_id TEXT NOT NULL,
+      last_sync TEXT DEFAULT (datetime('now')),
+      sync_direction TEXT DEFAULT 'both',
+      status TEXT DEFAULT 'synced'
+    );
+
+    -- Seed integration settings
+    INSERT OR IGNORE INTO integration_settings (id, provider, is_enabled, api_url, extra_config) VALUES
+      ('int_eo', 'estimateone', 0, 'https://app.estimateone.com/api/v1', '{"states":["VIC"],"trades":["Electrical"],"keywords":["electrical","switchboard","lighting","power","solar","data","fire","emergency","generator","ups","hvac controls","bms"],"auto_import":true}'),
+      ('int_simpro', 'simpro', 0, 'https://api.simpro.co', '{"company_id":"","sync_jobs":true,"sync_quotes":true,"sync_invoices":true,"sync_clients":true,"sync_interval_minutes":30}'),
+      ('int_gmail', 'gmail', 0, '', '{"scan_labels":["INBOX"],"keywords":["tender","RFQ","request for quote","invitation to tender","EOI","expression of interest","electrical tender"],"auto_import":true}');
+
+    -- Seed demo imported tenders (simulating EstimateOne imports)
+    INSERT OR IGNORE INTO imported_tenders (id, external_id, provider, external_number, title, description, client_name, location, state, category, trade, estimated_value, closing_date, keywords_matched, decision, source_url) VALUES
+      ('imp_1', 'eo_28451', 'estimateone', 'EO-28451', 'Melbourne Airport Terminal Upgrade - Electrical', 'Electrical services for Terminal 3 expansion including power distribution, lighting, emergency systems, and BMS integration', 'Melbourne Airport Authority', 'Tullamarine VIC', 'VIC', 'Commercial', 'Electrical', 450000, '2026-05-15', 'electrical,lighting,emergency,bms', 'pending', 'https://app.estimateone.com/tenders/28451'),
+      ('imp_2', 'eo_28467', 'estimateone', 'EO-28467', 'Crown Casino Level 5 Fitout - Electrical & Data', 'Complete electrical and data cabling fitout for new gaming floor expansion', 'Crown Resorts', 'Southbank VIC', 'VIC', 'Commercial', 'Electrical', 320000, '2026-05-08', 'electrical,data,lighting,power', 'pending', 'https://app.estimateone.com/tenders/28467'),
+      ('imp_3', 'eo_28472', 'estimateone', 'EO-28472', 'Geelong Hospital Emergency Power Upgrade', 'Standby generator replacement and ATS upgrade for critical care areas', 'Barwon Health', 'Geelong VIC', 'VIC', 'Healthcare', 'Electrical', 185000, '2026-05-12', 'electrical,generator,emergency,power', 'pending', 'https://app.estimateone.com/tenders/28472'),
+      ('imp_4', 'eo_28480', 'estimateone', 'EO-28480', 'Chadstone Shopping Centre Solar Installation', '500kW rooftop solar system with battery storage', 'Vicinity Centres', 'Chadstone VIC', 'VIC', 'Retail', 'Electrical', 680000, '2026-05-20', 'electrical,solar', 'quoted', 'https://app.estimateone.com/tenders/28480'),
+      ('imp_5', 'eo_28491', 'estimateone', 'EO-28491', 'Box Hill Institute - Switchboard Upgrade', 'Main switchboard and submain upgrades across 3 campus buildings', 'Box Hill Institute', 'Box Hill VIC', 'VIC', 'Education', 'Electrical', 95000, '2026-05-06', 'electrical,switchboard,power', 'pending', 'https://app.estimateone.com/tenders/28491'),
+      ('imp_6', 'eo_28503', 'estimateone', 'EO-28503', 'Docklands Residential Tower - Electrical Package', 'Full electrical services for 45-storey residential development', 'Lendlease', 'Docklands VIC', 'VIC', 'Residential', 'Electrical', 1200000, '2026-05-25', 'electrical,lighting,power,fire,emergency,data', 'pending', 'https://app.estimateone.com/tenders/28503');
+
+    -- Seed demo morning digest
+    INSERT OR IGNORE INTO morning_digest (id, digest_date, total_new, total_vic, total_electrical, pending_decisions, summary) VALUES
+      ('dig_1', '2026-04-29', 6, 6, 6, 5, 'Good morning! 6 new electrical tenders in VIC today. Highlights: Melbourne Airport Terminal ($450K, closes May 15), Docklands Residential Tower ($1.2M, closes May 25), Crown Casino Fitout ($320K, closes May 8). 5 tenders awaiting your quote/no-quote decision.');
+
     -- Seed demo data if empty
     INSERT OR IGNORE INTO users (id, email, name, role, phone, password_hash) VALUES
       ('usr_1', 'admin@fieldpro.com', 'Alex Johnson', 'admin', '555-0100', 'demo'),
