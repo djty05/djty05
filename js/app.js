@@ -387,7 +387,7 @@ function importCSV() {
         description: desc,
         price: parseFloat(price) || 0,
         wattage: parseFloat(watt) || 0,
-        pcbSize: 'C',
+        pcbSize: 'Cs',
         type: 'module',
         terminals: [],
       });
