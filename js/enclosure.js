@@ -46,7 +46,7 @@ function addEnclosureToProject(enclosureId, orderingCode = null) {
   selectedEnclosureIdx = currentProject.enclosures.length - 1;
 
   // Auto-place PSU PCB if ordering option includes one.
-  // PSU3 is pcbSize 'C' (105×94), PSU8 is pcbSize 'C2' (210×94) — match on the part's pcbSize.
+  // PSU3 is pcbSize 'Cs' (94×94), PSU8 is pcbSize 'B' (200×94) — match on the part's pcbSize.
   if (ordering && ordering.psuId) {
     const psuPart = getPartById(ordering.psuId);
     const variant = enclosure.variants[0];
